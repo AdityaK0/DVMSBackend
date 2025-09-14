@@ -1,0 +1,68 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.manifest
+*.spec
+
+# === Django ===
+*.log
+*.pot
+*.pyc
+db.sqlite3
+db.sqlite3-journal
+
+# User-uploaded files (keep out of Git)
+media/
+
+# Static files (collected with collectstatic)
+staticfiles/
+static/
+
+# === Environment & Secrets ===
+.env
+*.env
+.envrc
+venv/
+ENV/
+env/
+
+# === IDE / Editor ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === OS Junk ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Tests & Coverage ===
+.coverage
+.tox/
+nosetests.xml
+coverage.xml
+htmlcov/
+.pytest_cache/
+
+# === Jupyter ===
+.ipynb_checkpoints/
+
+# === Type checking / Linting ===
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pytype/
+
+# === Docker (optional generated stuff) ===
+*.pid
+*.log
+*.pid.lock
