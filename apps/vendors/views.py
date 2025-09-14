@@ -8,6 +8,13 @@ from shared.permissions import IsVendorOrReadOnly
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
+from apps.users.models import Address
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.exceptions import ValidationError
+
 
 
 class VendorListView(generics.ListAPIView):
@@ -24,27 +31,73 @@ class VendorDetailView(generics.RetrieveAPIView):
     serializer_class = VendorSerializer
     permission_classes = [permissions.AllowAny]
 
-class VendorCreateView(generics.CreateAPIView):
-    queryset = Vendor.objects.all()
-    serializer_class = VendorSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
-    def perform_create(self, serializer):
-        user = self.request.user
 
-        # Prevent customers from becoming vendors
-        if user.role == "customer":
-            raise ValidationError("You already have a customer account. Please create a new account for vendor access.")
-
-        # Prevent vendor from creating duplicate vendor profile
-        if hasattr(user, "vendor") and user.vendor is not None:
-            raise ValidationError("Vendor profile already exists for this user.")
-
-        # Only allow if role is vendor
-        if user.role != "vendor":
-            raise ValidationError("Only vendor accounts can create a vendor profile.")
-
-        serializer.save(user=user,is_onboarded=True)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_vendor(request):
+    user = request.user
+    
+    # Validation checks
+    if user.role == "customer":
+        return Response(
+            {"error": "You already have a customer account. Please create a new account for vendor access."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if hasattr(user, "vendor") and user.vendor is not None:
+        return Response(
+            {"error": "Vendor profile already exists for this user."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if user.role != "vendor":
+        return Response(
+            {"error": "Only vendor accounts can create a vendor profile."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        # Extract vendor data
+        vendor_data = {
+            'business_name': request.data.get('business_name'),
+            'business_type': request.data.get('business_type'),
+            'business_email': request.data.get('business_email'),
+            'business_description': request.data.get('business_description'),
+            'business_phone': request.data.get('business_phone'),
+            'website': request.data.get('website', ''),
+            'gstin': request.data.get('gstin', ''),
+            'user': user,
+            'is_onboarded': True
+        }
+        
+        # Create vendor
+        vendor = Vendor.objects.create(**vendor_data)
+        
+        # Extract and create address linked to user
+        address_data = {
+            'street_address': request.data.get('street'),  # Map 'street' to 'street_address'
+            'city': request.data.get('city'),
+            'state': request.data.get('state'),
+            'postal_code': request.data.get('zip_code'),  # Map 'zip_code' to 'postal_code'
+            'zip_code': request.data.get('zip_code'),     # Also keep zip_code field
+            'country': request.data.get('country'),
+            'user': user,  # Link to user, not vendor
+            'address_type': 'both',  # Default address type
+            'is_default': True  # First address is default
+        }
+        
+        address = Address.objects.create(**address_data)
+        
+        # Serialize response
+        serializer = VendorSerializer(vendor)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 @api_view(['GET', 'PUT', 'PATCH'])
 @permission_classes([IsVendorOrReadOnly])

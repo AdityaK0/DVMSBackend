@@ -40,6 +40,7 @@ class Address(models.Model):
     postal_code = models.CharField(max_length=20)
     country = models.CharField(max_length=100)
     is_default = models.BooleanField(default=False)
+    zip_code = models.CharField(max_length=100,null=True)
     address_type = models.CharField(max_length=20, choices=[
         ('shipping', 'Shipping'),
         ('billing', 'Billing'),
