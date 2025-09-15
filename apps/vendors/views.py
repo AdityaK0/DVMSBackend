@@ -3,12 +3,15 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import Vendor
 from rest_framework import generics, status, permissions
-from .serializers import VendorSerializer, VendorListSerializer
+from .serializers import VendorSerializer, VendorListSerializer,VendorUpdate
 from shared.permissions import IsVendorOrReadOnly
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from apps.users.models import Address
+from apps.users.serializers import AddressSerializer
+
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -98,17 +101,16 @@ def create_vendor(request):
             {"error": str(e)},
             status=status.HTTP_400_BAD_REQUEST
         )
-
 @api_view(['GET', 'PUT', 'PATCH'])
-@permission_classes([IsVendorOrReadOnly])
+@permission_classes([IsAuthenticated, IsVendorOrReadOnly])
 def vendor_profile(request, pk=None):
     """
-    Retrieve or update the vendor profile.
-    - If `id` is provided, update that vendor (admin/dashboard).
-    - Otherwise, update the profile of the logged-in user.
+    Single endpoint to retrieve or update vendor profile and address.
+    - GET: Returns full vendor profile with address
+    - PUT/PATCH: Updates any provided fields (all fields optional)
     """
     try:
-        if id is not None:
+        if pk is not None:
             vendor = Vendor.objects.get(id=pk)
         else:
             vendor = Vendor.objects.get(user=request.user)
@@ -119,14 +121,24 @@ def vendor_profile(request, pk=None):
         )
 
     if request.method == 'GET':
+        # Use full VendorSerializer for GET requests
         serializer = VendorSerializer(vendor)
         return Response(serializer.data)
 
     elif request.method in ['PUT', 'PATCH']:
-        partial = request.method == 'PATCH'
-        serializer = VendorSerializer(vendor, data=request.data, partial=partial)
-        print("Request DATA :: ",request.data)
+        # Both PUT and PATCH work the same way - update only provided fields
+        serializer = VendorUpdate(
+            vendor, 
+            data=request.data, 
+            partial=True,  # Always allow partial updates
+            context={'request': request}
+        )
+        
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
+            updated_vendor = serializer.save()
+            
+            # Return updated vendor data using full VendorSerializer
+            response_serializer = VendorSerializer(updated_vendor)
+            return Response(response_serializer.data)
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
