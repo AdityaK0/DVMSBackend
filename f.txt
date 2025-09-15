@@ -1,2 +1,7 @@
 custom msg to users as per their templates
 portfolio to showcase their products 
+
+Cloudnary can be used initially to avoid money loss :
+
+vendors/<vendor_id>/products/<product_id>/<uuid>.jpg
+  
