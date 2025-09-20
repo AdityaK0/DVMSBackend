@@ -40,29 +40,58 @@ class ProductSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Product with this SKU already exists.")
         
         return value
+    
+    
 
+# class ProductListSerializer(serializers.ModelSerializer):
+#     vendor_name = serializers.CharField(source='vendor.business_name', read_only=True)
+#     category_name = serializers.CharField(source='category.name', read_only=True)
+#     primary_image = serializers.SerializerMethodField()
+#     is_in_stock = serializers.ReadOnlyField()
+
+#     class Meta:
+#         model = Product
+#         fields = [
+#             'id', 'name', 'price', 'stock_quantity', 'vendor_name',
+#             'category_name', 'primary_image', 'is_in_stock', 'is_featured',
+#             'created_at'
+#         ]
+
+#     def get_primary_image(self, obj):
+#         primary_image = obj.images.filter(is_primary=True).first()
+#         if primary_image:
+#             request = self.context.get('request')
+#             if request:
+#                 return request.build_absolute_uri(primary_image.image.url)
+#             return primary_image.image.url
+#         return None
+    
 class ProductListSerializer(serializers.ModelSerializer):
     vendor_name = serializers.CharField(source='vendor.business_name', read_only=True)
-    category_name = serializers.CharField(source='category.name', read_only=True)
-    primary_image = serializers.SerializerMethodField()
+    images = serializers.SerializerMethodField()
     is_in_stock = serializers.ReadOnlyField()
 
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'price', 'stock_quantity', 'vendor_name',
-            'category_name', 'primary_image', 'is_in_stock', 'is_featured',
-            'created_at'
+            'images', 'is_in_stock', 'is_featured', 'created_at'
         ]
 
-    def get_primary_image(self, obj):
-        primary_image = obj.images.filter(is_primary=True).first()
-        if primary_image:
-            request = self.context.get('request')
+    def get_images(self, obj):
+        """Return up to 3 images (primary first if exists)"""
+        images_qs = obj.images.all().order_by('-is_primary')[:]
+        request = self.context.get('request')
+        images_list = []
+        for img in images_qs:
             if request:
-                return request.build_absolute_uri(primary_image.image.url)
-            return primary_image.image.url
-        return None
+                images_list.append(request.build_absolute_uri(img.image.url))
+            else:
+                images_list.append(img.image.url)
+        return images_list
+    
+    
+    
 
 # from rest_framework import serializers
 # from .models import Product, ProductImage, Category

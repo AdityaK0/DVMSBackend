@@ -49,7 +49,7 @@ class VendorUpdate(serializers.ModelSerializer):
     business_name = serializers.CharField(required=False)
     business_description = serializers.CharField(required=False)
     business_type = serializers.CharField(required=False)
-    website = serializers.URLField(required=False)
+    website = serializers.URLField(required=False, allow_blank=True, default="https://www.google.com")
     logo = serializers.ImageField(required=False)
     gstin = serializers.CharField(required=False)
     
@@ -107,6 +107,8 @@ class VendorUpdate(serializers.ModelSerializer):
                     address_data[field] = value
         
         # Update only the vendor fields that were provided
+        if 'website' not in validated_data or not validated_data['website']:
+            validated_data['website'] = "https://www.google.com"
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()

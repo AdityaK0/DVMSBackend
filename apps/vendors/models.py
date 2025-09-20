@@ -1,5 +1,7 @@
 from django.db import models
 from django.conf import settings
+from cloudinary.models import CloudinaryField
+
 
 class Vendor(models.Model):
     BUSSINES_TYPE = [
@@ -11,12 +13,13 @@ class Vendor(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,related_name="vendor")
     business_name = models.CharField(max_length=200)
     business_description = models.TextField(blank=True)
-    business_email = models.EmailField(unique=True)
+    business_email = models.EmailField(unique=True,null=True)
     business_type = models.CharField(max_length=25, choices=BUSSINES_TYPE, default='other')
     business_phone = models.CharField(max_length=20)
     gstin = models.CharField(max_length=20, blank=True)
-    website = models.URLField(blank=True)
-    logo = models.ImageField(upload_to='vendor_logos/', blank=True)
+    website = models.URLField(blank=True,null=True)
+    # logo = models.ImageField(upload_to='vendor_logos/', blank=True)
+    logo = CloudinaryField('image', folder='vendors', blank=True, null=True)
     is_onboarded = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_verified = models.BooleanField(default=False)

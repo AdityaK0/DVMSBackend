@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-env_path = BASE_DIR.parent / ".env"
+env_path = BASE_DIR / ".env"
 
 print("Looking for .env at:", env_path)
 load_dotenv(env_path) 
@@ -53,6 +53,8 @@ THIRD_PARTY_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'django_filters',
+    'cloudinary',
+    'cloudinary_storage',
 ]
 
 LOCAL_APPS = [
@@ -118,6 +120,20 @@ DATABASES = {
     }
 }
 
+# CLOUDINARY_STORAGE = {
+#     'CLOUDINARY_CLOUD_NAME': os.getenv("CLOUD_NAME"),
+#     'CLOUDINARY_API_KEY': os.getenv("API_KEY"),
+#     'CLOUDINARY_API_SECRET': os.getenv("API_SECRET"),
+# }
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.getenv("CLOUDINARY_CLOUD_NAME"),
+    'API_KEY': os.getenv("CLOUDINARY_API_KEY"),
+    'API_SECRET': os.getenv("CLOUDINARY_API_SECRET"),
+}
+
+
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

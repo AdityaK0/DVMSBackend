@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from apps.vendors.models import Vendor
+from cloudinary.models import CloudinaryField
 
 User = get_user_model()
 
@@ -18,10 +19,14 @@ class Category(models.Model):
         return self.name
 
 class Product(models.Model):
+    CATEGORIES = [
+        ("clothing","clothing"),("electronics","electonics"),
+        ("sports","sports")
+    ]
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='products')
     name = models.CharField(max_length=200)
     description = models.TextField()
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
+    category = models.CharField(choices=CATEGORIES,max_length=100)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     stock_quantity = models.IntegerField(default=0)
@@ -49,7 +54,9 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='product_images/')
+    # image = CloudinaryField('image', folder='products')  # handled by Cloudinary
+    image = CloudinaryField('image')
+    image_url = models.URLField(max_length=500, blank=True) 
     image_b64 = models.TextField(null=True)
     alt_text = models.CharField(max_length=200, blank=True)
     is_primary = models.BooleanField(default=False)

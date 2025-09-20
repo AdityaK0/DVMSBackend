@@ -10,7 +10,7 @@ from django.db.models import Q
 from .models import Product, Category, ProductImage
 from .serializers import ProductSerializer, ProductListSerializer, CategorySerializer
 import django_filters
-
+from ..utils.upload_image import upload_product_images
 
 # Product List with filters (Public)
 @api_view(['GET'])
@@ -82,7 +82,9 @@ def product_list(request):
 def product_detail(request, pk):
     """Get product details"""
     try:
-        product = Product.objects.get(pk=pk, is_active=True)
+        # product = Product.objects.get(pk=pk, is_active=True)
+        product = Product.objects.get(pk=pk)
+        
     except Product.DoesNotExist:
         return Response(
             {"detail": "Product not found"}, 
@@ -126,13 +128,15 @@ def create_product(request):
         
         # Handle multiple images
         uploaded_images = request.FILES.getlist('uploaded_images')
-        for i, image_file in enumerate(uploaded_images):
-            ProductImage.objects.create(
-                product=product,
-                image=image_file,
-                is_primary=(i == 0),  # First image is primary
-                alt_text=f"{product.name} image {i+1}"
-            )
+        if uploaded_images:
+            upload_product_images(product, uploaded_images)
+        # for i, image_file in enumerate(uploaded_images):
+        #     ProductImage.objects.create(
+        #         product=product,
+        #         image=image_file,
+        #         is_primary=(i == 0),  # First image is primary
+        #         alt_text=f"{product.name} image {i+1}"
+        #     )
         
         # Return created product
         response_serializer = ProductSerializer(product, context={'request': request})
@@ -227,19 +231,21 @@ def vendor_products(request):
         )
     
     vendor = request.user.vendor
-    products = Product.objects.filter(vendor=vendor).order_by('-created_at')
+    if not vendor:
+        vendor = request.user
+    products = Product.objects.filter(vendor=vendor,is_active=True).order_by('-created_at')
     
     # Optional filtering for vendor dashboard
-    is_active = request.GET.get('is_active')
-    if is_active is not None:
-        products = products.filter(is_active=is_active.lower() == 'true')
+    # is_active = request.GET.get('is_active')
+    # if is_active is not None:
+    #     products = products.filter(is_active=is_active.lower() == 'true')
     
-    search = request.GET.get('search')
-    if search:
-        products = products.filter(
-            Q(name__icontains=search) | 
-            Q(sku__icontains=search)
-        )
+    # search = request.GET.get('search')
+    # if search:
+    #     products = products.filter(
+    #         Q(name__icontains=search) | 
+    #         Q(sku__icontains=search)
+    #     )
     
     # Pagination
     page = request.GET.get('page', 1)
@@ -306,84 +312,106 @@ def category_list(request):
     serializer = CategorySerializer(categories, many=True)
     return Response(serializer.data)
 
-# from rest_framework import generics, permissions, status
-# from rest_framework.response import Response
-# from django_filters.rest_framework import DjangoFilterBackend
-# from rest_framework.filters import SearchFilter, OrderingFilter
-# from .models import Product, Category
-# from .serializers import ProductSerializer, ProductListSerializer, CategorySerializer
-# from shared.permissions import IsVendorOwnerOrReadOnly
-# import django_filters
 
-# class ProductFilter(django_filters.FilterSet):
-#     min_price = django_filters.NumberFilter(field_name="price", lookup_expr='gte')
-#     max_price = django_filters.NumberFilter(field_name="price", lookup_expr='lte')
-#     in_stock = django_filters.BooleanFilter(method='filter_in_stock')
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def search_products(request):
+    """Search products for the current vendor"""
+    if not hasattr(request.user, 'vendor'):
+        return Response(
+            {"error": "Only vendors can access this endpoint"},
+            status=status.HTTP_403_FORBIDDEN
+        )
 
-#     class Meta:
-#         model = Product
-#         fields = ['category', 'vendor', 'is_featured', 'is_active']
+    vendor = request.user.vendor
+    query = request.GET.get("q", "").strip()
 
-#     def filter_in_stock(self, queryset, name, value):
-#         if value:
-#             return queryset.filter(stock_quantity__gt=0)
-#         return queryset
+    products = Product.objects.filter(vendor=vendor)
 
-# class ProductListView(generics.ListAPIView):
-#     queryset = Product.objects.filter(is_active=True)
-#     serializer_class = ProductListSerializer
-#     permission_classes = [permissions.AllowAny]
-#     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-#     filterset_class = ProductFilter
-#     search_fields = ['name', 'description', 'sku']
-#     ordering_fields = ['name', 'price', 'created_at']
-#     ordering = ['-created_at']
+    if query:
+        products = products.filter(
+            Q(name__icontains=query) |
+            Q(description__icontains=query) |
+            Q(sku__icontains=query)
+        )
 
-# class ProductDetailView(generics.RetrieveAPIView):
-#     queryset = Product.objects.filter(is_active=True)
-#     serializer_class = ProductSerializer
-#     permission_classes = [permissions.AllowAny]
+    # Pagination
+    page = request.GET.get("page", 1)
+    page_size = request.GET.get("page_size", 10)
+    paginator = Paginator(products, page_size)
+    page_obj = paginator.get_page(page)
 
-# class ProductCreateView(generics.CreateAPIView):
-#     serializer_class = ProductSerializer
-#     permission_classes = [permissions.IsAuthenticated]
+    serializer = ProductListSerializer(
+        page_obj.object_list,
+        many=True,
+        context={'request': request}
+    )
+    return Response({
+        "results": serializer.data,
+        "count": paginator.count,
+        "total_pages": paginator.num_pages,
+        "current_page": int(page),
+        "has_next": page_obj.has_next(),
+        "has_previous": page_obj.has_previous(),
+    })
 
-#     def perform_create(self, serializer):
-#         vendor = self.request.user.vendor
-#         serializer.save(vendor=vendor)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def filter_products(request):
+    """Filter products for the current vendor"""
+    if not hasattr(request.user, 'vendor'):
+        return Response(
+            {"error": "Only vendors can access this endpoint"},
+            status=status.HTTP_403_FORBIDDEN
+        )
 
-# class ProductUpdateView(generics.UpdateAPIView):
-#     serializer_class = ProductSerializer
-#     permission_classes = [IsVendorOwnerOrReadOnly]
+    vendor = request.user.vendor
+    products = Product.objects.filter(vendor=vendor)
 
-#     def get_queryset(self):
-#         return Product.objects.filter(vendor__user=self.request.user)
+    # Get filters
+    is_active = request.GET.get("is_active")
+    category = request.GET.get("category") or None
+    min_price = request.GET.get("min_price") or None
+    max_price = request.GET.get("max_price") or None
+    # breakpoint()
+    # Apply filters
+    if is_active is not None:
+        products = products.filter(is_active=is_active.lower() == "true")
 
-# class ProductDeleteView(generics.DestroyAPIView):
-#     permission_classes = [IsVendorOwnerOrReadOnly]
+    if category:
+        products = products.filter(category__iexact=category)
 
-#     def get_queryset(self):
-#         return Product.objects.filter(vendor__user=self.request.user)
+    if min_price:
+        try:
+            min_price = float(min_price)
+            products = products.filter(price__gte=min_price)
+        except ValueError:
+            pass  # ignore invalid numbers
 
-#     def destroy(self, request, *args, **kwargs):
-#         instance = self.get_object()
-#         instance.is_active = False  # Soft delete
-#         instance.save()
-#         return Response(status=status.HTTP_204_NO_CONTENT)
+    if max_price:
+        try:
+            max_price = float(max_price)
+            products = products.filter(price__lte=max_price)
+        except ValueError:
+            pass
 
-# class CategoryListView(generics.ListAPIView):
-#     queryset = Category.objects.filter(is_active=True)
-#     serializer_class = CategorySerializer
-#     permission_classes = [permissions.AllowAny]
+    # Pagination
+    page = request.GET.get("page", 1)
+    page_size = request.GET.get("page_size", 10)
+    paginator = Paginator(products, page_size)
+    page_obj = paginator.get_page(page)
 
-# class VendorCatalogView(generics.ListAPIView):
-#     serializer_class = ProductListSerializer
-#     permission_classes = [permissions.AllowAny]
+    serializer = ProductListSerializer(
+        page_obj.object_list,
+        many=True,
+        context={'request': request}
+    )
 
-#     def get_queryset(self):
-#         vendor_id = self.kwargs['vendor_id']
-#         return Product.objects.filter(
-#             vendor_id=vendor_id, 
-#             is_active=True,
-#             stock_quantity__gt=0
-#         )
+    return Response({
+        "results": serializer.data,
+        "count": paginator.count,
+        "total_pages": paginator.num_pages,
+        "current_page": int(page),
+        "has_next": page_obj.has_next(),
+        "has_previous": page_obj.has_previous(),
+    })
