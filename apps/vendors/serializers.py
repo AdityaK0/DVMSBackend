@@ -8,18 +8,19 @@ class VendorSerializer(serializers.ModelSerializer):
     total_products = serializers.ReadOnlyField()
     average_rating = serializers.ReadOnlyField()
     address_details = serializers.SerializerMethodField()  # Custom method to get user's address
+    logo_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Vendor
         fields = [
             "id", "business_name", "business_description",
             "business_email", "business_type", "business_phone",
-            "gstin", "website", "logo",
+            "gstin", "website", "logo","logo_url",
             "is_active", "is_verified", 
             "total_products", "average_rating",
             "created_at", "updated_at", "is_onboarded", "address_details"
         ]
-        read_only_fields = ["user", "is_verified", "created_at", "updated_at"]
+        read_only_fields = ["user", "is_verified", "created_at", "updated_at","logo_url"]
     
     def get_address_details(self, obj):
         # Get user's default address or first address
@@ -29,6 +30,11 @@ class VendorSerializer(serializers.ModelSerializer):
         
         if address:
             return AddressSerializer(address).data
+        return None
+    
+    def get_logo_url(self, obj):
+        if obj.logo:
+            return obj.logo.url  # full Cloudinary URL
         return None
 
 

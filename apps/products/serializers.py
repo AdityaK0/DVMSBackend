@@ -8,9 +8,16 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ProductImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
     class Meta:
         model = ProductImage
-        fields = ['id', 'image', 'alt_text', 'is_primary']
+        fields = ['id', 'image','image_url','alt_text', 'is_primary']
+        
+    def get_image_url(self, obj):
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.image.url)
+        return obj.image.url   
 
 class ProductSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
@@ -40,6 +47,17 @@ class ProductSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Product with this SKU already exists.")
         
         return value
+    
+    def get_images(self, obj):
+        images_qs = obj.images.all().order_by('-is_primary')
+        request = self.context.get('request')
+        images_list = []
+        for img in images_qs:
+            if request:
+                images_list.append(request.build_absolute_uri(img.image.url))
+            else:
+                images_list.append(img.image.url)
+        return images_list
     
     
 
@@ -75,12 +93,12 @@ class ProductListSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'name', 'price', 'stock_quantity', 'vendor_name',
-            'images', 'is_in_stock', 'is_featured', 'created_at'
+            'images', 'is_in_stock', 'is_featured', 'created_at',"is_active"
         ]
 
     def get_images(self, obj):
         """Return up to 3 images (primary first if exists)"""
-        images_qs = obj.images.all().order_by('-is_primary')[:]
+        images_qs = obj.images.all().order_by('-is_primary')[:4]
         request = self.context.get('request')
         images_list = []
         for img in images_qs:

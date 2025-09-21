@@ -18,6 +18,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from apps.utils.upload_image import upload_vendor_logo
+from apps.utils.default_creation import create_default_categories_for_vendor
 
 
 
@@ -173,6 +174,7 @@ def create_vendor(request):
 
         # Serialize response
         serializer = VendorSerializer(vendor)
+        create_default_categories_for_vendor(vendor)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     except Exception as e:
@@ -222,3 +224,7 @@ def vendor_profile(request, pk=None):
             return Response(response_serializer.data)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+

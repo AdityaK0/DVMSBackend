@@ -18,7 +18,7 @@ from ..utils.upload_image import upload_product_images
 def product_list(request):
     """List all active products with filtering, search, and pagination"""
     
-    products = Product.objects.filter(is_active=True)
+    products = Product.objects.filter(is_active=True,is_archived=False)
     
     # Apply filters
     category = request.GET.get('category')
@@ -116,6 +116,16 @@ def create_product(request):
     # # OR
     data = request.POST.copy()
     data['vendor'] = vendor.id
+    # custom category integration
+    
+    category_id = data.get('category')
+    if not category_id:
+        return Response({"category": "This field is required."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        category = Category.objects.get(id=category_id, is_active=True)
+    except Category.DoesNotExist:
+        return Response({"category": "Invalid category selected."}, status=status.HTTP_400_BAD_REQUEST)
     
     print("Create Product Data:", data)
     print("Files:", request.FILES)
@@ -124,21 +134,13 @@ def create_product(request):
     serializer = ProductSerializer(data=data, context={'request': request})
     
     if serializer.is_valid():
-        product = serializer.save(vendor=vendor)
+        product = serializer.save(vendor=vendor,category=category)
         
         # Handle multiple images
         uploaded_images = request.FILES.getlist('uploaded_images')
         if uploaded_images:
             upload_product_images(product, uploaded_images)
-        # for i, image_file in enumerate(uploaded_images):
-        #     ProductImage.objects.create(
-        #         product=product,
-        #         image=image_file,
-        #         is_primary=(i == 0),  # First image is primary
-        #         alt_text=f"{product.name} image {i+1}"
-        #     )
-        
-        # Return created product
+
         response_serializer = ProductSerializer(product, context={'request': request})
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
     
@@ -196,6 +198,28 @@ def update_product(request, pk):
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsAuthenticated])
+# @parser_classes([MultiPartParser, FormParser])
+def activate_product(request, pk):
+    """Update a product"""
+    
+    try:
+        product = Product.objects.get(pk=pk, vendor__user=request.user)
+    except Product.DoesNotExist:
+        return Response(
+            {"detail": "Product not found or you don't have permission"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    product.is_active = True
+    product.save()
+    
+    return Response(
+            {"detail": "Product activated successfully"}, 
+            status=status.HTTP_200_OK
+            
+        )
+
 
 # Delete Product (Vendor only - soft delete)
 @api_view(['DELETE'])
@@ -212,7 +236,7 @@ def delete_product(request, pk):
         )
     
     # Soft delete
-    product.is_active = False
+    product.is_archived = True
     product.save()
     
     return Response(status=status.HTTP_204_NO_CONTENT)
@@ -233,7 +257,7 @@ def vendor_products(request):
     vendor = request.user.vendor
     if not vendor:
         vendor = request.user
-    products = Product.objects.filter(vendor=vendor,is_active=True).order_by('-created_at')
+    products = Product.objects.filter(vendor=vendor,is_active=True,is_archived=False).order_by('-created_at')
     
     # Optional filtering for vendor dashboard
     # is_active = request.GET.get('is_active')
@@ -248,8 +272,17 @@ def vendor_products(request):
     #     )
     
     # Pagination
-    page = request.GET.get('page', 1)
-    page_size = request.GET.get('page_size', 10)
+    # page = request.GET.get('page', 1)
+    
+    try:
+        page = int(request.GET.get('page', 1))
+    except (TypeError, ValueError):
+        page = 1
+        
+    try:
+        page_size = int(request.GET.get('page_size', 10))
+    except (TypeError, ValueError):
+        page_size = 10
     
     paginator = Paginator(products, page_size)
     page_obj = paginator.get_page(page)
@@ -312,6 +345,14 @@ def category_list(request):
     serializer = CategorySerializer(categories, many=True)
     return Response(serializer.data)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def vendor_categories(request):
+    vendor = request.user.vendor
+    categories = Category.objects.filter(is_active=True, vendor=vendor)  # if you make categories vendor-specific
+    data = [{"id": c.id, "name": c.name} for c in categories]
+    return Response(data)
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -366,7 +407,7 @@ def filter_products(request):
         )
 
     vendor = request.user.vendor
-    products = Product.objects.filter(vendor=vendor)
+    products = Product.objects.filter(vendor=vendor,is_archived=False)
 
     # Get filters
     is_active = request.GET.get("is_active")

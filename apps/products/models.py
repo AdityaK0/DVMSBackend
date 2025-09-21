@@ -6,17 +6,21 @@ from cloudinary.models import CloudinaryField
 User = get_user_model()
 
 class Category(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True)
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='categories', null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name_plural = 'Categories'
+        unique_together = ('name', 'vendor')  # vendor-specific names
 
     def __str__(self):
         return self.name
+
+
 
 class Product(models.Model):
     CATEGORIES = [
@@ -26,7 +30,14 @@ class Product(models.Model):
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='products')
     name = models.CharField(max_length=200)
     description = models.TextField()
-    category = models.CharField(choices=CATEGORIES,max_length=100)
+    # category = models.CharField(choices=CATEGORIES,max_length=100)
+    category = models.ForeignKey(
+        'Category',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='products'
+    )
     price = models.DecimalField(max_digits=10, decimal_places=2)
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     stock_quantity = models.IntegerField(default=0)
@@ -36,6 +47,7 @@ class Product(models.Model):
     dimensions = models.JSONField(default=dict, blank=True)  # {length, width, height}
     is_active = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False)
+    is_archived = models.BooleanField(default=False)
     meta_title = models.CharField(max_length=200, blank=True)
     meta_description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
