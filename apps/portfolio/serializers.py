@@ -1,0 +1,273 @@
+# apps/portfolio/serializers.py
+
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from .models import (
+    Portfolio, PortfolioSection, PortfolioCollection, 
+    PortfolioTestimonial, PortfolioContactInquiry, PortfolioTheme
+)
+from apps.vendors.models import Vendor
+from apps.products.models import Product, ProductImage
+
+User = get_user_model()
+
+
+class ProductImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductImage
+        fields = ['id', 'image_url', 'alt_text', 'is_primary']
+
+
+class PortfolioProductSerializer(serializers.ModelSerializer):
+    """Serializer for products in portfolio context"""
+    images = ProductImageSerializer(many=True, read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    
+    class Meta:
+        model = Product
+        fields = [
+            'id', 'name', 'description', 'price', 'stock_quantity',
+            'is_in_stock', 'is_low_stock', 'is_featured', 'sku',
+            'images', 'category_name', 'created_at'
+        ]
+
+
+class VendorBasicSerializer(serializers.ModelSerializer):
+    """Basic vendor info for portfolio"""
+    class Meta:
+        model = Vendor
+        fields = [
+            'id', 'business_name', 'business_description', 
+            'business_email', 'business_phone', 'website',
+            'logo', 'business_type', 'is_verified'
+        ]
+
+
+class PortfolioSectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PortfolioSection
+        fields = [
+            'id', 'title', 'content', 'section_type', 
+            'order', 'is_active'
+        ]
+
+
+class PortfolioCollectionSerializer(serializers.ModelSerializer):
+    products = PortfolioProductSerializer(many=True, read_only=True)
+    product_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False
+    )
+    product_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = PortfolioCollection
+        fields = [
+            'id', 'name', 'description', 'cover_image', 'slug',
+            'is_featured', 'is_active', 'order', 'products', 
+            'product_ids', 'product_count', 'created_at'
+        ]
+        read_only_fields = ['slug']
+    
+    def get_product_count(self, obj):
+        return obj.products.count()
+    
+    def create(self, validated_data):
+        product_ids = validated_data.pop('product_ids', [])
+        collection = PortfolioCollection.objects.create(**validated_data)
+        
+        if product_ids:
+            products = Product.objects.filter(
+                id__in=product_ids,
+                vendor=collection.portfolio.vendor
+            )
+            collection.products.set(products)
+        
+        return collection
+    
+    def update(self, instance, validated_data):
+        product_ids = validated_data.pop('product_ids', None)
+        
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        if product_ids is not None:
+            products = Product.objects.filter(
+                id__in=product_ids,
+                vendor=instance.portfolio.vendor
+            )
+            instance.products.set(products)
+        
+        return instance
+
+
+class PortfolioTestimonialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PortfolioTestimonial
+        fields = [
+            'id', 'customer_name', 'customer_image', 'customer_designation',
+            'company', 'testimonial_text', 'rating', 'is_featured',
+            'created_at'
+        ]
+
+
+class PortfolioContactInquirySerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    
+    class Meta:
+        model = PortfolioContactInquiry
+        fields = [
+            'id', 'name', 'email', 'phone', 'subject', 'message',
+            'product', 'product_name', 'status', 'created_at'
+        ]
+        read_only_fields = ['status']
+
+
+class PortfolioThemeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PortfolioTheme
+        fields = [
+            'id', 'name', 'description', 'preview_image',
+            'theme_config', 'is_premium'
+        ]
+
+
+class PortfolioSerializer(serializers.ModelSerializer):
+    """Full portfolio serializer for management"""
+    vendor = VendorBasicSerializer(read_only=True)
+    sections = PortfolioSectionSerializer(many=True, read_only=True)
+    collections = PortfolioCollectionSerializer(many=True, read_only=True)
+    testimonials = PortfolioTestimonialSerializer(many=True, read_only=True)
+    featured_products = PortfolioProductSerializer(source='get_featured_products', many=True, read_only=True)
+    
+    # Stats
+    total_products = serializers.SerializerMethodField()
+    total_collections = serializers.SerializerMethodField()
+    total_testimonials = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Portfolio
+        fields = [
+            'id', 'display_name', 'tagline', 'slug', 'about_us', 'our_story',
+            'mission', 'vision', 'logo', 'banner_image', 'gallery_images',
+            'theme_color', 'accent_color', 'background_color', 'text_color',
+            'font_family', 'layout_style', 'contact_email', 'contact_phone',
+            'whatsapp_number', 'address', 'facebook_url', 'instagram_url',
+            'twitter_url', 'linkedin_url', 'youtube_url', 'website_url',
+            'show_pricing', 'show_stock_status', 'show_contact_form',
+            'show_social_links', 'show_testimonials', 'show_gallery',
+            'is_public', 'custom_domain', 'custom_css', 'meta_title',
+            'meta_description', 'meta_keywords', 'view_count',
+            'created_at', 'updated_at', 'vendor', 'sections', 'collections',
+            'testimonials', 'featured_products', 'total_products',
+            'total_collections', 'total_testimonials'
+        ]
+        read_only_fields = ['slug', 'view_count', 'vendor']
+    
+    def get_total_products(self, obj):
+        return obj.get_all_products().count()
+    
+    def get_total_collections(self, obj):
+        return obj.collections.filter(is_active=True).count()
+    
+    def get_total_testimonials(self, obj):
+        return obj.testimonials.filter(is_approved=True).count()
+
+
+class PublicPortfolioSerializer(serializers.ModelSerializer):
+    """Public portfolio view - optimized for frontend"""
+    vendor = VendorBasicSerializer(read_only=True)
+    featured_products = PortfolioProductSerializer(source='get_featured_products', many=True, read_only=True)
+    featured_collections = serializers.SerializerMethodField()
+    featured_testimonials = serializers.SerializerMethodField()
+    
+    # Analytics
+    stats = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Portfolio
+        fields = [
+            'id', 'display_name', 'tagline', 'slug', 'about_us', 'our_story',
+            'logo', 'banner_image', 'gallery_images', 'theme_color',
+            'accent_color', 'background_color', 'text_color', 'font_family',
+            'layout_style', 'contact_email', 'contact_phone', 'whatsapp_number',
+            'address', 'facebook_url', 'instagram_url', 'twitter_url',
+            'linkedin_url', 'youtube_url', 'website_url', 'show_pricing',
+            'show_stock_status', 'show_contact_form', 'show_social_links',
+            'show_testimonials', 'show_gallery', 'meta_title', 'meta_description',
+            'vendor', 'featured_products', 'featured_collections',
+            'featured_testimonials', 'stats', 'created_at'
+        ]
+    
+    def get_featured_collections(self, obj):
+        collections = obj.collections.filter(is_featured=True, is_active=True)[:6]
+        return PortfolioCollectionSerializer(collections, many=True).data
+    
+    def get_featured_testimonials(self, obj):
+        testimonials = obj.testimonials.filter(is_featured=True, is_approved=True)[:6]
+        return PortfolioTestimonialSerializer(testimonials, many=True).data
+    
+    def get_stats(self, obj):
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # Calculate some basic stats
+        total_products = obj.get_all_products().count()
+        years_in_business = (timezone.now().date() - obj.vendor.created_at.date()).days // 365
+        
+        return {
+            'total_products': total_products,
+            'years_in_business': max(years_in_business, 1),
+            'happy_customers': obj.testimonials.filter(is_approved=True).count() * 10,  # Mock multiplier
+            'portfolio_views': obj.view_count,
+            'featured_products': obj.get_featured_products().count(),
+            'collections': obj.collections.filter(is_active=True).count(),
+        }
+
+
+class PortfolioCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating new portfolio"""
+    class Meta:
+        model = Portfolio
+        fields = [
+            'display_name', 'tagline', 'about_us', 'theme_color',
+            'layout_style', 'contact_email', 'contact_phone',
+            'is_public'
+        ]
+    
+    def create(self, validated_data):
+        # Get vendor from request user
+        request = self.context.get('request')
+        if request and hasattr(request.user, 'vendor'):
+            validated_data['vendor'] = request.user.vendor
+        return super().create(validated_data)
+
+
+class PortfolioUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating portfolio"""
+    class Meta:
+        model = Portfolio
+        fields = [
+            'display_name', 'tagline', 'about_us', 'our_story',
+            'mission', 'vision', 'logo', 'banner_image', 'gallery_images',
+            'theme_color', 'accent_color', 'background_color', 'text_color',
+            'font_family', 'layout_style', 'contact_email', 'contact_phone',
+            'whatsapp_number', 'address', 'facebook_url', 'instagram_url',
+            'twitter_url', 'linkedin_url', 'youtube_url', 'website_url',
+            'show_pricing', 'show_stock_status', 'show_contact_form',
+            'show_social_links', 'show_testimonials', 'show_gallery',
+            'is_public', 'custom_css', 'meta_title', 'meta_description',
+            'meta_keywords'
+        ]
+
+
+# Analytics Serializer
+class PortfolioAnalyticsSerializer(serializers.Serializer):
+    """Custom serializer for portfolio analytics data"""
+    overview = serializers.DictField()
+    monthly_stats = serializers.ListField()
+    popular_products = serializers.ListField()
+    traffic_sources = serializers.DictField()
+    recent_inquiries = serializers.ListField()
