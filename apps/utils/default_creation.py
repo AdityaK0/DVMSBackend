@@ -1,7 +1,7 @@
 from apps.products.models import Category
 
 BUSINESS_TYPE_CATEGORIES = {
-    'clothing': ["T-Shirts", "Jeans", "Jackets", "Shoes"],
+    'clothing': ["Shirts","T-Shirts", "Jeans", "Jackets"],
     'electronics': ["Mobile Phones", "Laptops", "Cameras", "Accessories"],
     'furniture': ["Sofas", "Beds", "Tables", "Chairs"],
     'other': []

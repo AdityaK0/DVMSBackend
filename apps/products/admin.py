@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Product, ProductImage, Vendor
+from .models import Product, ProductImage, Vendor,Category
 
 
 class ProductImageInline(admin.TabularInline):
@@ -39,6 +39,10 @@ class ProductImageAdmin(admin.ModelAdmin):
         return "-"
     image_preview.short_description = "Preview"
 
+
+@admin.register(Category)
+class ProductsCategory(admin.ModelAdmin):
+    pass
 
 
 # from django.contrib import admin

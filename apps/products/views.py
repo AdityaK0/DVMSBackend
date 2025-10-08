@@ -345,14 +345,6 @@ def category_list(request):
     serializer = CategorySerializer(categories, many=True)
     return Response(serializer.data)
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def vendor_categories(request):
-    vendor = request.user.vendor
-    categories = Category.objects.filter(is_active=True, vendor=vendor)  # if you make categories vendor-specific
-    data = [{"id": c.id, "name": c.name} for c in categories]
-    return Response(data)
-
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -456,3 +448,53 @@ def filter_products(request):
         "has_next": page_obj.has_next(),
         "has_previous": page_obj.has_previous(),
     })
+
+
+
+
+@api_view(['GET','POST'])
+@permission_classes([IsAuthenticated])
+def vendor_categories(request):
+    if request.method == "GET":
+        vendor = request.user.vendor
+        categories = Category.objects.filter(is_active=True, vendor=vendor)
+        data = [{"id": c.id, "name": c.name, "is_default": c.is_default} for c in categories]
+        return Response(data)
+    elif request.method == "POST": 
+        vendor = request.user.vendor
+        name = request.data.get('name')
+        description = request.data.get('description')
+        
+        if not name or not description:
+            return Response({'error': 'Name and Description is required'}, status=400)
+        
+        category = Category.objects.create(
+            name=name,
+            vendor=vendor,
+            description=description,
+            is_default=False
+        )
+        return Response({'id': category.id, 'name': category.name,'description':category.description})
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_category(request, pk):
+    try:
+        category = Category.objects.get(pk=pk, vendor=request.user.vendor)
+        category.name = request.data.get('name', category.name)
+        category.save()
+        return Response({'id': category.id, 'name': category.name})
+    except Category.DoesNotExist:
+        return Response({'error': 'Not found'}, status=404)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_category(request, pk):
+    try:
+        category = Category.objects.get(pk=pk, vendor=request.user.vendor)
+        if category.is_default:
+            return Response({'error': 'Cannot delete default category'}, status=status.HTTP_400_BAD_REQUEST)
+        category.delete()
+        return Response({'detail': 'Product deleted successfully'},status=status.HTTP_200_OK)
+    except Category.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
