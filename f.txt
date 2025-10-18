@@ -1,17 +1,22 @@
-custom msg to users as per their templates
-portfolio to showcase their products 
 
 
+Custom Messaging and Portfolio Showcase
+
+Each user can receive personalized messages based on their templates. Additionally, vendors should have a dedicated **portfolio** section to showcase their products effectively.
+
+---
+
+Cost Optimization**
+
+To minimize initial infrastructure costs, **Cloudinary** can be used as the cloud storage solution. It allows efficient media management without upfront storage expenses.
 
 
+Service Improvement and User Experience
 
-Cloudnary can be used initially to avoid money loss :
-dqdhkwavb - CLOUD NAME
-Dba36oM84IMHOUFemq8vpgv5JbQ - API SECRET
-972464272847519 - API KEY
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-vendors/<vendor_id>/products/<product_id>/<uuid>.jpg
-  
-Implementation :
-while updating the product we dont have option to update the product image like 
-selecting new image and upload
+1. Product Update Enhancement:**
+   Currently, when updating a product, there is no option to upload or replace the existing product image. This feature should be added so vendors can easily update images as part of the product update process.
+
+2. During Product Creation
+   When adding new products, a toast notification should confirm API activity. This helps prevent confusion when the request is successful but no immediate UI change is visible.
+   Example: A short success or error toast can indicate whether the product was created successfully or if a required field is missing.
+
