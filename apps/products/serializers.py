@@ -59,30 +59,8 @@ class ProductSerializer(serializers.ModelSerializer):
                 images_list.append(img.image.url)
         return images_list
     
+
     
-
-# class ProductListSerializer(serializers.ModelSerializer):
-#     vendor_name = serializers.CharField(source='vendor.business_name', read_only=True)
-#     category_name = serializers.CharField(source='category.name', read_only=True)
-#     primary_image = serializers.SerializerMethodField()
-#     is_in_stock = serializers.ReadOnlyField()
-
-#     class Meta:
-#         model = Product
-#         fields = [
-#             'id', 'name', 'price', 'stock_quantity', 'vendor_name',
-#             'category_name', 'primary_image', 'is_in_stock', 'is_featured',
-#             'created_at'
-#         ]
-
-#     def get_primary_image(self, obj):
-#         primary_image = obj.images.filter(is_primary=True).first()
-#         if primary_image:
-#             request = self.context.get('request')
-#             if request:
-#                 return request.build_absolute_uri(primary_image.image.url)
-#             return primary_image.image.url
-#         return None
     
 class ProductListSerializer(serializers.ModelSerializer):
     vendor_name = serializers.CharField(source='vendor.business_name', read_only=True)
@@ -93,20 +71,52 @@ class ProductListSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'name', 'price', 'stock_quantity', 'vendor_name',
-            'images', 'is_in_stock', 'is_featured', 'created_at',"is_active"
+            'images', 'is_in_stock', 'is_featured', 'created_at', "is_active"
         ]
 
     def get_images(self, obj):
-        """Return up to 3 images (primary first if exists)"""
-        images_qs = obj.images.all().order_by('-is_primary')[:4]
+        """
+        Return up to 4 images, primary first.
+        Uses prefetched 'images' queryset to avoid extra queries.
+        """
+        images_qs = getattr(obj, 'images_prefetched', None)
+        if images_qs is None:
+            # fallback if prefetch didn't happen
+            images_qs = obj.images.all()
+        # sort in Python to avoid DB query
+        sorted_images = sorted(images_qs, key=lambda i: not i.is_primary)[:4]
+
         request = self.context.get('request')
-        images_list = []
-        for img in images_qs:
-            if request:
-                images_list.append(request.build_absolute_uri(img.image.url))
-            else:
-                images_list.append(img.image.url)
-        return images_list
+        return [
+            request.build_absolute_uri(img.image.url) if request else img.image.url
+            for img in sorted_images
+        ]
+
+
+# class ProductListSerializer(serializers.ModelSerializer):
+#     vendor_name = serializers.CharField(source='vendor.business_name', read_only=True)
+#     images = serializers.SerializerMethodField()
+#     is_in_stock = serializers.ReadOnlyField()
+
+#     class Meta:
+#         model = Product
+#         fields = [
+#             'id', 'name', 'price', 'stock_quantity', 'vendor_name',
+#             'images', 'is_in_stock', 'is_featured', 'created_at',"is_active"
+#         ]
+  
+#     def get_images(self, obj):
+#         """Return up to 3 images (primary first if exists)"""
+#         images_qs = obj.images.all().order_by('-is_primary')[:4]
+#         request = self.context.get('request')
+#         images_list = []
+#         for img in images_qs:
+#             if request:
+#                 images_list.append(request.build_absolute_uri(img.image.url))
+#             else:
+#                 images_list.append(img.image.url)
+                
+#         return images_list
     
     
     

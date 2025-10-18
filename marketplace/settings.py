@@ -55,6 +55,7 @@ THIRD_PARTY_APPS = [
     'django_filters',
     'cloudinary',
     'cloudinary_storage',
+    'debug_toolbar'
 ]
 
 LOCAL_APPS = [
@@ -77,7 +78,12 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
+    'debug_toolbar.middleware.DebugToolbarMiddleware',  # <- must be separate
+    'corsheaders.middleware.CorsMiddleware',  
 ]
+
+INTERNAL_IPS = ['127.0.0.1']
 
 ROOT_URLCONF = 'marketplace.urls'
 

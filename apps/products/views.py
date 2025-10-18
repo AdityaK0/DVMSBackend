@@ -6,11 +6,12 @@ from rest_framework import status
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q,Prefetch
 from .models import Product, Category, ProductImage
 from .serializers import ProductSerializer, ProductListSerializer, CategorySerializer
-import django_filters
 from ..utils.upload_image import upload_product_images
+from apps.dashboard.service import get_product_stats_cached
+from django.db import connection
 
 # Product List with filters (Public)
 @api_view(['GET'])
@@ -257,22 +258,32 @@ def vendor_products(request):
     vendor = request.user.vendor
     if not vendor:
         vendor = request.user
-    products = Product.objects.filter(vendor=vendor,is_active=True,is_archived=False).order_by('-created_at')
+    # products = Product.objects.filter(vendor=vendor,is_active=True,is_archived=False).order_by('-created_at')
+    # print(connection.queries , "ALL PRODUCT QUERRY >>>>>> ")
+    # products = Product.objects.filter(
+    #     vendor=vendor,
+    #     is_active=True,
+    #     is_archived=False
+    # ).select_related('vendor', 'category') \
+    #  .prefetch_related('images') \
+    #  .order_by('-created_at')
+     
+     
+    products = Product.objects.filter(
+        vendor=vendor,
+        is_active=True,
+        is_archived=False
+    ).select_related('vendor', 'category') \
+    .prefetch_related(
+        Prefetch(
+            'images',
+            queryset=ProductImage.objects.all(),
+            to_attr='images_prefetched'  # store in a custom attribute
+        )
+    ) \
+    .order_by('-created_at')
     
-    # Optional filtering for vendor dashboard
-    # is_active = request.GET.get('is_active')
-    # if is_active is not None:
-    #     products = products.filter(is_active=is_active.lower() == 'true')
     
-    # search = request.GET.get('search')
-    # if search:
-    #     products = products.filter(
-    #         Q(name__icontains=search) | 
-    #         Q(sku__icontains=search)
-    #     )
-    
-    # Pagination
-    # page = request.GET.get('page', 1)
     
     try:
         page = int(request.GET.get('page', 1))
@@ -292,10 +303,13 @@ def vendor_products(request):
         many=True, 
         context={'request': request}
     )
+    # paginator_count  = paginator.count
+    product_stats = get_product_stats_cached(vendor)
+    paginator_count = product_stats.get("total_active_products")
     
     return Response({
         'results': serializer.data,
-        'count': paginator.count,
+        'count': paginator_count,
         'total_pages': paginator.num_pages,
         'current_page': int(page),
         'has_next': page_obj.has_next(),

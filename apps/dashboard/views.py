@@ -17,6 +17,7 @@ from .serializers import (
     CustomerMessageSerializer
 )
 from .service import *
+from apps.dashboard.service import get_customer_stats_cached
 
 def calculate_percentage_change(current, previous):
     """Calculate percentage change between current and previous values"""
@@ -474,9 +475,16 @@ def get_customers(request):
         many=True,
         context={'request': request}
     )
-
-    total_count = customers.count()
-    active_customers = customers.filter(is_active=True).count()
+    
+    
+    customer_stats = get_customer_stats_cached(vendor)
+    total_count = customer_stats.get("total_customers")
+    active_customers = customer_stats.get("total_active_customers")
+    
+    # -- below i commented cause this was scanning whole table to get count so took the counts from cache 
+    
+    # total_count = customers.count() 
+    # active_customers = customers.filter(is_active=True).count()
 
     return Response({
         'results': serializer.data,
