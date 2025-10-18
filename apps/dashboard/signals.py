@@ -1,7 +1,25 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save,post_delete
 from django.dispatch import receiver
 from apps.products.models import Product
-from .models import ActivityLog
+from .models import Customer, Event, CustomerMessage,ActivityLog
+from apps.core.events import  CustomerCacheUpdateEvent, ActivityCacheUpdateEvent
+from apps.core.dispatcher import handle_event
+
+
+
+@receiver([post_save, post_delete], sender=Customer)
+def customer_change_handler(sender, instance, **kwargs):
+    handle_event(CustomerCacheUpdateEvent(vendor_id=instance.vendor_id))
+
+
+# currently event service is in the progress OK
+
+# @receiver([post_save, post_delete], sender=Event)
+# @receiver([post_save, post_delete], sender=CustomerMessage)
+# def activity_change_handler(sender, instance, **kwargs):
+#     handle_event(ActivityCacheUpdateEvent(vendor_id=instance.vendor_id))
+
+
 
 
 @receiver(post_save, sender=Product)

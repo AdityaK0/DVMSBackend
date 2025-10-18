@@ -27,4 +27,13 @@ urlpatterns = [
     
     # Messages
     path('messages/send/', views.send_message, name='send-message'),
+    
+    
+    # Dashboard Stats 
+    path('products-stats/', views.product_stats, name='dashboard-products-stats'),
+    path('customers-stats/', views.customer_stats, name='dashboard-customers-stats'),
+    path('recent-activities/', views.recent_activities, name='dashboard-recent-activities'),
+    
+    # Optional unified summary API
+    path('summary/', views.dashboard_summary, name='dashboard-summary'),
 ]

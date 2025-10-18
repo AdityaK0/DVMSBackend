@@ -6,7 +6,7 @@ from django.db.models import Count
 from django.utils import timezone
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
-
+from django.core.cache import cache
 from apps.products.models import Product
 from .models import Event, CustomerMessage, Customer, ActivityLog
 from .serializers import (
@@ -16,7 +16,7 @@ from .serializers import (
     CustomerSerializer,
     CustomerMessageSerializer
 )
-
+from .service import *
 
 def calculate_percentage_change(current, previous):
     """Calculate percentage change between current and previous values"""
@@ -518,60 +518,44 @@ def delete_activity(request, activity_id):
             {'error': 'Activity not found'},
             status=status.HTTP_404_NOT_FOUND
         )
+        
+        
+ 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def product_stats(request):
+    vendor = getattr(request.user, 'vendor', None)
+    if not vendor:
+        return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
+
+    return Response({'product_stats': get_product_stats(vendor)})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def customer_stats(request):
+    vendor = getattr(request.user, 'vendor', None)
+    if not vendor:
+        return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
+        
+    return Response({'customer_stats': get_customer_stats(vendor)})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def recent_activities(request):
+    vendor = getattr(request.user, 'vendor', None)
+    if not vendor:
+        return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
+        
+    return Response(get_activity_data(vendor))
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def dashboard_summary(request):
-    """
-    Get a comprehensive dashboard summary combining stats and recent activity
-    
-    Returns combined data for easier frontend integration
-    """
-    try:
-        vendor = request.user.vendor
-    except AttributeError:
-        return Response(
-            {'error': 'User is not associated with a vendor'},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    # Get stats
-    now = timezone.now()
-    last_month = now - relativedelta(months=1)
-    current_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    total_products = Product.objects.filter(
-        vendor=vendor, is_active=True, is_archived=False
-    ).count()
-    
-    products_last_month = Product.objects.filter(
-        vendor=vendor, is_active=True, is_archived=False, created_at__lte=last_month
-    ).count()
-
-    active_customers = Customer.objects.filter(vendor=vendor, is_active=True).count()
-    events_this_month = Event.objects.filter(
-        vendor=vendor, created_at__gte=current_month_start, is_active=True
-    ).count()
-    messages_sent = CustomerMessage.objects.filter(vendor=vendor).count()
-
-    # Get recent activities
-    activities = ActivityLog.objects.filter(vendor=vendor)[:5]
-    activities_data = ActivityLogSerializer(activities, many=True).data
-
-    summary = {
-        'stats': {
-            'total_products': total_products,
-            'products_change': calculate_percentage_change(total_products, products_last_month),
-            'active_customers': active_customers,
-            'events_this_month': events_this_month,
-            'messages_sent': messages_sent,
-        },
-        'recent_activities': activities_data,
-        'vendor_info': {
-            'business_name': vendor.business_name,
-            'is_verified': vendor.is_verified,
-        }
-    }
-
-    return Response(summary, status=status.HTTP_200_OK)
+    vendor = getattr(request.user, 'vendor', None)
+    if not vendor:
+        return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
+        
+    return Response(get_dashboard_summary(vendor))
