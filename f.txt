@@ -1,7 +1,17 @@
 custom msg to users as per their templates
 portfolio to showcase their products 
 
-Cloudnary can be used initially to avoid money loss :
 
+
+
+
+Cloudnary can be used initially to avoid money loss :
+dqdhkwavb - CLOUD NAME
+Dba36oM84IMHOUFemq8vpgv5JbQ - API SECRET
+972464272847519 - API KEY
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 vendors/<vendor_id>/products/<product_id>/<uuid>.jpg
   
+Implementation :
+while updating the product we dont have option to update the product image like 
+selecting new image and upload
