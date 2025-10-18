@@ -13,10 +13,65 @@ To minimize initial infrastructure costs, **Cloudinary** can be used as the clou
 
 Service Improvement and User Experience
 
+
+-- API Fails
+
+Try Again Product fails 
+
 1. Product Update Enhancement:**
    Currently, when updating a product, there is no option to upload or replace the existing product image. This feature should be added so vendors can easily update images as part of the product update process.
+
+   
 
 2. During Product Creation
    When adding new products, a toast notification should confirm API activity. This helps prevent confusion when the request is successful but no immediate UI change is visible.
    Example: A short success or error toast can indicate whether the product was created successfully or if a required field is missing.
 
+
+
+3. Dashboard api :
+   customer all details total count , total active count and many more
+   products all details as above 
+   all will be in one api or separate if separate then may be can be used 
+   any where and whenever the product or customer will updated will also update the 
+   Dashboard api cache value in this way may be this will be efficient
+   
+   if i create separate api then may be can be used in customer table also and  same for products
+
+
+   Got to know :
+
+   when we add foreign key to a column then
+   one more column is already get added by
+   django that field_name + _ id 
+
+   which is like if vendor added as foreign key
+   into Product with column vendor the
+   extra field is also get added by django 
+   into Produc which is vendor_id
+
+
+4. Need to Save API Calls
+- like even when i dont change any input or anything and click on save changes still calls the api
+- need to implement rate limiting 
+- this nigga Activity Logs takes a lot of time need to think other solution for activity logs
+
+
+
+5 . backup implement at serious condition or something need to have backup at 
+once in a 3/7 days
+
+
+
+
+
+
+
+
+So yes — Django always adds <foreignkey_field_name>_id for you automatically.
+You can even use it in filters:
+
+Product.objects.filter(vendor_id=1)
+     OR 
+Product.objects.filter(vendor__id=1)
+(both work, but the first one is slightly more direct and efficient).
