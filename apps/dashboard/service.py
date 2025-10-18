@@ -64,8 +64,9 @@ def get_dashboard_summary(vendor):
         "products": cache.get_or_set(f"vendor:{vendor.id}:products", lambda: get_product_stats(vendor), 300),
         "customers": cache.get_or_set(f"vendor:{vendor.id}:customers", lambda: get_customer_stats(vendor), 300),
         # "activity": cache.get_or_set(f"vendor:{vendor.id}:activity", lambda: get_activity_data(vendor), 300),
-        "vendor_info": {
-            "business_name": vendor.business_name,
-            "is_verified": vendor.is_verified,
-        }
+        # "vendor_info": {
+        #     "business_name": vendor.business_name,
+        #     "is_verified": vendor.is_verified,
+        # }
     }
+

@@ -528,7 +528,7 @@ def product_stats(request):
     if not vendor:
         return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
 
-    return Response({'product_stats': get_product_stats(vendor)})
+    return Response({'product_stats': get_product_stats_cached(vendor)})
 
 
 @api_view(['GET'])
@@ -538,7 +538,7 @@ def customer_stats(request):
     if not vendor:
         return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
         
-    return Response({'customer_stats': get_customer_stats(vendor)})
+    return Response({'customer_stats': get_customer_stats_cached(vendor)})
 
 
 @api_view(['GET'])
@@ -559,3 +559,6 @@ def dashboard_summary(request):
         return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
         
     return Response(get_dashboard_summary(vendor))
+
+
+

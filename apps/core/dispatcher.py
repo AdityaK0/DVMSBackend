@@ -1,7 +1,6 @@
-# core/dispatcher.py
 from django.core.cache import cache
-
-from apps.vendors.models import Vendor
+from apps.products.models import Product
+from apps.dashboard.models import Customer
 from .events import (
     ProductCacheUpdateEvent,
     CustomerCacheUpdateEvent,
@@ -9,41 +8,94 @@ from .events import (
 )
 
 
+def handle_event_sync(event):
+    """Process cache updates synchronously."""
 
-def handle_event(event):
-    """
-    Dispatch cache update based on event type.
-    If cache server is down, just skip caching and rely on DB fallback.
-    """
-    vendor = Vendor.objects.get(id=event.vendor_id)
-    
-    try:
-        from apps.dashboard.service import (
-            get_product_stats,
-            get_customer_stats,
-            get_activity_data,
-        )
-    except ImportError:
-        # dashboard might not be loaded yet
-        return
-
-
+    # ---------- PRODUCT ----------
     if isinstance(event, ProductCacheUpdateEvent):
-        
         try:
-            cache.set(f"vendor:{vendor.id}:products", get_product_stats(vendor), timeout=300)
-        except Exception:
-            pass  # cache server might be down, DB fallback still works
+            key = f"vendor:{event.vendor_id}:products"
+            counts = cache.get(key, {
+                "total_products": 0,
+                "total_active_products": 0,
+                "total_inactive_products": 0
+            })
 
+            action = event.action
+            instance = event.instance
+
+            if action == "CREATED":
+                counts["total_products"] += 1
+                if instance.is_active:
+                    counts["total_active_products"] += 1
+                else:
+                    counts["total_inactive_products"] += 1
+
+            elif action == "UPDATED":
+                if instance.is_active:
+                    counts["total_active_products"] += 1
+                    counts["total_inactive_products"] -= 1
+                else:
+                    counts["total_active_products"] -= 1
+                    counts["total_inactive_products"] += 1
+
+            elif action == "DELETED":
+                counts["total_products"] -= 1
+                if instance.is_active:
+                    counts["total_active_products"] -= 1
+                else:
+                    counts["total_inactive_products"] -= 1
+
+            cache.set(key, counts, timeout=300)
+
+        except Exception as e:
+            print("Product cache update failed:", e)
+
+    # ---------- CUSTOMER ----------
     elif isinstance(event, CustomerCacheUpdateEvent):
         try:
-            cache.set(f"vendor:{vendor.id}:customers", get_customer_stats(vendor), timeout=300)
-        except Exception:
-            pass
+            key = f"vendor:{event.vendor_id}:customers"
+            counts = cache.get(key, {
+                "total_customers": 0,
+                "total_active_customers": 0,
+                "total_inactive_customers": 0
+            })
 
+            action = event.action
+            instance = event.instance
+
+            if action == "CREATED":
+                counts["total_customers"] += 1
+                if instance.is_active:
+                    counts["total_active_customers"] += 1
+                else:
+                    counts["total_inactive_customers"] += 1
+
+            elif action == "UPDATED":
+                if instance.is_active:
+                    counts["total_active_customers"] += 1
+                    counts["total_inactive_customers"] -= 1
+                else:
+                    counts["total_active_customers"] -= 1
+                    counts["total_inactive_customers"] += 1
+
+            elif action == "DELETED":
+                counts["total_customers"] -= 1
+                if instance.is_active:
+                    counts["total_active_customers"] -= 1
+                else:
+                    counts["total_inactive_customers"] -= 1
+
+            cache.set(key, counts, timeout=300)
+
+        except Exception as e:
+            print("Customer cache update failed:", e)
+
+    # ---------- ACTIVITY (placeholder) ----------
     elif isinstance(event, ActivityCacheUpdateEvent):
-        try:
-            cache.set(f"vendor:{vendor.id}:activity", get_activity_data(vendor), timeout=300)
-        except Exception:
-            pass
+        pass
+
+
+# had added the async dispatcher functions and all but currently on sync flow 
+# when user will come a lot then will shift to that
 
