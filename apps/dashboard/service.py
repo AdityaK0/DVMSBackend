@@ -26,7 +26,7 @@ def get_activity_data_cached(vendor):
 def get_product_stats(vendor):
     total_products = Product.objects.filter(vendor=vendor, is_archived=False).count()
     total_active_products = Product.objects.filter(vendor=vendor, is_active=True, is_archived=False).count()
-    total_inactive_products = total_products - total_active_products
+    total_inactive_products = Product.objects.filter(vendor=vendor, is_active=False, is_archived=False).count()
 
     return {
         'total_products': total_products,
@@ -37,7 +37,7 @@ def get_product_stats(vendor):
 def get_customer_stats(vendor):
     total_customers = Customer.objects.filter(vendor=vendor).count()
     total_active_customers = Customer.objects.filter(vendor=vendor, is_active=True).count()
-    total_inactive_customers = total_customers - total_active_customers
+    total_inactive_customers = Customer.objects.filter(vendor=vendor, is_active=False).count()
 
     return {
         'total_customers': total_customers,

@@ -6,6 +6,6 @@ from apps.core.dispatcher import handle_event
 
 @receiver([post_save, post_delete], sender=Product)
 def update_product_cache(sender, instance, **kwargs):
-    if instance.vendor_id:
+    if instance.vendor:
         event = ProductCacheUpdateEvent(vendor_id=instance.vendor_id)
         handle_event(event)
