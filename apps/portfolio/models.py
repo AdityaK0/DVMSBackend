@@ -1,5 +1,6 @@
 # apps/portfolio/models.py
 
+from hashlib import blake2b
 from django.db import models
 from django.utils.text import slugify
 from django.urls import reverse
@@ -31,7 +32,8 @@ class Portfolio(models.Model):
     logo = CloudinaryField('image', folder='portfolio/logos', blank=True, null=True)
     banner_image = CloudinaryField('image', folder='portfolio/banners', blank=True, null=True)
     gallery_images = models.JSONField(default=list, blank=True)  # Array of cloudinary URLs
-    
+    title = models.CharField(max_length=255, default='My Portfolio')
+    featured_products = models.ManyToManyField(Product, blank=True, related_name='featured_in_portfolios')
     # Design Customization
     theme_color = models.CharField(max_length=7, default='#3B82F6')  # Hex color
     accent_color = models.CharField(max_length=7, default='#10B981')
@@ -82,7 +84,8 @@ class Portfolio(models.Model):
     
     # Portfolio Settings
     is_public = models.BooleanField(default=True)
-    is_featured = models.BooleanField(default=False)  # For platform featuring
+    is_featured = models.BooleanField(default=False) 
+    want_to_show_on_platform = models.BooleanField(default=False)# For platform featuring
     custom_domain = models.CharField(max_length=100, blank=True, unique=True, null=True)
     custom_css = models.TextField(blank=True, help_text="Custom CSS for advanced styling")
     
@@ -172,7 +175,7 @@ class PortfolioCollection(models.Model):
     )
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
-    cover_image = CloudinaryField('image', folder='portfolio/collections')
+    cover_image = CloudinaryField("image", blank=True, null=True)
     products = models.ManyToManyField(Product, related_name='portfolio_collections')
     
     # Display settings
@@ -196,7 +199,7 @@ class PortfolioCollection(models.Model):
         super().save(*args, **kwargs)
     
     def __str__(self):
-        return f"{self.portfolio.display_name} - {self.name}"
+        return f"{self.portfolio.display_name} - {self.name}"                       
 
 
 class PortfolioTestimonial(models.Model):

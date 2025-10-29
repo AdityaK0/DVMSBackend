@@ -2,6 +2,8 @@
 
 from apps.products.models import ProductImage
 from apps.vendors.models import Vendor
+from apps.portfolio.models import PortfolioCollection  # adjust import if needed
+
 
 # def upload_product_images(product, files):
 #     """
@@ -24,7 +26,7 @@ from apps.vendors.models import Vendor
 
 
 
-from cloudinary.uploader import upload
+from cloudinary.uploader import upload,destroy
 from apps.products.models import ProductImage
 
 def upload_product_images(product, files):
@@ -45,6 +47,57 @@ def upload_product_images(product, files):
         images.append(img)
     return images
 
+
+
+# def upload_collection_image(collection, file):
+#     """
+#     Upload a single collection image to Cloudinary and update the model.
+#     """
+#     if not file:
+#         return None
+    
+#     # Upload image to Cloudinary
+#     result = upload(
+#         file,
+#         folder=f"collections/{collection.id}/",
+#         overwrite=True,
+#         resource_type="image"
+#     )
+
+#     # Assuming PortfolioCollection has a field like `image` (CloudinaryField or CharField for public_id)
+#     collection.image = result["public_id"]
+#     collection.save(update_fields=["image"])
+    
+#     return result
+
+
+def upload_collection_image(collection, file):
+    """
+    Upload or replace the collection image in Cloudinary.
+    """
+    if not file:
+        return None
+
+    # Delete old image if it exists
+    if collection.image:
+        try:
+            destroy(collection.image)  # delete by public_id
+        except Exception as e:
+            print("Cloudinary delete error:", e)
+
+    # Upload new image
+    result = upload(
+        file,
+        folder=f"collections/{collection.id}/",
+        overwrite=True,
+        resource_type="image"
+    )
+
+    # Update collection with new public_id
+    collection.image = result["public_id"]
+    collection.save(update_fields=["image"])
+
+    return result
 
 
 

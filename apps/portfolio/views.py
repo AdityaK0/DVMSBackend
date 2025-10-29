@@ -1,134 +1,371 @@
-# apps/portfolio/views.py
+from rest_framework import status, permissions
+from rest_framework.decorators import api_view, permission_classes,parser_classes
 
-from rest_framework import generics, status, permissions
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from django.db.models import Q, Count
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
-from datetime import timedelta, datetime
-import json
-
+from django.db.models import Q
+from rest_framework.parsers import MultiPartParser, FormParser
+from apps.vendors.models import Vendor
+from apps.products.models import Product
 from .models import (
-    Portfolio, PortfolioSection, PortfolioCollection, 
-    PortfolioTestimonial, PortfolioContactInquiry, 
-    PortfolioAnalytics, PortfolioTheme
+    Portfolio, PortfolioCollection, PortfolioTestimonial,
+    PortfolioAnalytics, PortfolioContactInquiry
 )
 from .serializers import (
-    PortfolioSerializer, PublicPortfolioSerializer, 
-    PortfolioCreateSerializer, PortfolioUpdateSerializer,
-    PortfolioSectionSerializer, PortfolioCollectionSerializer,
-    PortfolioTestimonialSerializer, PortfolioContactInquirySerializer,
-    PortfolioThemeSerializer, PortfolioAnalyticsSerializer,
-    PortfolioProductSerializer
+    PortfolioSerializer, PublicPortfolioSerializer,
+    PortfolioProductSerializer, PortfolioCollectionSerializer,
+    PortfolioTestimonialSerializer, PortfolioContactInquirySerializer
 )
-from apps.products.models import Product
-from apps.vendors.models import Vendor
+from apps.utils.upload_image import upload_collection_image
 
-
-# ============ PUBLIC VIEWS ============
-
+# ---------- Public: vendor portfolio summary ----------
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def public_portfolio_view(request, slug):
-    """
-    Public portfolio view by slug
-    URL: /api/portfolio/public/{slug}/
-    """
-    try:
-        portfolio = get_object_or_404(
-            Portfolio,
-            slug=slug,
-            is_public=True,
-            vendor__is_active=True
-        )
-        
-        # Track view (simple implementation)
-        portfolio.view_count += 1
-        portfolio.last_viewed = timezone.now()
-        portfolio.save(update_fields=['view_count', 'last_viewed'])
-        
-        # Update daily analytics
-        today = timezone.now().date()
-        analytics, created = PortfolioAnalytics.objects.get_or_create(
-            portfolio=portfolio,
-            date=today,
-            defaults={'page_views': 1, 'unique_visitors': 1}
-        )
-        if not created:
-            analytics.page_views += 1
-            analytics.save(update_fields=['page_views'])
-        
-        serializer = PublicPortfolioSerializer(portfolio)
-        return Response(serializer.data)
-        
-    except Portfolio.DoesNotExist:
-        return Response(
-            {'error': 'Portfolio not found'}, 
-            status=status.HTTP_404_NOT_FOUND
-        )
+def public_vendor_portfolio(request, business_name):
+    vendor = get_object_or_404(Vendor, business_name__iexact=business_name, is_active=True)
+    portfolio = get_object_or_404(Portfolio, vendor=vendor, is_public=True)
 
+    portfolio.view_count = (portfolio.view_count or 0) + 1
+    portfolio.last_viewed = timezone.now()
+    portfolio.save(update_fields=['view_count', 'last_viewed'])
 
-@api_view(['GET'])
-@permission_classes([permissions.AllowAny])
-def public_portfolio_products(request, slug):
-    """
-    Get products from portfolio with filtering
-    URL: /api/portfolio/public/{slug}/products/
-    """
-    portfolio = get_object_or_404(
-        Portfolio,
-        slug=slug,
-        is_public=True,
-        vendor__is_active=True
+    today = timezone.now().date()
+    analytics, created = PortfolioAnalytics.objects.get_or_create(
+        portfolio=portfolio, date=today,
+        defaults={'page_views': 1, 'unique_visitors': 1}
     )
-    
-    products = portfolio.get_all_products()
-    
-    # Apply filters
+    if not created:
+        analytics.page_views = (analytics.page_views or 0) + 1
+        analytics.save(update_fields=['page_views'])
+
+    total_collections = PortfolioCollection.objects.filter(portfolio=portfolio, is_active=True).count()
+    total_testimonials = PortfolioTestimonial.objects.filter(portfolio=portfolio, is_approved=True).count()
+    featured_products = portfolio.get_featured_products()[:8]
+
+    data = {
+        "id": portfolio.id,
+        "display_name": portfolio.display_name,
+        "tagline": portfolio.tagline,
+        "slug": portfolio.slug,
+        "about_us": portfolio.about_us,
+        "theme_color": portfolio.theme_color,
+        "accent_color": portfolio.accent_color,
+        "layout_style": portfolio.layout_style,
+        "show_pricing": portfolio.show_pricing,
+        "show_contact_form": portfolio.show_contact_form,
+        "is_public": portfolio.is_public,
+        "view_count": portfolio.view_count,
+        "total_collections": total_collections,
+        "total_testimonials": total_testimonials,
+        "featured_products": PortfolioProductSerializer(featured_products, many=True).data,
+        "banner_image": portfolio.banner_image.url if portfolio.banner_image else None,
+        "logo": portfolio.logo.url if portfolio.logo else None,
+        "gallery_images": portfolio.gallery_images or [],
+        "contact_email": portfolio.contact_email,
+        "contact_phone": portfolio.contact_phone,
+        "social_links": {
+            "facebook": portfolio.facebook_url,
+            "instagram": portfolio.instagram_url,
+            "twitter": portfolio.twitter_url,
+            "linkedin": portfolio.linkedin_url,
+            "youtube": portfolio.youtube_url,
+        },
+        "created_at": portfolio.created_at,
+        "updated_at": portfolio.updated_at,
+    }
+
+    return Response(data, status=status.HTTP_200_OK)
+
+
+# ---------- Public: product listing / search ----------
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def portfolio_product_search(request, business_name):
+    vendor = get_object_or_404(Vendor, business_name__iexact=business_name, is_active=True)
+    portfolio = get_object_or_404(Portfolio, vendor=vendor, is_public=True)
+
+    products = portfolio.get_all_products().select_related('category').filter(is_active=True, is_archived=False)
+
     category = request.GET.get('category')
     min_price = request.GET.get('min_price')
     max_price = request.GET.get('max_price')
     search = request.GET.get('search')
     featured_only = request.GET.get('featured')
-    
+
     if category:
         products = products.filter(category__name__iexact=category)
     if min_price:
         try:
             products = products.filter(price__gte=float(min_price))
-        except ValueError:
+        except (ValueError, TypeError):
             pass
     if max_price:
         try:
             products = products.filter(price__lte=float(max_price))
-        except ValueError:
+        except (ValueError, TypeError):
             pass
     if search:
         products = products.filter(
-            Q(name__icontains=search) | 
+            Q(name__icontains=search) |
             Q(description__icontains=search) |
             Q(category__name__icontains=search)
         )
-    if featured_only == 'true':
+    if featured_only and featured_only.lower() == 'true':
         products = products.filter(is_featured=True)
-    
-    # Pagination
-    page_size = min(int(request.GET.get('page_size', 12)), 50)
-    page = int(request.GET.get('page', 1))
+
+    try:
+        page_size = min(int(request.GET.get('page_size', 12)), 100)
+    except (ValueError, TypeError):
+        page_size = 12
+    try:
+        page = max(int(request.GET.get('page', 1)), 1)
+    except (ValueError, TypeError):
+        page = 1
+
     start = (page - 1) * page_size
     end = start + page_size
-    
     total_count = products.count()
-    products_page = products[start:end]
-    
+    products_page = products.order_by('-created_at')[start:end]
+
     serializer = PortfolioProductSerializer(products_page, many=True)
-    
-    # Get available categories for filtering
-    # categories = portfolio.vendor.products.filter(
-    #     is_active=True, 
-    #     category__isnull=False
-    # ).values_list('category
+
+    resp = {
+        "business_name": vendor.business_name,
+        "portfolio_slug": portfolio.slug,
+        "page": page,
+        "page_size": page_size,
+        "total_count": total_count,
+        "results": serializer.data,
+    }
+    return Response(resp, status=status.HTTP_200_OK)
+
+
+# ---------- Public: contact / inquiry ----------
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def portfolio_contact(request, business_name):
+    vendor = get_object_or_404(Vendor, business_name__iexact=business_name, is_active=True)
+    portfolio = get_object_or_404(Portfolio, vendor=vendor, is_public=True)
+
+    data = request.data.copy()
+    data['portfolio'] = portfolio.id
+
+    product_id = data.get('product_id') or data.get('product')
+    if product_id:
+        try:
+            product = Product.objects.get(id=product_id, vendor=vendor, is_active=True)
+            data['product'] = product.id
+        except Product.DoesNotExist:
+            data['product'] = None
+
+    serializer = PortfolioContactInquirySerializer(data=data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    inquiry = serializer.save(
+        ip_address=request.META.get('REMOTE_ADDR'),
+        user_agent=request.META.get('HTTP_USER_AGENT', '')
+    )
+
+    try:
+        if portfolio.contact_email:
+            subject = f"New inquiry for {portfolio.display_name}: {inquiry.subject}"
+            message = (
+                f"Name: {inquiry.name}\nEmail: {inquiry.email}\nPhone: {inquiry.phone}\n\n"
+                f"Message:\n{inquiry.message}\n\n"
+                f"Product: {inquiry.product.id if inquiry.product else 'N/A'}"
+            )
+            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [portfolio.contact_email], fail_silently=True)
+    except Exception:
+        pass
+
+    return Response(PortfolioContactInquirySerializer(inquiry).data, status=status.HTTP_201_CREATED)
+
+
+# ---------- Vendor: manage portfolio ----------
+@api_view(['GET', 'PUT', 'PATCH'])
+@permission_classes([permissions.IsAuthenticated])
+def vendor_portfolio_manage(request):
+    vendor = getattr(request.user, "vendor", None)
+    if not vendor:
+        return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    portfolio, _ = Portfolio.objects.get_or_create(  # we can create portfolio when the vendor onboarding is done - BG process ? i don't think so
+        vendor=vendor,
+        defaults={
+            "display_name": vendor.business_name or f"{vendor.pk}-portfolio",
+            "slug": vendor.business_name.lower().replace(' ', '-')[:90],
+        }
+    )
+
+    if request.method == 'GET':
+        serializer = PortfolioSerializer(portfolio)
+        return Response(serializer.data)
+
+    serializer = PortfolioSerializer(portfolio, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([permissions.IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def portfolio_collections(request):
+    vendor = getattr(request.user, "vendor", None)
+    if not vendor:
+        return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        collections = PortfolioCollection.objects.filter(portfolio__vendor=vendor).order_by('order', 'name')
+        serializer = PortfolioCollectionSerializer(collections, many=True)
+        return Response(serializer.data)
+
+    portfolio = get_object_or_404(Portfolio, vendor=vendor)
+    serializer = PortfolioCollectionSerializer(data=request.data)
+    if serializer.is_valid():
+        collection = serializer.save(portfolio=portfolio)
+
+        # Handle single image upload
+        image_file = request.FILES.get('image')
+        if image_file:
+            upload_collection_image(collection, image_file)
+
+        response_serializer = PortfolioCollectionSerializer(collection)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+@permission_classes([permissions.IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def portfolio_collection_detail(request, id):
+    vendor = getattr(request.user, "vendor", None)
+    if not vendor:
+        return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    collection = get_object_or_404(PortfolioCollection, id=id, portfolio__vendor=vendor)
+
+    if request.method == 'GET':
+        serializer = PortfolioCollectionSerializer(collection)
+        return Response(serializer.data)
+
+    elif request.method in ['PUT', 'PATCH']:
+        serializer = PortfolioCollectionSerializer(
+            collection,
+            data=request.data,
+            partial=(request.method == 'PATCH')
+        )
+        if serializer.is_valid():
+            collection = serializer.save()
+
+            # Optional: handle image replacement
+            image_file = request.FILES.get('image')
+            if image_file:
+                upload_collection_image(collection, image_file)
+
+            response_serializer = PortfolioCollectionSerializer(collection)
+            return Response(response_serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        collection.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+# @permission_classes([permissions.IsAuthenticated])
+# @parser_classes([MultiPartParser, FormParser])
+# def portfolio_collection_detail(request, id):
+#     """Retrieve, update, or delete a specific collection."""
+#     vendor = getattr(request.user, "vendor", None)
+#     if not vendor:
+#         return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+#     collection = get_object_or_404(PortfolioCollection, id=id, portfolio__vendor=vendor)
+
+#     # GET - single collection detail
+#     if request.method == 'GET':
+#         serializer = PortfolioCollectionSerializer(collection)
+#         return Response(serializer.data)
+
+#     # PUT/PATCH - update collection
+#     elif request.method in ['PUT', 'PATCH']:
+#         serializer = PortfolioCollectionSerializer(
+#             collection,
+#             data=request.data,
+#             partial=(request.method == 'PATCH')
+#         )
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response(serializer.data)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+#     # DELETE - delete collection
+#     elif request.method == 'DELETE':
+#         collection.delete()
+#         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
+# ---------- Vendor: testimonials ----------
+@api_view(['GET', 'POST'])
+@permission_classes([permissions.IsAuthenticated])
+def portfolio_testimonials(request):
+    vendor = getattr(request.user, "vendor", None)
+    if not vendor:
+        return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        testimonials = PortfolioTestimonial.objects.filter(portfolio__vendor=vendor).order_by('order', '-created_at')
+        serializer = PortfolioTestimonialSerializer(testimonials, many=True)
+        return Response(serializer.data)
+
+    portfolio = get_object_or_404(Portfolio, vendor=vendor)
+    serializer = PortfolioTestimonialSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(portfolio=portfolio)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ---------- Vendor: analytics ----------
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def portfolio_analytics(request):
+    vendor = getattr(request.user, "vendor", None)
+    if not vendor:
+        return Response({"detail": "Vendor account required."}, status=status.HTTP_403_FORBIDDEN)
+
+    portfolio = get_object_or_404(Portfolio, vendor=vendor)
+
+    today = timezone.now().date()
+    seven_days = [today - timezone.timedelta(days=i) for i in range(0, 7)]
+    analytics_qs = PortfolioAnalytics.objects.filter(portfolio=portfolio, date__in=seven_days).order_by('date')
+
+    daily = [
+        {"date": a.date, "page_views": a.page_views, "unique_visitors": a.unique_visitors}
+        for a in analytics_qs
+    ]
+
+    total_views = sum(a.page_views for a in analytics_qs)
+    total_unique = sum(a.unique_visitors for a in analytics_qs)
+
+    resp = {
+        "portfolio_id": portfolio.id,
+        "display_name": portfolio.display_name,
+        "daily": daily,
+        "total_views_last_7_days": total_views,
+        "total_unique_last_7_days": total_unique,
+    }
+    return Response(resp, status=status.HTTP_200_OK)

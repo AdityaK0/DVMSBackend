@@ -1,18 +1,17 @@
 from django.urls import path
 from . import views
-# from apps.products.views import VendorCatalogView
 
 urlpatterns = [
-
-    # Public portfolio views
+    # ---------- Public portfolio ----------
     path('portfolio/<str:business_name>/', views.public_vendor_portfolio, name='portfolio'),
     path('portfolio/<str:business_name>/products/', views.portfolio_product_search, name='portfolio-products'),
     path('portfolio/<str:business_name>/contact/', views.portfolio_contact, name='portfolio-contact'),
-    
-    # Portfolio management (for vendors)
-    path('manage/portfolio/', views.VendorPortfolioUpdateView.as_view(), name='manage-portfolio'),
-    path('manage/portfolio/collections/', views.PortfolioCollectionListCreateView.as_view(), name='manage-collections'),
-    path('manage/portfolio/testimonials/', views.TestimonialListCreateView.as_view(), name='manage-testimonials'),
+
+    # ---------- Vendor management ----------
+    path('manage/', views.vendor_portfolio_manage, name='manage-portfolio'),
+    path('manage/collections/', views.portfolio_collections, name='manage-collections'),
+    path('manage/collections/<int:id>/detail/', views.portfolio_collection_detail, name='manage-collections'),
+    path('manage/portfolio/testimonials/', views.portfolio_testimonials, name='manage-testimonials'),
     path('manage/portfolio/analytics/', views.portfolio_analytics, name='portfolio-analytics'),
 ]
 

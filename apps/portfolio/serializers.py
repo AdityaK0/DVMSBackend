@@ -8,7 +8,9 @@ from .models import (
 )
 from apps.vendors.models import Vendor
 from apps.products.models import Product, ProductImage
+from apps.products.serializers import ProductListSerializer
 
+# from cloudinary.utils import cloudinary_url
 User = get_user_model()
 
 
@@ -53,31 +55,49 @@ class PortfolioSectionSerializer(serializers.ModelSerializer):
 
 
 class PortfolioCollectionSerializer(serializers.ModelSerializer):
-    products = PortfolioProductSerializer(many=True, read_only=True)
+    products = ProductListSerializer(many=True, read_only=True)  # ✅ reuse your existing product serializer
     product_ids = serializers.ListField(
         child=serializers.IntegerField(),
         write_only=True,
         required=False
     )
     product_count = serializers.SerializerMethodField()
+    cover_image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = PortfolioCollection
         fields = [
             'id', 'name', 'description', 'cover_image', 'slug',
-            'is_featured', 'is_active', 'order', 'products', 
+            'is_featured', 'is_active', 'order', 
+            'products', 'cover_image_url', 
             'product_ids', 'product_count', 'created_at'
         ]
         read_only_fields = ['slug']
-    
+        
+    # ----- Derived Fields -----
     def get_product_count(self, obj):
         return obj.products.count()
-    
+
+    def get_cover_image_url(self, obj):
+        if not obj.cover_image:
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.cover_image.url) if request else obj.cover_image.url
+
+    # ----- Create / Update -----
     def create(self, validated_data):
+        portfolio = validated_data.get("portfolio")
+
+        # ✅ Restrict max 5 collections per portfolio
+        if portfolio.collections.count() >= 5:
+            raise serializers.ValidationError({
+                "message": "A portfolio can have at most 5 collections."
+            })
         product_ids = validated_data.pop('product_ids', [])
         collection = PortfolioCollection.objects.create(**validated_data)
-        
+
         if product_ids:
+            # restrict to vendor products
             products = Product.objects.filter(
                 id__in=product_ids,
                 vendor=collection.portfolio.vendor
@@ -85,23 +105,19 @@ class PortfolioCollectionSerializer(serializers.ModelSerializer):
             collection.products.set(products)
         
         return collection
-    
+
     def update(self, instance, validated_data):
         product_ids = validated_data.pop('product_ids', None)
-        
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        
+        collection = super().update(instance, validated_data)
+
         if product_ids is not None:
             products = Product.objects.filter(
                 id__in=product_ids,
-                vendor=instance.portfolio.vendor
+                vendor=collection.portfolio.vendor
             )
-            instance.products.set(products)
+            collection.products.set(products)
         
-        return instance
-
+        return collection
 
 class PortfolioTestimonialSerializer(serializers.ModelSerializer):
     class Meta:
@@ -143,7 +159,7 @@ class PortfolioSerializer(serializers.ModelSerializer):
     featured_products = PortfolioProductSerializer(source='get_featured_products', many=True, read_only=True)
     
     # Stats
-    total_products = serializers.SerializerMethodField()
+    # total_products = serializers.SerializerMethodField()
     total_collections = serializers.SerializerMethodField()
     total_testimonials = serializers.SerializerMethodField()
     
@@ -161,13 +177,14 @@ class PortfolioSerializer(serializers.ModelSerializer):
             'is_public', 'custom_domain', 'custom_css', 'meta_title',
             'meta_description', 'meta_keywords', 'view_count',
             'created_at', 'updated_at', 'vendor', 'sections', 'collections',
-            'testimonials', 'featured_products', 'total_products',
+            'testimonials', 'featured_products', 
+            # 'total_products', Not needed for portfolio summary
             'total_collections', 'total_testimonials'
         ]
         read_only_fields = ['slug', 'view_count', 'vendor']
     
-    def get_total_products(self, obj):
-        return obj.get_all_products().count()
+    # def get_total_products(self, obj):
+    #     return obj.get_all_products().count()
     
     def get_total_collections(self, obj):
         return obj.collections.filter(is_active=True).count()

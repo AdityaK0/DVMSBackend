@@ -360,47 +360,71 @@ def category_list(request):
     return Response(serializer.data)
 
 
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def search_products(request):
-    """Search products for the current vendor"""
-    if not hasattr(request.user, 'vendor'):
+    """Optimized: Search products for the current vendor"""
+    
+    user = request.user
+    vendor = getattr(user, "vendor", None)
+    if not vendor:
         return Response(
             {"error": "Only vendors can access this endpoint"},
             status=status.HTTP_403_FORBIDDEN
         )
 
-    vendor = request.user.vendor
     query = request.GET.get("q", "").strip()
-
-    products = Product.objects.filter(vendor=vendor)
+    
+    products_qs = (
+        Product.objects.filter(vendor=vendor, is_active=True, is_archived=False)
+        .select_related("vendor", "category")
+        .prefetch_related(
+            Prefetch(
+                "images",
+                queryset=ProductImage.objects.all(),
+                to_attr="images_prefetched"
+            )
+        )
+    )
 
     if query:
-        products = products.filter(
-            Q(name__icontains=query) |
-            Q(description__icontains=query) |
-            Q(sku__icontains=query)
+        products_qs = products_qs.filter(
+            Q(name__icontains=query)
+            | Q(description__icontains=query)
+            | Q(sku__icontains=query)
         )
 
-    # Pagination
-    page = request.GET.get("page", 1)
-    page_size = request.GET.get("page_size", 10)
-    paginator = Paginator(products, page_size)
+    # Pagination handling (safe + integer conversion)
+    try:
+        page = int(request.GET.get("page", 1))
+    except (TypeError, ValueError):
+        page = 1
+
+    try:
+        page_size = int(request.GET.get("page_size", 10))
+    except (TypeError, ValueError):
+        page_size = 10
+
+    paginator = Paginator(products_qs.order_by("-created_at"), page_size)
     page_obj = paginator.get_page(page)
 
     serializer = ProductListSerializer(
         page_obj.object_list,
         many=True,
-        context={'request': request}
+        context={"request": request}
     )
+
     return Response({
         "results": serializer.data,
         "count": paginator.count,
         "total_pages": paginator.num_pages,
-        "current_page": int(page),
+        "current_page": page,
         "has_next": page_obj.has_next(),
         "has_previous": page_obj.has_previous(),
     })
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])

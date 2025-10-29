@@ -65,6 +65,7 @@ LOCAL_APPS = [
     'apps.orders',
     'apps.payments',
     'apps.dashboard',
+    'apps.portfolio',
 ]
 INSTALLED_APPS = INSTALLED_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
