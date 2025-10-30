@@ -10,8 +10,8 @@ from django.db.models import Q,Prefetch
 from .models import Product, Category, ProductImage
 from .serializers import ProductSerializer, ProductListSerializer, CategorySerializer
 from ..utils.upload_image import upload_product_images
-from apps.dashboard.service import get_product_stats_cached
 from django.db import connection
+from .service import get_vendor_products_data
 
 # Product List with filters (Public)
 @api_view(['GET'])
@@ -243,78 +243,101 @@ def delete_product(request, pk):
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# Vendor's Products (Dashboard)
+
+# apps/products/api.py
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def vendor_products(request):
     """Get all products for the current vendor"""
-    
+
     if not hasattr(request.user, 'vendor'):
         return Response(
-            {"error": "Only vendors can access this endpoint"}, 
+            {"error": "Only vendors can access this endpoint"},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     vendor = request.user.vendor
-    if not vendor:
-        vendor = request.user
-    # products = Product.objects.filter(vendor=vendor,is_active=True,is_archived=False).order_by('-created_at')
-    # print(connection.queries , "ALL PRODUCT QUERRY >>>>>> ")
-    # products = Product.objects.filter(
-    #     vendor=vendor,
-    #     is_active=True,
-    #     is_archived=False
-    # ).select_related('vendor', 'category') \
-    #  .prefetch_related('images') \
-    #  .order_by('-created_at')
+    page = int(request.GET.get('page', 1))
+    page_size = int(request.GET.get('page_size', 10))
+
+    data = get_vendor_products_data(vendor, request=request, page=page, page_size=page_size)
+    return Response(data)
+
+
+# Vendor's Products (Dashboard)
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def vendor_products(request):
+#     """Get all products for the current vendor"""
+    
+#     if not hasattr(request.user, 'vendor'):
+#         return Response(
+#             {"error": "Only vendors can access this endpoint"}, 
+#             status=status.HTTP_403_FORBIDDEN
+#         )
+    
+#     vendor = request.user.vendor
+#     if not vendor:
+#         vendor = request.user
+#     # products = Product.objects.filter(vendor=vendor,is_active=True,is_archived=False).order_by('-created_at')
+#     # print(connection.queries , "ALL PRODUCT QUERRY >>>>>> ")
+#     # products = Product.objects.filter(
+#     #     vendor=vendor,
+#     #     is_active=True,
+#     #     is_archived=False
+#     # ).select_related('vendor', 'category') \
+#     #  .prefetch_related('images') \
+#     #  .order_by('-created_at')
      
      
-    products = Product.objects.filter(
-        vendor=vendor,
-        is_active=True,
-        is_archived=False
-    ).select_related('vendor', 'category') \
-    .prefetch_related(
-        Prefetch(
-            'images',
-            queryset=ProductImage.objects.all(),
-            to_attr='images_prefetched'  # store in a custom attribute
-        )
-    ) \
-    .order_by('-created_at')
+#     products = Product.objects.filter(
+#         vendor=vendor,
+#         is_active=True,
+#         is_archived=False
+#     ).select_related('vendor', 'category') \
+#     .prefetch_related(
+#         Prefetch(
+#             'images',
+#             queryset=ProductImage.objects.all(),
+#             to_attr='images_prefetched'  # store in a custom attribute
+#         )
+#     ) \
+#     .order_by('-created_at')
     
     
     
-    try:
-        page = int(request.GET.get('page', 1))
-    except (TypeError, ValueError):
-        page = 1
+#     try:
+#         page = int(request.GET.get('page', 1))
+#     except (TypeError, ValueError):
+#         page = 1
         
-    try:
-        page_size = int(request.GET.get('page_size', 10))
-    except (TypeError, ValueError):
-        page_size = 10
+#     try:
+#         page_size = int(request.GET.get('page_size', 10))
+#     except (TypeError, ValueError):
+#         page_size = 10
     
-    paginator = Paginator(products, page_size)
-    page_obj = paginator.get_page(page)
+#     paginator = Paginator(products, page_size)
+#     page_obj = paginator.get_page(page)
     
-    serializer = ProductListSerializer(
-        page_obj.object_list, 
-        many=True, 
-        context={'request': request}
-    )
-    # paginator_count  = paginator.count
-    product_stats = get_product_stats_cached(vendor)
-    paginator_count = product_stats.get("total_active_products")
+#     serializer = ProductListSerializer(
+#         page_obj.object_list, 
+#         many=True, 
+#         context={'request': request}
+#     )
+#     # paginator_count  = paginator.count
+#     product_stats = get_product_stats_cached(vendor)
+#     paginator_count = product_stats.get("total_active_products")
     
-    return Response({
-        'results': serializer.data,
-        'count': paginator_count,
-        'total_pages': paginator.num_pages,
-        'current_page': int(page),
-        'has_next': page_obj.has_next(),
-        'has_previous': page_obj.has_previous(),
-    })
+#     return Response({
+#         'results': serializer.data,
+#         'count': paginator_count,
+#         'total_pages': paginator.num_pages,
+#         'current_page': int(page),
+#         'has_next': page_obj.has_next(),
+#         'has_previous': page_obj.has_previous(),
+#     })
 
 
 # Vendor Catalog (Public - specific vendor's products)

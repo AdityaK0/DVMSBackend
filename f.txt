@@ -75,3 +75,44 @@ Product.objects.filter(vendor_id=1)
      OR 
 Product.objects.filter(vendor__id=1)
 (both work, but the first one is slightly more direct and efficient).
+
+
+
+list products api 
+
+-  accessed by vendor api is authenticated 
+
+- accesed by portfolio api should be public means authenticated
+
+sol :
+    create service.py which have function and that function will be used  by the 
+    api from both products and public portfolio 
+
+    need to implement some limitations also 
+
+
+using above solution we can customize the api response also as per the vendor 
+portfolio config like 
+
+-- 
+show price , show created_at updated_at and all show vendor details in products 
+
+in public portfolio scenario will be like 
+
+whenever and whatever the vendor will update like adding products and on portfolio frontend section
+there will be an button like 
+
+sync data or update the portfolio something when this button will be clicked 
+
+will do a reindexing and then in 
+
+public portfolio we wont make an request to DB directly there will 
+be some other source will be used like ES , redis or whatever 
+
+there also be beed to add limitations like only only 3-5 times portfolio update can be done 
+like u know reindexing is also an heavy cost kind of thing in this way everything will be
+done whatever will be added to the admin side from venor related to portfolio 
+will do reindexing of those things now i think this is good structure
+
+but wherever we do reindexing we have do at somewhere where it can handle a lot of request at once 
+cause this will the public portfolio stuff

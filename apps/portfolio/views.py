@@ -280,7 +280,7 @@ def portfolio_collection_detail(request, id):
 
     elif request.method == 'DELETE':
         collection.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({"detail": "collection deleted successfully "}, status=status.HTTP_200_OK)
 
 
 # @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
