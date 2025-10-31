@@ -4,7 +4,9 @@ from . import views
 urlpatterns = [
     # ---------- Public portfolio ----------
     path('public/<str:business_name>/', views.public_vendor_portfolio, name='portfolio'),
-    path('portfolio/<str:business_name>/products/', views.portfolio_product_search, name='portfolio-products'),
+    path('public/<str:business_name>/products/', views.public_portfolio_products, name='portfolio-products'),
+    path('public/<str:business_name>/collections/', views.public_portfolio_collections, name='portfolio-products'),
+    
     path('portfolio/<str:business_name>/contact/', views.portfolio_contact, name='portfolio-contact'),
 
     # ---------- Vendor management ----------

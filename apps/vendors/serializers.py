@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import Vendor
 from apps.users.serializers import VendorProfileSerializer,AddressSerializer
 from apps.users.models import Address
+from django.utils.text import slugify
+
 
 
 class VendorSerializer(serializers.ModelSerializer):
@@ -14,7 +16,7 @@ class VendorSerializer(serializers.ModelSerializer):
         model = Vendor
         fields = [
             "id", "business_name", "business_description",
-            "business_email", "business_type", "business_phone",
+            "business_email", "business_type", "business_phone","business_name_slug",
             "gstin", "website", "logo","logo_url",
             "is_active", "is_verified", 
             "total_products", "average_rating",
@@ -111,13 +113,20 @@ class VendorUpdate(serializers.ModelSerializer):
                     address_data['zip_code'] = value
                 else:
                     address_data[field] = value
+                    
+        old_name = instance.business_name
+        new_name = validated_data.get("business_name", old_name)            
         
         # Update only the vendor fields that were provided
         if 'website' not in validated_data or not validated_data['website']:
             validated_data['website'] = "https://www.google.com"
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        
+        if new_name != old_name:
+            instance.business_name_slug = f"{slugify(new_name)}-{instance.id}"      
         instance.save()
+
         
         # Update address only if address data is provided
         if address_data:

@@ -181,18 +181,34 @@ def update_product(request, pk):
         updated_product = serializer.save()
         
         # Handle new images if provided
-        uploaded_images = request.FILES.getlist('uploaded_images')
-        if uploaded_images:
-            # Optional: Remove old images if you want to replace all
-            # product.images.all().delete()
+        # uploaded_images = request.FILES.getlist('images')
+        # if uploaded_images:
+        #     # Optional: Remove old images if you want to replace all
+        #     # product.images.all().delete()
             
-            for i, image_file in enumerate(uploaded_images):
-                ProductImage.objects.create(
-                    product=updated_product,
-                    image=image_file,
-                    is_primary=(i == 0 and not product.images.filter(is_primary=True).exists()),
-                    alt_text=f"{updated_product.name} image {i+1}"
-                )
+        #     for i, image_file in enumerate(uploaded_images):
+        #         ProductImage.objects.create(
+        #             product=updated_product,
+        #             image=image_file,
+        #             is_primary=(i == 0 and not product.images.filter(is_primary=True).exists()),
+        #             alt_text=f"{updated_product.name} image {i+1}"
+        #         )
+                
+        
+        uploaded_images = (
+            request.FILES.getlist('images') or
+            request.FILES.getlist('images[]')
+        )
+
+        if uploaded_images:
+            # Optional: Remove old images before uploading new ones
+            # for img in product.images.all():
+            #     destroy(img.image)
+            # product.images.all().delete()
+
+            upload_product_images(updated_product, uploaded_images)  # 👈 reused util here
+        
+                
         
         response_serializer = ProductSerializer(updated_product, context={'request': request})
         return Response(response_serializer.data)

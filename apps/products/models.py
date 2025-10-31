@@ -73,6 +73,7 @@ class ProductImage(models.Model):
     alt_text = models.CharField(max_length=200, blank=True)
     is_primary = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    github_image_url = models.URLField(max_length=500, blank=True, null=True)
 
     def __str__(self):
         return f"Image for {self.product.name}"

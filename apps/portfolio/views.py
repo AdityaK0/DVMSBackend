@@ -20,14 +20,22 @@ from .serializers import (
     PortfolioTestimonialSerializer, PortfolioContactInquirySerializer
 )
 from apps.utils.upload_image import upload_collection_image
+from .service import get_vendor_collections
+from apps.products.serializers import ProductSerializer
+
+
+
+# ---- product service currently importing but later on had to go on cache due to public api
+
+from apps.products.service import get_vendor_products_data
 
 # ---------- Public: vendor portfolio summary ----------
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def public_vendor_portfolio(request, business_name):
-    vendor = get_object_or_404(Vendor, business_name__iexact=business_name, is_active=True)
+    vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
     portfolio = get_object_or_404(Portfolio, vendor=vendor, is_public=True)
-
+    
     portfolio.view_count = (portfolio.view_count or 0) + 1
     portfolio.last_viewed = timezone.now()
     portfolio.save(update_fields=['view_count', 'last_viewed'])
@@ -44,9 +52,9 @@ def public_vendor_portfolio(request, business_name):
     total_collections = PortfolioCollection.objects.filter(portfolio=portfolio, is_active=True).count()
     total_testimonials = PortfolioTestimonial.objects.filter(portfolio=portfolio, is_approved=True).count()
     featured_products = portfolio.get_featured_products()[:8]
-
     data = {
         "id": portfolio.id,
+        "business_name":vendor.business_name,
         "display_name": portfolio.display_name,
         "tagline": portfolio.tagline,
         "slug": portfolio.slug,
@@ -66,6 +74,8 @@ def public_vendor_portfolio(request, business_name):
         "gallery_images": portfolio.gallery_images or [],
         "contact_email": portfolio.contact_email,
         "contact_phone": portfolio.contact_phone,
+        "address":portfolio.address,
+        "whatsapp_number":portfolio.whatsapp_number,    
         "social_links": {
             "facebook": portfolio.facebook_url,
             "instagram": portfolio.instagram_url,
@@ -73,6 +83,7 @@ def public_vendor_portfolio(request, business_name):
             "linkedin": portfolio.linkedin_url,
             "youtube": portfolio.youtube_url,
         },
+        "featured_products":ProductSerializer(portfolio.featured_products.all(), many=True).data,
         "created_at": portfolio.created_at,
         "updated_at": portfolio.updated_at,
     }
@@ -83,64 +94,71 @@ def public_vendor_portfolio(request, business_name):
 # ---------- Public: product listing / search ----------
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def portfolio_product_search(request, business_name):
-    vendor = get_object_or_404(Vendor, business_name__iexact=business_name, is_active=True)
-    portfolio = get_object_or_404(Portfolio, vendor=vendor, is_public=True)
-
-    products = portfolio.get_all_products().select_related('category').filter(is_active=True, is_archived=False)
-
-    category = request.GET.get('category')
-    min_price = request.GET.get('min_price')
-    max_price = request.GET.get('max_price')
-    search = request.GET.get('search')
-    featured_only = request.GET.get('featured')
-
-    if category:
-        products = products.filter(category__name__iexact=category)
-    if min_price:
-        try:
-            products = products.filter(price__gte=float(min_price))
-        except (ValueError, TypeError):
-            pass
-    if max_price:
-        try:
-            products = products.filter(price__lte=float(max_price))
-        except (ValueError, TypeError):
-            pass
-    if search:
-        products = products.filter(
-            Q(name__icontains=search) |
-            Q(description__icontains=search) |
-            Q(category__name__icontains=search)
+def public_portfolio_products(request, business_name):
+    try:
+        vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
+    except:
+        return Response(
+        {"error": "business not found seems like may be url need to observed"},
+            status=status.HTTP_403_FORBIDDEN
         )
-    if featured_only and featured_only.lower() == 'true':
-        products = products.filter(is_featured=True)
+    
+    if not vendor:
+        return Response(
+        {"error": "May be business name issue Only vendors can access this endpoint"},
+        status=status.HTTP_403_FORBIDDEN
+    )
 
+    page = int(request.GET.get('page', 1))
+    page_size = int(request.GET.get('page_size', 10))
+
+    data = get_vendor_products_data(vendor, request=request, page=page, page_size=page_size)
+    return Response(data)
+
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def public_portfolio_collections(request,business_name):
     try:
-        page_size = min(int(request.GET.get('page_size', 12)), 100)
-    except (ValueError, TypeError):
-        page_size = 12
-    try:
-        page = max(int(request.GET.get('page', 1)), 1)
-    except (ValueError, TypeError):
-        page = 1
+        try:
+            vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
+        except:
+            return Response(
+            {"error": "business not found seems like may be url need to observed"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if not vendor:
+            return Response(
+            {"error": "May be business name issue Only vendors can access this endpoint"},
+            status=status.HTTP_403_FORBIDDEN
+        )
 
-    start = (page - 1) * page_size
-    end = start + page_size
-    total_count = products.count()
-    products_page = products.order_by('-created_at')[start:end]
+        data = get_vendor_collections(vendor)
+        return Response(data, status=status.HTTP_200_OK)
 
-    serializer = PortfolioProductSerializer(products_page, many=True)
+    except Exception as e:
+        # Log the full error for debugging
 
-    resp = {
-        "business_name": vendor.business_name,
-        "portfolio_slug": portfolio.slug,
-        "page": page,
-        "page_size": page_size,
-        "total_count": total_count,
-        "results": serializer.data,
-    }
-    return Response(resp, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "An unexpected error occurred.", "error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+        collection = serializer.save(portfolio=portfolio)
+
+        # Handle single image upload
+        image_file = request.FILES.get('image')
+        if image_file:
+            upload_collection_image(collection, image_file)
+
+        response_serializer = PortfolioCollectionSerializer(collection)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+
+
+    
 
 
 # ---------- Public: contact / inquiry ----------
@@ -200,7 +218,6 @@ def vendor_portfolio_manage(request):
             "slug": vendor.business_name.lower().replace(' ', '-')[:90],
         }
     )
-
     if request.method == 'GET':
         serializer = PortfolioSerializer(portfolio)
         return Response(serializer.data)
@@ -223,9 +240,8 @@ def portfolio_collections(request):
         return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        collections = PortfolioCollection.objects.filter(portfolio__vendor=vendor).order_by('order', 'name')
-        serializer = PortfolioCollectionSerializer(collections, many=True)
-        return Response(serializer.data)
+        data = get_vendor_collections(vendor)
+        return Response(data, status=status.HTTP_200_OK)
 
     portfolio = get_object_or_404(Portfolio, vendor=vendor)
     serializer = PortfolioCollectionSerializer(data=request.data)

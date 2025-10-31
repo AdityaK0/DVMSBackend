@@ -39,7 +39,7 @@ class VendorBasicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vendor
         fields = [
-            'id', 'business_name', 'business_description', 
+            'id', 'business_name', 'business_description',"business_name_slug",
             'business_email', 'business_phone', 'website',
             'logo', 'business_type', 'is_verified'
         ]
@@ -53,6 +53,9 @@ class PortfolioSectionSerializer(serializers.ModelSerializer):
             'order', 'is_active'
         ]
 
+
+    
+    
 
 class PortfolioCollectionSerializer(serializers.ModelSerializer):
     products = ProductListSerializer(many=True, read_only=True)  # ✅ reuse your existing product serializer
@@ -118,6 +121,7 @@ class PortfolioCollectionSerializer(serializers.ModelSerializer):
             collection.products.set(products)
         
         return collection
+        
 
 class PortfolioTestimonialSerializer(serializers.ModelSerializer):
     class Meta:
@@ -149,6 +153,7 @@ class PortfolioThemeSerializer(serializers.ModelSerializer):
             'theme_config', 'is_premium'
         ]
 
+from apps.vendors.serializers import VendorSerializer
 
 class PortfolioSerializer(serializers.ModelSerializer):
     """Full portfolio serializer for management"""
@@ -156,7 +161,16 @@ class PortfolioSerializer(serializers.ModelSerializer):
     sections = PortfolioSectionSerializer(many=True, read_only=True)
     collections = PortfolioCollectionSerializer(many=True, read_only=True)
     testimonials = PortfolioTestimonialSerializer(many=True, read_only=True)
-    featured_products = PortfolioProductSerializer(source='get_featured_products', many=True, read_only=True)
+    # featured_products = PortfolioProductSerializer(source='get_featured_products', many=True, read_only=True)
+    featured_products = PortfolioProductSerializer(many=True, read_only=True)
+
+    # write-only field to update featured products
+    featured_product_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False
+    )
+
     
     # Stats
     # total_products = serializers.SerializerMethodField()
@@ -177,7 +191,7 @@ class PortfolioSerializer(serializers.ModelSerializer):
             'is_public', 'custom_domain', 'custom_css', 'meta_title',
             'meta_description', 'meta_keywords', 'view_count',
             'created_at', 'updated_at', 'vendor', 'sections', 'collections',
-            'testimonials', 'featured_products', 
+            'testimonials', 'featured_products', 'featured_product_ids',
             # 'total_products', Not needed for portfolio summary
             'total_collections', 'total_testimonials'
         ]
@@ -185,6 +199,22 @@ class PortfolioSerializer(serializers.ModelSerializer):
     
     # def get_total_products(self, obj):
     #     return obj.get_all_products().count()
+    
+        
+    def update(self, instance, validated_data):
+        featured_product_ids = validated_data.pop('featured_product_ids', None)
+        portfolio = super().update(instance, validated_data)
+
+        if featured_product_ids is not None:
+            products = Product.objects.filter(
+                id__in=featured_product_ids,
+                vendor=portfolio.vendor
+            )
+            portfolio.featured_products.set(products)
+
+        portfolio.refresh_from_db()
+        return portfolio
+
     
     def get_total_collections(self, obj):
         return obj.collections.filter(is_active=True).count()
