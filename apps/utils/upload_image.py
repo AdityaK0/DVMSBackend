@@ -73,31 +73,33 @@ def upload_product_images(product, files):
 
 def upload_collection_image(collection, file):
     """
-    Upload or replace the collection image in Cloudinary.
+    Upload or replace the collection cover image in Cloudinary.
+    Ensures proper folder structure and file naming.
     """
     if not file:
         return None
 
-    # Delete old image if it exists
-    if collection.image:
-        try:
-            destroy(collection.image)  # delete by public_id
-        except Exception as e:
-            print("Cloudinary delete error:", e)
+    # Ensure collection has an ID (important for folder path)
+    if not collection.id:
+        collection.save()
 
-    # Upload new image
     result = upload(
         file,
-        folder=f"collections/{collection.id}/",
+        folder=f"collections/{collection.id}",
+        use_filename=True,
+        unique_filename=False,
         overwrite=True,
         resource_type="image"
     )
 
-    # Update collection with new public_id
-    collection.image = result["public_id"]
-    collection.save(update_fields=["image"])
+    print("Uploaded file to folder:", result.get("public_id"))
+    print("Full URL:", result.get("secure_url"))
+
+    collection.cover_image = result["public_id"]
+    collection.save(update_fields=["cover_image"])
 
     return result
+
 
 
 

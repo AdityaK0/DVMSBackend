@@ -86,7 +86,7 @@ class PortfolioCollectionSerializer(serializers.ModelSerializer):
             return None
         request = self.context.get('request')
         return request.build_absolute_uri(obj.cover_image.url) if request else obj.cover_image.url
-
+    
     # ----- Create / Update -----
     def create(self, validated_data):
         portfolio = validated_data.get("portfolio")
@@ -162,7 +162,7 @@ class PortfolioSerializer(serializers.ModelSerializer):
     collections = PortfolioCollectionSerializer(many=True, read_only=True)
     testimonials = PortfolioTestimonialSerializer(many=True, read_only=True)
     # featured_products = PortfolioProductSerializer(source='get_featured_products', many=True, read_only=True)
-    featured_products = PortfolioProductSerializer(many=True, read_only=True)
+    featured_products = ProductListSerializer(many=True, read_only=True)
 
     # write-only field to update featured products
     featured_product_ids = serializers.ListField(

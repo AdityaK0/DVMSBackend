@@ -13,11 +13,34 @@ class ProductImageSerializer(serializers.ModelSerializer):
         model = ProductImage
         fields = ['id', 'image','image_url','alt_text', 'is_primary']
         
+    # def get_image_url(self, obj):
+    #     request = self.context.get('request')
+    #     if request:
+    #         return request.build_absolute_uri(obj.image.url)
+    #     return obj.image.url   
+    
+    
     def get_image_url(self, obj):
-        request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(obj.image.url)
-        return obj.image.url   
+        return obj.github_image_url  if obj.github_image_url else obj.image.url
+        # """
+        # Returns the best available image URL in order of reliability:
+        # 1. github_image_url (permanent, safe)
+        # 2. image.url (Cloudinary)
+        # 3. image_url (manual uploads)
+        # 4. Placeholder fallback
+        # """
+        # if getattr(obj, 'github_image_url', None):
+        #     return obj.github_image_url
+
+        # if obj.image and hasattr(obj.image, 'url') and obj.image.url:
+        #     # request = self.context.get('request')
+        #     # return request.build_absolute_uri(obj.image.url) if request else obj.image.url
+        #     return obj.image.url
+
+        # if getattr(obj, 'image_url', None):
+        #     return obj.image_url
+
+        # return "https://via.placeholder.com/300x300?text=No+Image"      
 
 class ProductSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
@@ -48,16 +71,22 @@ class ProductSerializer(serializers.ModelSerializer):
         
         return value
     
-    def get_images(self, obj):
-        images_qs = obj.images.all().order_by('-is_primary')
-        request = self.context.get('request')
-        images_list = []
-        for img in images_qs:
-            if request:
-                images_list.append(request.build_absolute_uri(img.image.url))
-            else:
-                images_list.append(img.image.url)
-        return images_list
+    # def get_images(self, obj):
+    #     images_qs = obj.images.all().order_by('-is_primary')
+    #     request = self.context.get('request')
+    #     images_list = []
+    #     for img in images_qs:
+    #         if request:
+    #             images_list.append(request.build_absolute_uri(img.image.url))
+    #         else:
+    #             images_list.append(img.image.url)
+        
+    #     return [
+    #         img.github_image_url if img.github_image_url else img.image.url
+    #         for img in images_qs
+    #     ]
+
+        # return images_list
     
 
     
@@ -86,9 +115,14 @@ class ProductListSerializer(serializers.ModelSerializer):
         # sort in Python to avoid DB query
         sorted_images = sorted(images_qs, key=lambda i: not i.is_primary)[:4]
 
-        request = self.context.get('request')
+        # request = self.context.get('request')
+        # return [
+        #     request.build_absolute_uri(img.image.url) if request else img.image.url
+        #     for img in sorted_images
+        # ]
+        
         return [
-            request.build_absolute_uri(img.image.url) if request else img.image.url
+            img.github_image_url if img.github_image_url else img.image.url
             for img in sorted_images
         ]
 

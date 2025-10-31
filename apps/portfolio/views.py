@@ -21,7 +21,7 @@ from .serializers import (
 )
 from apps.utils.upload_image import upload_collection_image
 from .service import get_vendor_collections
-from apps.products.serializers import ProductSerializer
+from apps.products.serializers import ProductListSerializer
 
 
 
@@ -83,7 +83,7 @@ def public_vendor_portfolio(request, business_name):
             "linkedin": portfolio.linkedin_url,
             "youtube": portfolio.youtube_url,
         },
-        "featured_products":ProductSerializer(portfolio.featured_products.all(), many=True).data,
+        "featured_products":ProductListSerializer(portfolio.featured_products.all(), many=True).data,
         "created_at": portfolio.created_at,
         "updated_at": portfolio.updated_at,
     }
@@ -146,15 +146,15 @@ def public_portfolio_collections(request,business_name):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-        collection = serializer.save(portfolio=portfolio)
+        # collection = serializer.save(portfolio=portfolio)
 
-        # Handle single image upload
-        image_file = request.FILES.get('image')
-        if image_file:
-            upload_collection_image(collection, image_file)
+        # # Handle single image upload
+        # image_file = request.FILES.get('image')
+        # if image_file:
+        #     upload_collection_image(collection, image_file)
 
-        response_serializer = PortfolioCollectionSerializer(collection)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        # response_serializer = PortfolioCollectionSerializer(collection)
+        # return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
 
@@ -282,12 +282,13 @@ def portfolio_collection_detail(request, id):
             data=request.data,
             partial=(request.method == 'PATCH')
         )
+
         if serializer.is_valid():
             collection = serializer.save()
-
             # Optional: handle image replacement
             image_file = request.FILES.get('image')
             if image_file:
+                print(image_file)
                 upload_collection_image(collection, image_file)
 
             response_serializer = PortfolioCollectionSerializer(collection)

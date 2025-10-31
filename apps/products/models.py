@@ -77,3 +77,15 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.product.name}"
+    
+    
+    @property
+    def display_url(self):
+        """Return the best available image URL"""
+        if self.image and hasattr(self.image, 'url') and self.image.url:
+            return self.image.url  # Cloudinary image (works only if config is valid)
+        elif self.image_url:
+            return self.image_url  # fallback for manually uploaded images
+        elif self.github_image_url:
+            return self.github_image_url  # permanent backup URL
+        return "https://via.placeholder.com/300x300?text=No+Image"  # final fallback
