@@ -11,7 +11,7 @@ from .models import Product, Category, ProductImage
 from .serializers import ProductSerializer, ProductListSerializer, CategorySerializer
 from ..utils.upload_image import upload_product_images
 from django.db import connection
-from .service import get_vendor_products_combined
+from .service import get_vendor_products_combined ,get_filtered_products
 
 
 # Product List with filters (Public)
@@ -412,6 +412,7 @@ def category_list(request):
 
 
 
+
 # @api_view(["GET"])
 # @permission_classes([IsAuthenticated])
 # def search_products(request):
@@ -503,55 +504,70 @@ def filter_products(request):
         )
 
     vendor = request.user.vendor
-    products = Product.objects.filter(vendor=vendor,is_archived=False)
+    data = get_filtered_products(vendor, request.GET, request=request)
+    return Response(data)
 
-    # Get filters
-    is_active = request.GET.get("is_active")
-    category = request.GET.get("category") or None
-    min_price = request.GET.get("min_price") or None
-    max_price = request.GET.get("max_price") or None
-    # breakpoint()
-    # Apply filters
-    if is_active is not None:
-        products = products.filter(is_active=is_active.lower() == "true")
 
-    if category:
-        products = products.filter(category__iexact=category)
+# @api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+# def filter_products(request):
+#     """Filter products for the current vendor"""
+#     if not hasattr(request.user, 'vendor'):
+#         return Response(
+#             {"error": "Only vendors can access this endpoint"},
+#             status=status.HTTP_403_FORBIDDEN
+#         )
 
-    if min_price:
-        try:
-            min_price = float(min_price)
-            products = products.filter(price__gte=min_price)
-        except ValueError:
-            pass  # ignore invalid numbers
+#     vendor = request.user.vendor
+#     products = Product.objects.filter(vendor=vendor,is_archived=False)
 
-    if max_price:
-        try:
-            max_price = float(max_price)
-            products = products.filter(price__lte=max_price)
-        except ValueError:
-            pass
+#     # Get filters
+#     is_active = request.GET.get("is_active")
+#     category = request.GET.get("category") or None
+#     min_price = request.GET.get("min_price") or None
+#     max_price = request.GET.get("max_price") or None
+#     # breakpoint()
+#     # Apply filters
+#     if is_active is not None:
+#         products = products.filter(is_active=is_active.lower() == "true")
 
-    # Pagination
-    page = request.GET.get("page", 1)
-    page_size = request.GET.get("page_size", 10)
-    paginator = Paginator(products, page_size)
-    page_obj = paginator.get_page(page)
+#     if category:
+#         products = products.filter(category__iexact=category)
 
-    serializer = ProductListSerializer(
-        page_obj.object_list,
-        many=True,
-        context={'request': request}
-    )
+#     if min_price:
+#         try:
+#             min_price = float(min_price)
+#             products = products.filter(price__gte=min_price)
+#         except ValueError:
+#             pass  # ignore invalid numbers
 
-    return Response({
-        "results": serializer.data,
-        "count": paginator.count,
-        "total_pages": paginator.num_pages,
-        "current_page": int(page),
-        "has_next": page_obj.has_next(),
-        "has_previous": page_obj.has_previous(),
-    })
+#     if max_price:
+#         try:
+#             max_price = float(max_price)
+#             products = products.filter(price__lte=max_price)
+#         except ValueError:
+#             pass
+
+#     # Pagination
+#     page = request.GET.get("page", 1)
+#     page_size = request.GET.get("page_size", 10)
+#     paginator = Paginator(products, page_size)
+#     page_obj = paginator.get_page(page)
+
+#     serializer = ProductListSerializer(
+#         page_obj.object_list,
+#         many=True,
+#         context={'request': request}
+#     )
+
+#     return Response({
+#         "results": serializer.data,
+#         "count": paginator.count,
+#         "total_pages": paginator.num_pages,
+#         "current_page": int(page),
+#         "has_next": page_obj.has_next(),
+#         "has_previous": page_obj.has_previous(),
+#     })
 
 
 

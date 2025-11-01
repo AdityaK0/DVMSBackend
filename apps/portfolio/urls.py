@@ -6,7 +6,7 @@ urlpatterns = [
     path('public/<str:business_name>/', views.public_vendor_portfolio, name='portfolio'),
     path('public/<str:business_name>/products/', views.public_portfolio_products, name='portfolio-products'),
     # path('public/<str:business_name>/products/search/', views.public_portfolio_search, name='portfolio-products'),
-    path('public/<str:business_name>/products/filter/', views.public_portfolio_products, name='portfolio-products'),
+    path('public/<str:business_name>/products/filter/', views.public_portfolio_filter, name='portfolio-products'),
     
     path('public/<str:business_name>/collections/', views.public_portfolio_collections, name='portfolio-products'),
     

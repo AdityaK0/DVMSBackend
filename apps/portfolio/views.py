@@ -27,7 +27,7 @@ from apps.products.serializers import ProductListSerializer
 
 # ---- product service currently importing but later on had to go on cache due to public api
 
-from apps.products.service import get_vendor_products_combined
+from apps.products.service import get_vendor_products_combined,get_filtered_products
 
 
 # ---------- Public: vendor portfolio summary ----------
@@ -111,7 +111,7 @@ def public_portfolio_products(request, business_name):
     )
     query = request.GET.get("search","").strip()
     page = int(request.GET.get('page', 1))
-    page_size = int(request.GET.get('page_size', 3))
+    page_size = int(request.GET.get('page_size', 10))
 
     # data = get_vendor_products_data(vendor, request=request, page=page, page_size=page_size)
     data =  get_vendor_products_combined(
@@ -144,11 +144,9 @@ def public_portfolio_filter(request,business_name):
         {"error": "May be business name issue Only vendors can access this endpoint"},
         status=status.HTTP_403_FORBIDDEN
     )
-    query = request.GET.get("q", "").strip()
-    page = int(request.GET.get('page', 1))
-    page_size = int(request.GET.get('page_size', 10))
-
-    data = get_vendor_products_combined(vendor, request=request,query=query, page=page, page_size=page_size)
+        
+        
+    data = get_filtered_products(vendor, request.GET, request=request)
     return Response(data)
     
 
