@@ -47,58 +47,60 @@ def upload_product_images(product, files):
         images.append(img)
     return images
 
+import logging
+logger = logging.getLogger(__name__)
+
+def upload_collection_image(collection, file):
+    """
+    Upload a single collection image to Cloudinary and update the model.
+    """
+    if not file:
+        return None
+    
+    # Upload image to Cloudinary
+    result = upload(
+        file,
+        folder=f"collections/{collection.id}/",
+        overwrite=True,
+        resource_type="image"
+    )
+    print("*"*100 , result)
+    logger.info("UPLOAD RESULT: %s", result) 
+    # Assuming PortfolioCollection has a field like `image` (CloudinaryField or CharField for public_id)
+    collection.cover_image = result["public_id"]
+    collection.save(update_fields=["cover_image"])
+    
+    return result
 
 
 # def upload_collection_image(collection, file):
 #     """
-#     Upload a single collection image to Cloudinary and update the model.
+#     Upload or replace the collection cover image in Cloudinary.
+#     Ensures proper folder structure and file naming.
 #     """
 #     if not file:
 #         return None
-    
-#     # Upload image to Cloudinary
+
+#     # Ensure collection has an ID (important for folder path)
+#     if not collection.id:
+#         collection.save()
+
 #     result = upload(
 #         file,
-#         folder=f"collections/{collection.id}/",
+#         folder=f"collections/{collection.id}",
+#         use_filename=True,
+#         unique_filename=False,
 #         overwrite=True,
 #         resource_type="image"
 #     )
 
-#     # Assuming PortfolioCollection has a field like `image` (CloudinaryField or CharField for public_id)
-#     collection.image = result["public_id"]
-#     collection.save(update_fields=["image"])
-    
+#     print("Uploaded file to folder:", result.get("public_id"))
+#     print("Full URL:", result.get("secure_url"))
+
+#     collection.cover_image = result["public_id"]
+#     collection.save(update_fields=["cover_image"])
+
 #     return result
-
-
-def upload_collection_image(collection, file):
-    """
-    Upload or replace the collection cover image in Cloudinary.
-    Ensures proper folder structure and file naming.
-    """
-    if not file:
-        return None
-
-    # Ensure collection has an ID (important for folder path)
-    if not collection.id:
-        collection.save()
-
-    result = upload(
-        file,
-        folder=f"collections/{collection.id}",
-        use_filename=True,
-        unique_filename=False,
-        overwrite=True,
-        resource_type="image"
-    )
-
-    print("Uploaded file to folder:", result.get("public_id"))
-    print("Full URL:", result.get("secure_url"))
-
-    collection.cover_image = result["public_id"]
-    collection.save(update_fields=["cover_image"])
-
-    return result
 
 
 

@@ -6,51 +6,173 @@ from django.db.models import Prefetch
 from apps.products.models import Product, ProductImage
 from apps.products.serializers import ProductListSerializer
 from apps.dashboard.service import get_product_stats_cached
+from django.db.models import Q,Prefetch
 
 
-def get_vendor_products_data(vendor, request=None, page=1, page_size=10, include_private=False):
+
+
+
+from django.core.paginator import Paginator
+from django.db.models import Q, Prefetch
+from apps.products.models import Product, ProductImage
+from apps.products.serializers import ProductListSerializer
+from apps.dashboard.service import get_product_stats_cached
+
+
+def get_vendor_products_combined(
+    vendor,
+    request=None,
+    page=1,
+    page_size=10,
+    query="",
+    include_private=False,
+):
     """
-    Reusable service function to get vendor products with pagination and serialization.
+    Unified service for fetching vendor products.
+    - Supports normal listing and search in one function.
     """
 
-    # Base queryset
-    queryset = Product.objects.filter(
-        vendor=vendor,
-        is_active=True,
-        is_archived=False
-    ).select_related('vendor', 'category') \
-    .prefetch_related(
-        Prefetch(
-            'images',
-            queryset=ProductImage.objects.all(),
-            to_attr='images_prefetched'
+    # ✅ Base queryset
+    queryset = (
+        Product.objects.filter(
+            vendor=vendor,
+            is_active=True,
+            is_archived=False,
         )
-    ).order_by('-created_at')
+        .select_related("vendor", "category")
+        .prefetch_related(
+            Prefetch(
+                "images",
+                queryset=ProductImage.objects.all(),
+                to_attr="images_prefetched",
+            )
+        )
+        .order_by("-created_at")
+    )
 
-    # Pagination
+    # ✅ Search support
+    if query:
+        queryset = queryset.filter(
+            Q(name__icontains=query)
+            | Q(description__icontains=query)
+            | Q(sku__icontains=query)
+        )
+
+    # ✅ Pagination
     paginator = Paginator(queryset, page_size)
     page_obj = paginator.get_page(page)
 
-    # Serialize data
+    # ✅ Serialize
     serializer = ProductListSerializer(
         page_obj.object_list,
         many=True,
-        context={'request': request} if request else {}
+        context={"request": request} if request else {},
     )
 
-    # Product statistics (cached)
+    # ✅ Optional cached stats (for total count)
     product_stats = get_product_stats_cached(vendor)
     paginator_count = product_stats.get("total_active_products", paginator.count)
 
-    # Final response data
+    # ✅ Final response
     return {
-        'results': serializer.data,
-        'count': paginator_count,
-        'total_pages': paginator.num_pages,
-        'current_page': int(page),
-        'has_next': page_obj.has_next(),
-        'has_previous': page_obj.has_previous(),
+        "results": serializer.data,
+        "count": paginator_count,
+        "total_pages": paginator.num_pages,
+        "current_page": int(page),
+        "has_next": page_obj.has_next(),
+        "has_previous": page_obj.has_previous(),
     }
 
 
 
+
+# def get_vendor_products_data(vendor, request=None, page=1, page_size=10, include_private=False):
+#     """
+#     Reusable service function to get vendor products with pagination and serialization.
+#     """
+
+#     # Base queryset
+#     queryset = Product.objects.filter(
+#         vendor=vendor,
+#         is_active=True,
+#         is_archived=False
+#     ).select_related('vendor', 'category') \
+#     .prefetch_related(
+#         Prefetch(
+#             'images',
+#             queryset=ProductImage.objects.all(),
+#             to_attr='images_prefetched'
+#         )
+#     ).order_by('-created_at')
+
+#     # Pagination
+#     paginator = Paginator(queryset, page_size)
+#     page_obj = paginator.get_page(page)
+
+#     # Serialize data
+#     serializer = ProductListSerializer(
+#         page_obj.object_list,
+#         many=True,
+#         context={'request': request} if request else {}
+#     )
+
+#     # Product statistics (cached)
+#     product_stats = get_product_stats_cached(vendor)
+#     paginator_count = product_stats.get("total_active_products", paginator.count)
+
+#     # Final response data
+#     return {
+#         'results': serializer.data,
+#         'count': paginator_count,
+#         'total_pages': paginator.num_pages,
+#         'current_page': int(page),
+#         'has_next': page_obj.has_next(),
+#         'has_previous': page_obj.has_previous(),
+#     }
+
+
+
+# def get_search_products(vendor, request=None,query="",page=1, page_size=10):
+    
+#     """Optimized: Search products for the current vendor"""
+    
+#     # above_not_needed
+    
+#     products_qs = (
+#         Product.objects.filter(vendor=vendor, is_active=True, is_archived=False)
+#         .select_related("vendor", "category")
+#         .prefetch_related(
+#             Prefetch(
+#                 "images",
+#                 queryset=ProductImage.objects.all(),
+#                 to_attr="images_prefetched"
+#             )
+#         )
+#     )
+
+#     if query:
+#         products_qs = products_qs.filter(
+#             Q(name__icontains=query)
+#             | Q(description__icontains=query)
+#             | Q(sku__icontains=query)
+#         )
+
+#     # Pagination handling (safe + integer conversion)
+
+#     paginator = Paginator(products_qs.order_by("-created_at"), page_size)
+#     page_obj = paginator.get_page(page)
+
+#     serializer = ProductListSerializer(
+#         page_obj.object_list,
+#         many=True,
+#         context={"request": request}
+#     )
+
+#     return {
+#         "results": serializer.data,
+#         "count": paginator.count,
+#         "total_pages": paginator.num_pages,
+#         "current_page": page,
+#         "has_next": page_obj.has_next(),
+#         "has_previous": page_obj.has_previous(),
+#     }

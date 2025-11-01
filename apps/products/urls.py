@@ -25,7 +25,7 @@ urlpatterns = [
     path('vendor/my-products/<int:pk>/activate/', views.activate_product, name='update-product'),
 
     path('vendor/my-products/<int:pk>/delete/', views.delete_product, name='delete-product'),
-    path("vendor/search/", views.search_products, name="search_products"),
+    # path("vendor/search/", views.search_products, name="search_products"),
     path("vendor/filter/", views.filter_products, name="filter_products"),
 ]
 

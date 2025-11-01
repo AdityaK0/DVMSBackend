@@ -116,3 +116,16 @@ will do reindexing of those things now i think this is good structure
 
 but wherever we do reindexing we have do at somewhere where it can handle a lot of request at once 
 cause this will the public portfolio stuff
+
+
+
+
+
+--- currently storing data in the portfolio later will do something other
+
+---- data redundancy if there is already some data available in the vendor side then
+why do i again fetch or add the same data in portfolio table 
+
+
+
+--- 

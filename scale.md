@@ -184,3 +184,9 @@ show created/updated timestamps
 show vendor details
 
 Add monitoring dashboards to track reindex activity and cache hit rates.
+
+
+
+-------------- xxxxxxxxxxxxxx --------------
+
+How to apply cache search and filter on cache cause on public portfolio most like this stuff can be used
