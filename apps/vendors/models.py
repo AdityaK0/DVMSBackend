@@ -18,6 +18,7 @@ class Vendor(models.Model):
     business_email = models.EmailField(unique=True,null=True)
     business_type = models.CharField(max_length=25, choices=BUSSINES_TYPE, default='other')
     business_phone = models.CharField(max_length=20)
+    whatsapp_number = models.CharField(max_length=20, blank=True, null=True)
     gstin = models.CharField(max_length=20, blank=True)
     website = models.URLField(blank=True,null=True)
     # logo = models.ImageField(upload_to='vendor_logos/', blank=True)

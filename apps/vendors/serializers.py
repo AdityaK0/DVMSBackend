@@ -19,7 +19,7 @@ class VendorSerializer(serializers.ModelSerializer):
             "business_email", "business_type", "business_phone","business_name_slug",
             "gstin", "website", "logo","logo_url",
             "is_active", "is_verified", 
-            "total_products", "average_rating",
+            "total_products", "average_rating","whatsapp_number",
             "created_at", "updated_at", "is_onboarded", "address_details"
         ]
         read_only_fields = ["user", "is_verified", "created_at", "updated_at","logo_url"]
@@ -60,6 +60,7 @@ class VendorUpdate(serializers.ModelSerializer):
     website = serializers.URLField(required=False, allow_blank=True, default="https://www.google.com")
     logo = serializers.ImageField(required=False)
     gstin = serializers.CharField(required=False)
+    whatsapp_number = serializers.CharField(required=False)
     
     # Address fields - all optional
     street = serializers.CharField(write_only=True, required=False)
@@ -77,7 +78,7 @@ class VendorUpdate(serializers.ModelSerializer):
             "business_name", "business_description", "business_type",
             "website", "logo", "gstin",
             "street", "city", "state", "zip_code", "country",
-            "address_details"
+            "address_details","whatsapp_number",
         ]
         read_only_fields = ["user", "is_verified", "created_at", "updated_at"]
     
@@ -126,6 +127,7 @@ class VendorUpdate(serializers.ModelSerializer):
         if new_name != old_name:
             instance.business_name_slug = f"{slugify(new_name)}-{instance.id}"      
         instance.save()
+        
 
         
         # Update address only if address data is provided

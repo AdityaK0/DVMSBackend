@@ -22,6 +22,7 @@ from .serializers import (
 from apps.utils.upload_image import upload_collection_image
 from .service import get_vendor_collections
 from apps.products.serializers import ProductListSerializer
+from apps.vendors.serializers import AddressSerializer
 
 
 
@@ -34,7 +35,16 @@ from apps.products.service import get_vendor_products_combined,get_filtered_prod
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def public_vendor_portfolio(request, business_name):
-    vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
+    # vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
+    vendor = (
+    Vendor.objects
+    .select_related('user')      # includes User in same query
+    .prefetch_related('user__addresses')  # fetches Address list in one go
+    .get(business_name_slug__iexact=business_name, is_active=True)
+    )
+
+    
+    
     portfolio = get_object_or_404(Portfolio, vendor=vendor, is_public=True)
     
     portfolio.view_count = (portfolio.view_count or 0) + 1
@@ -72,11 +82,11 @@ def public_vendor_portfolio(request, business_name):
         "featured_products": PortfolioProductSerializer(featured_products, many=True).data,
         "banner_image": portfolio.banner_image.url if portfolio.banner_image else None,
         "logo": portfolio.logo.url if portfolio.logo else None,
-        "gallery_images": portfolio.gallery_images or [],
-        "contact_email": portfolio.contact_email,
-        "contact_phone": portfolio.contact_phone,
-        "address":portfolio.address,
-        "whatsapp_number":portfolio.whatsapp_number,    
+        "gallery_images": portfolio.gallery_images or [], # need implement instead of testimonal
+        "contact_email": vendor.business_email,
+        "contact_phone": vendor.business_phone,
+        "address":AddressSerializer(vendor.user.addresses.all(), many=True).data,
+        "whatsapp_number":vendor.whatsapp_number if vendor.whatsapp_number else None,    
         "social_links": {
             "facebook": portfolio.facebook_url,
             "instagram": portfolio.instagram_url,
