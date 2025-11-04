@@ -183,8 +183,7 @@ class PortfolioSerializer(serializers.ModelSerializer):
             'id', 'display_name', 'tagline', 'slug', 'about_us', 'our_story',
             'mission', 'vision', 'logo', 'banner_image', 'gallery_images',
             'theme_color', 'accent_color', 'background_color', 'text_color',
-            'font_family', 'layout_style', 'contact_email', 'contact_phone',
-            'whatsapp_number', 'address', 'facebook_url', 'instagram_url',
+            'font_family', 'layout_style','facebook_url', 'instagram_url',
             'twitter_url', 'linkedin_url', 'youtube_url', 'website_url',
             'show_pricing', 'show_stock_status', 'show_contact_form',
             'show_social_links', 'show_testimonials', 'show_gallery',
@@ -195,6 +194,22 @@ class PortfolioSerializer(serializers.ModelSerializer):
             # 'total_products', Not needed for portfolio summary
             'total_collections', 'total_testimonials'
         ]
+        # fields = [
+        #     'id', 'display_name', 'tagline', 'slug', 'about_us', 'our_story',
+        #     'mission', 'vision', 'logo', 'banner_image', 'gallery_images',
+        #     'theme_color', 'accent_color', 'background_color', 'text_color',
+        #     'font_family', 'layout_style', 'contact_email', 'contact_phone',
+        #     'whatsapp_number', 'address', 'facebook_url', 'instagram_url',
+        #     'twitter_url', 'linkedin_url', 'youtube_url', 'website_url',
+        #     'show_pricing', 'show_stock_status', 'show_contact_form',
+        #     'show_social_links', 'show_testimonials', 'show_gallery',
+        #     'is_public', 'custom_domain', 'custom_css', 'meta_title',
+        #     'meta_description', 'meta_keywords', 'view_count',
+        #     'created_at', 'updated_at', 'vendor', 'sections', 'collections',
+        #     'testimonials', 'featured_products', 'featured_product_ids',
+        #     # 'total_products', Not needed for portfolio summary
+        #     'total_collections', 'total_testimonials'
+        # ]
         read_only_fields = ['slug', 'view_count', 'vendor']
     
     # def get_total_products(self, obj):

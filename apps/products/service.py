@@ -7,6 +7,7 @@ from django.db.models import Q, Prefetch
 from apps.products.models import Product, ProductImage
 from apps.products.serializers import ProductListSerializer
 from apps.dashboard.service import get_product_stats_cached
+from django.shortcuts import get_object_or_404
 
 
 def get_vendor_products_combined(
@@ -131,6 +132,25 @@ def get_filtered_products(vendor, params, request=None):
         "has_previous": page_obj.has_previous(),
     }
 
+def get_product_details(vendor, id):
+    """
+    Safely fetch a single product for a given vendor.
+    Returns serialized data or a proper error response.
+    """
+    try:
+        # Fetch the product or raise 404
+        product = get_object_or_404(Product, id=id, vendor=vendor, is_active=True)
+
+        # Serialize
+        serializer = ProductListSerializer(product, many=False)
+        return serializer.data
+
+    except Http404:
+        raise  # Let DRF handle and return 404 response
+    except Exception as e:
+        # Return explicit error message (not a 200 OK)
+        raise Exception(f"Error fetching product details: {e}")
+        
 
 
 

@@ -28,7 +28,7 @@ from apps.vendors.serializers import AddressSerializer
 
 # ---- product service currently importing but later on had to go on cache due to public api
 
-from apps.products.service import get_vendor_products_combined,get_filtered_products
+from apps.products.service import get_vendor_products_combined,get_filtered_products,get_product_details
 
 
 # ---------- Public: vendor portfolio summary ----------
@@ -159,6 +159,39 @@ def public_portfolio_filter(request,business_name):
     data = get_filtered_products(vendor, request.GET, request=request)
     return Response(data)
     
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+def public_portfolio_products_detail(request, business_name,id):
+    try:
+        try:
+            vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
+        except:
+            return Response(
+            {"error": "business not found seems like may be url need to observed"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if not vendor:
+            return Response(
+            {"error": "May be business name issue Only vendors can access this endpoint"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+        product = get_product_details(vendor=vendor,id=id)
+        
+        return Response(product)
+
+
+
+
+
+    except Exception as e:
+        # Log the full error for debugging
+
+        return Response(
+            {"detail": "An unexpected error occurred.", "error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 
 
 @api_view(['GET'])

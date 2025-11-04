@@ -60,11 +60,12 @@ class Portfolio(models.Model):
     ]
     layout_style = models.CharField(max_length=20, choices=LAYOUT_CHOICES, default='modern')
     
-    # Contact Information
-    contact_email = models.EmailField(blank=True)
-    contact_phone = models.CharField(max_length=20, blank=True)
-    whatsapp_number = models.CharField(max_length=20, blank=True)
-    address = models.TextField(blank=True)
+    # Contact Information no need to store in portfolio cause vendor has this information 
+    # if stored this then can lead to data redundancy
+    # contact_email = models.EmailField(blank=True)
+    # contact_phone = models.CharField(max_length=20, blank=True)
+    # whatsapp_number = models.CharField(max_length=20, blank=True)
+    # address = models.TextField(blank=True)
     
     # Social Media
     facebook_url = models.URLField(blank=True)
