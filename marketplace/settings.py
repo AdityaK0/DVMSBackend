@@ -217,3 +217,6 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http?:\/\/([a-zA-Z0-9-]+)\.localhost:3000$",  # For local development
     # r"^https?:\/\/([a-zA-Z0-9-]+)\.yourdomain\.com$", # For production
 ]
+
+
+DEFAULT_SYNC_COUNT = os.getenv("DEFAUTL_SYNC_COUNT")

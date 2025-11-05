@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from apps.portfolio.models import Portfolio, PortfolioCollection,PortfolioSyncPlan
 from apps.portfolio.serializers import PortfolioCollectionSerializer
 from apps.utils.upload_image import upload_collection_image
+from django.conf import settings
 
 
 # apps/portfolio/services.py
@@ -28,7 +29,7 @@ class PortfolioService:
     @staticmethod
     def get_public_vendor_portfolio(business_name: str):
         """Fetch vendor, portfolio details, analytics, products, testimonials etc."""
-        
+        return 0
         # Fetch vendor with related user & addresses
         vendor = (
             Vendor.objects
@@ -126,7 +127,7 @@ class PortfolioService:
         portfolio_sync_plan =  PortfolioSyncPlan.objects.get_or_create(
             vendor=vendor,
             defaults={                # optional initial limits
-                "allowed_syncs_per_day": 3,
+                "allowed_syncs_per_day": settings.DEFAULT_SYNC_COUNT,
                 "used_syncs_today": 0,
                 "extra_syncs_available": 0,
             }

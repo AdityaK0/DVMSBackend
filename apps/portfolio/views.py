@@ -383,12 +383,13 @@ def portfolio_collection_detail(request, id):
         return Response({"detail": "collection deleted successfully "}, status=status.HTTP_200_OK)
     
     
-    
+
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def trigger_sync(request):
     """
-    Sync vendor data (portfolio → products → collections) to Elasticsearch
+    Sync portfolio + products + collections to Elasticsearch
     """
     user = request.user
 
@@ -400,9 +401,8 @@ def trigger_sync(request):
 
     vendor = Vendor.objects.filter(user=user).first()
     if not vendor:
-        return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    # Create or attach sync plan
     plan, _ = PortfolioService.create_vendor_sync_plan(vendor)
 
     if not plan.can_sync():
@@ -416,22 +416,50 @@ def trigger_sync(request):
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
 
-    # ✅ Run sync and get details
+    # ✅ Execute sync
     result = sync_vendor(vendor.id)
 
     return Response(
         {
-            "status": result["status"],
-            "message": "Vendor synced successfully.",
+            "status": "success",
+            "message": "Vendor synced successfully!",
             "synced_docs": result["synced_docs"],
-            "products_synced": result["products_synced"],
-            "collections_synced": result["collections_synced"],
-            "portfolio_synced": result["portfolio_synced"],
             "remaining_syncs": plan.remaining_syncs,
             "extra_syncs_available": plan.extra_syncs_available,
         }
     )
 
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def sync_status(request):
+    """
+    Returns remaining syncs, used syncs and extra syncs for vendor
+    """
+    user = request.user
+
+    if user.role != "vendor":
+        return Response(
+            {"error": "Only vendors can view sync status."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    vendor = Vendor.objects.filter(user=user).first()
+    if not vendor:
+        return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    plan, _ = PortfolioService.create_vendor_sync_plan(vendor)
+
+    return Response(
+        {
+            "remaining_syncs": plan.remaining_syncs,
+            "used_syncs_today": plan.used_syncs_today,
+            "allowed_syncs_per_day": plan.allowed_syncs_per_day,
+            "extra_syncs_available": plan.extra_syncs_available,
+            "last_sync_at": plan.last_sync_at,
+        }
+    )
 
 # @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 # @permission_classes([permissions.IsAuthenticated])
