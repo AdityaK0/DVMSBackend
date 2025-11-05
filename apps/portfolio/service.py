@@ -29,7 +29,6 @@ class PortfolioService:
     @staticmethod
     def get_public_vendor_portfolio(business_name: str):
         """Fetch vendor, portfolio details, analytics, products, testimonials etc."""
-        return 0
         # Fetch vendor with related user & addresses
         vendor = (
             Vendor.objects
