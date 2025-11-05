@@ -166,22 +166,72 @@ def serialize_collections(vendor):
 
 # ------------------ SYNC FUNCTION ------------------
 
+# def sync_vendor(vendor_id):
+#     print(f"🔄 Syncing vendor {vendor_id}...")
+
+#     vendor = Vendor.objects.get(id=vendor_id)
+    
+#     plan, _ = PortfolioService.create_vendor_sync_plan(vendor)
+    
+    
+#     if not plan.can_sync():
+#         print(f"❌ Sync blocked — limit reached for vendor {vendor.business_name}")
+#         return {"status": "blocked", "reason": "sync_limit_reached"}
+
+#     portfolio_doc = serialize_portfolio(vendor_id)
+#     collection_docs = serialize_collections(vendor) 
+#     product_docs = serialize_product_listing(vendor)
+    
+#     documents = [portfolio_doc] + collection_docs + product_docs
+    
+#     print(f"✅ Synced {len(documents)} docs to ES (portfolio + collections + products)")
+    
+#     bulk(es, documents)
+    
+#     plan.consume_sync()
+    
+#     print(f"✅ ES updated (portfolio_index) for vendor {vendor.business_name}")
+
+
 def sync_vendor(vendor_id):
     print(f"🔄 Syncing vendor {vendor_id}...")
 
     vendor = Vendor.objects.get(id=vendor_id)
 
+    # Ensure a plan exists (create if not)
+    plan, _ = PortfolioService.create_vendor_sync_plan(vendor)
+
+    if not plan.can_sync():
+        print(f"❌ Sync blocked — limit reached for vendor {vendor.business_name}")
+        return {
+            "status": "blocked",
+            "reason": "sync_limit_reached",
+            "synced_docs": 0
+        }
+
     portfolio_doc = serialize_portfolio(vendor_id)
-    collection_docs = serialize_collections(vendor) 
+    collection_docs = serialize_collections(vendor)
     product_docs = serialize_product_listing(vendor)
-    
+
     documents = [portfolio_doc] + collection_docs + product_docs
-    
-    print(f"✅ Synced {len(documents)} docs to ES (portfolio + collections + products)")
-    
+
+    print(f"✅ Prepared {len(documents)} documents for ES")
+
     bulk(es, documents)
-    
-    print(f"✅ ES updated (portfolio_index) for vendor {vendor.business_name}")
+
+    # decrease sync count
+    plan.consume_sync()
+
+    print(f"✅ ES sync completed for vendor {vendor.business_name}")
+
+    return {
+        "status": "success",
+        "synced_docs": len(documents),
+        "collections_synced": len(collection_docs),
+        "products_synced": len(product_docs),
+        "portfolio_synced": True,
+    }
+
 
 
 if __name__ == "__main__":

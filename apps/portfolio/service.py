@@ -2,7 +2,7 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
-from apps.portfolio.models import Portfolio, PortfolioCollection
+from apps.portfolio.models import Portfolio, PortfolioCollection,PortfolioSyncPlan
 from apps.portfolio.serializers import PortfolioCollectionSerializer
 from apps.utils.upload_image import upload_collection_image
 
@@ -119,7 +119,21 @@ class PortfolioService:
         
         serializer = PortfolioCollectionSerializer(collections, many=True)
         return serializer.data    
-
+    
+    @staticmethod
+    def create_vendor_sync_plan(vendor):
+        
+        portfolio_sync_plan =  PortfolioSyncPlan.objects.get_or_create(
+            vendor=vendor,
+            defaults={                # optional initial limits
+                "allowed_syncs_per_day": 3,
+                "used_syncs_today": 0,
+                "extra_syncs_available": 0,
+            }
+        )
+        
+        return portfolio_sync_plan
+        
 
 
 

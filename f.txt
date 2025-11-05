@@ -144,3 +144,22 @@ $50 = 2 times
 
 
 --- 
+
+
+MOST IMP 
+
+what the intial stuff after first time will look like on thing is done that is
+oboading but directly showing portfolio 
+or before that subscription page and all then unlocks all the things 
+subscription available in settings page under subscription TAB 
+
+this was about subscription but 
+how the portfolio will be created of that vendor i dont know 
+there will be page something like 
+portfolio on the sidebar is ok but if not created then show button like create portfolio
+then show the portfolio Dashboard from where they can publish the site
+and if the vendor is created then in public api it can easily make the calls right then
+need to add a kind of decorator or something in the api like is subscribed in vendor managementa api's 
+
+and how i can avail the portfolio which is the main for free need to do something for this ok
+

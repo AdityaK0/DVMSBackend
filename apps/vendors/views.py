@@ -20,6 +20,7 @@ from rest_framework.exceptions import ValidationError
 from apps.utils.upload_image import upload_vendor_logo
 from apps.utils.default_creation import create_default_categories_for_vendor
 from django.utils.text import slugify
+from apps.portfolio.models import PortfolioSyncPlan
 
 
 
@@ -146,6 +147,7 @@ def create_vendor(request):
         if logo_file:
             upload_vendor_logo(vendor, logo_file)
         vendor.save()
+
         vendor.business_name_slug = slugify(f"{vendor.business_name}-{vendor.id}")
 
         # Create or update Address linked to this user
