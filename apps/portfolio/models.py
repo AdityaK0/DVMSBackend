@@ -347,7 +347,6 @@ class PortfolioTheme(models.Model):
 # apps/portfolio/models.py
 
 from django.utils.timezone import now
-from django.conf import settings
 class PortfolioSyncPlan(models.Model):
     vendor = models.OneToOneField(
         Vendor,
@@ -355,7 +354,7 @@ class PortfolioSyncPlan(models.Model):
         related_name="sync_plan",
     )
 
-    allowed_syncs_per_day = models.PositiveIntegerField(default=settings.DEFAULT_SYNC_COUNT)
+    allowed_syncs_per_day = models.PositiveIntegerField(default=5)
     used_syncs_today = models.PositiveIntegerField(default=0)
     extra_syncs_available = models.PositiveIntegerField(default=0)
 
