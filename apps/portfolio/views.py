@@ -20,9 +20,9 @@ from .serializers import (
     PortfolioTestimonialSerializer, PortfolioContactInquirySerializer
 )
 from apps.utils.upload_image import upload_collection_image
-from .service import get_vendor_collections
 from apps.products.serializers import ProductListSerializer
 from apps.vendors.serializers import AddressSerializer
+from .service import PortfolioService
 
 
 
@@ -32,75 +32,82 @@ from apps.products.service import get_vendor_products_combined,get_filtered_prod
 
 
 # ---------- Public: vendor portfolio summary ----------
-@api_view(['GET'])
+# @api_view(['GET'])
+# @permission_classes([permissions.AllowAny])
+# def public_vendor_portfolio(request, business_name):
+#     # vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
+#     vendor = (
+#     Vendor.objects
+#     .select_related('user')      # includes User in same query
+#     .prefetch_related('user__addresses')  # fetches Address list in one go
+#     .get(business_name_slug__iexact=business_name, is_active=True)
+#     )
+
+    
+    
+#     portfolio = get_object_or_404(Portfolio, vendor=vendor, is_public=True)
+    
+#     portfolio.view_count = (portfolio.view_count or 0) + 1
+#     portfolio.last_viewed = timezone.now()
+#     portfolio.save(update_fields=['view_count', 'last_viewed'])
+
+#     today = timezone.now().date()
+#     analytics, created = PortfolioAnalytics.objects.get_or_create(
+#         portfolio=portfolio, date=today,
+#         defaults={'page_views': 1, 'unique_visitors': 1}
+#     )
+#     if not created:
+#         analytics.page_views = (analytics.page_views or 0) + 1
+#         analytics.save(update_fields=['page_views'])
+
+#     total_collections = PortfolioCollection.objects.filter(portfolio=portfolio, is_active=True).count()
+#     total_testimonials = PortfolioTestimonial.objects.filter(portfolio=portfolio, is_approved=True).count()
+#     featured_products = portfolio.get_featured_products()[:8]
+#     data = {
+#         "id": portfolio.id,
+#         "business_name":vendor.business_name,
+#         "display_name": portfolio.display_name,
+#         "tagline": portfolio.tagline,
+#         "slug": portfolio.slug,
+#         "about_us": portfolio.about_us,
+#         "theme_color": portfolio.theme_color,
+#         "accent_color": portfolio.accent_color,
+#         "layout_style": portfolio.layout_style,
+#         "show_pricing": portfolio.show_pricing,
+#         "show_contact_form": portfolio.show_contact_form,
+#         "is_public": portfolio.is_public,
+#         "view_count": portfolio.view_count,
+#         "total_collections": total_collections,
+#         "total_testimonials": total_testimonials,
+#         "featured_products": PortfolioProductSerializer(featured_products, many=True).data,
+#         "banner_image": portfolio.banner_image.url if portfolio.banner_image else None,
+#         "logo": portfolio.logo.url if portfolio.logo else None,
+#         "gallery_images": portfolio.gallery_images or [], # need implement instead of testimonal
+#         "contact_email": vendor.business_email,
+#         "contact_phone": vendor.business_phone,
+#         "address":AddressSerializer(vendor.user.addresses.all(), many=True).data,
+#         "whatsapp_number":vendor.whatsapp_number if vendor.whatsapp_number else None,    
+#         "social_links": {
+#             "facebook": portfolio.facebook_url,
+#             "instagram": portfolio.instagram_url,
+#             "twitter": portfolio.twitter_url,
+#             "linkedin": portfolio.linkedin_url,
+#             "youtube": portfolio.youtube_url,
+#         },
+#         "featured_products":ProductListSerializer(portfolio.featured_products.all(), many=True).data,
+#         "created_at": portfolio.created_at,
+#         "updated_at": portfolio.updated_at,
+#     }
+
+#     return Response(data, status=status.HTTP_200_OK)
+
+
+
+@api_view(["GET"])
 @permission_classes([permissions.AllowAny])
 def public_vendor_portfolio(request, business_name):
-    # vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
-    vendor = (
-    Vendor.objects
-    .select_related('user')      # includes User in same query
-    .prefetch_related('user__addresses')  # fetches Address list in one go
-    .get(business_name_slug__iexact=business_name, is_active=True)
-    )
-
-    
-    
-    portfolio = get_object_or_404(Portfolio, vendor=vendor, is_public=True)
-    
-    portfolio.view_count = (portfolio.view_count or 0) + 1
-    portfolio.last_viewed = timezone.now()
-    portfolio.save(update_fields=['view_count', 'last_viewed'])
-
-    today = timezone.now().date()
-    analytics, created = PortfolioAnalytics.objects.get_or_create(
-        portfolio=portfolio, date=today,
-        defaults={'page_views': 1, 'unique_visitors': 1}
-    )
-    if not created:
-        analytics.page_views = (analytics.page_views or 0) + 1
-        analytics.save(update_fields=['page_views'])
-
-    total_collections = PortfolioCollection.objects.filter(portfolio=portfolio, is_active=True).count()
-    total_testimonials = PortfolioTestimonial.objects.filter(portfolio=portfolio, is_approved=True).count()
-    featured_products = portfolio.get_featured_products()[:8]
-    data = {
-        "id": portfolio.id,
-        "business_name":vendor.business_name,
-        "display_name": portfolio.display_name,
-        "tagline": portfolio.tagline,
-        "slug": portfolio.slug,
-        "about_us": portfolio.about_us,
-        "theme_color": portfolio.theme_color,
-        "accent_color": portfolio.accent_color,
-        "layout_style": portfolio.layout_style,
-        "show_pricing": portfolio.show_pricing,
-        "show_contact_form": portfolio.show_contact_form,
-        "is_public": portfolio.is_public,
-        "view_count": portfolio.view_count,
-        "total_collections": total_collections,
-        "total_testimonials": total_testimonials,
-        "featured_products": PortfolioProductSerializer(featured_products, many=True).data,
-        "banner_image": portfolio.banner_image.url if portfolio.banner_image else None,
-        "logo": portfolio.logo.url if portfolio.logo else None,
-        "gallery_images": portfolio.gallery_images or [], # need implement instead of testimonal
-        "contact_email": vendor.business_email,
-        "contact_phone": vendor.business_phone,
-        "address":AddressSerializer(vendor.user.addresses.all(), many=True).data,
-        "whatsapp_number":vendor.whatsapp_number if vendor.whatsapp_number else None,    
-        "social_links": {
-            "facebook": portfolio.facebook_url,
-            "instagram": portfolio.instagram_url,
-            "twitter": portfolio.twitter_url,
-            "linkedin": portfolio.linkedin_url,
-            "youtube": portfolio.youtube_url,
-        },
-        "featured_products":ProductListSerializer(portfolio.featured_products.all(), many=True).data,
-        "created_at": portfolio.created_at,
-        "updated_at": portfolio.updated_at,
-    }
-
-    return Response(data, status=status.HTTP_200_OK)
-
+    portfolio_data = PortfolioService.get_public_vendor_portfolio(business_name)
+    return Response(portfolio_data, status=status.HTTP_200_OK)
 
 # ---------- Public: product listing / search ----------
 @api_view(['GET'])
@@ -212,7 +219,7 @@ def public_portfolio_collections(request,business_name):
             status=status.HTTP_403_FORBIDDEN
         )
 
-        data = get_vendor_collections(vendor)
+        data = PortfolioService.get_vendor_collections(vendor)
         return Response(data, status=status.HTTP_200_OK)
 
     except Exception as e:
@@ -293,6 +300,7 @@ def vendor_portfolio_manage(request):
         defaults={
             "display_name": vendor.business_name or f"{vendor.pk}-portfolio",
             "slug": vendor.business_name.lower().replace(' ', '-')[:90],
+            "business_name_slug":vendor.business_name_slug
         }
     )
     if request.method == 'GET':

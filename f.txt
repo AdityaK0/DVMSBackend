@@ -128,4 +128,19 @@ why do i again fetch or add the same data in portfolio table
 
 
 
+--- ES = API RESPONSE STRUCTURE BASE MAPPING IN THE INDEXES 
+and then in those indexes document we save the data and data will be directly served to the fastapi 
+no need to go through a lot
+
+expect main /products page here the query will be needed so need to store all product data in the 
+product_index will all the data including images so in api only serialize data and give the data with 
+pagination thats it 
+
+
+specific api response base structure need to store in ES while reindexing the data (publish site)
+
+More than 5 times if a vendor want then extra they have to purchase the reindex token  (INR)
+$50 = 2 times 
+
+
 --- 
