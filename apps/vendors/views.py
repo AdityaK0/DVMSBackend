@@ -18,7 +18,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from apps.utils.upload_image import upload_vendor_logo
-from apps.utils.default_creation import create_default_categories_for_vendor
+from apps.utils.default_creation import create_default_categories_for_vendor,create_default_portfolio_for_vendor
 from django.utils.text import slugify
 from apps.portfolio.models import PortfolioSyncPlan
 
@@ -180,6 +180,8 @@ def create_vendor(request):
         # Serialize response
         serializer = VendorSerializer(vendor)
         create_default_categories_for_vendor(vendor)
+        create_default_portfolio_for_vendor(vendor)
+        # Already existing logic
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     except Exception as e:

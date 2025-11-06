@@ -21,6 +21,7 @@ from .serializers import (
 from apps.utils.upload_image import upload_collection_image
 from scripts.es.sync_vendor_to_es import sync_vendor
 from .service import PortfolioService
+from ..utils.upload_image import upload_portfolio_banner,upload_portfolio_carousel
 
 
 
@@ -293,23 +294,72 @@ def vendor_portfolio_manage(request):
     if not vendor:
         return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    portfolio, _ = Portfolio.objects.get_or_create(  # we can create portfolio when the vendor onboarding is done - BG process ? i don't think so
-        vendor=vendor,
-        defaults={
-            "display_name": vendor.business_name or f"{vendor.pk}-portfolio",
-            "slug": vendor.business_name.lower().replace(' ', '-')[:90],
-            "business_name_slug":vendor.business_name_slug
-        }
-    )
-    if request.method == 'GET':
+    portfolio = Portfolio.objects.get(vendor=vendor)
+
+    if request.method == "GET":
         serializer = PortfolioSerializer(portfolio)
         return Response(serializer.data)
 
-    serializer = PortfolioSerializer(portfolio, data=request.data, partial=True)
+    # ✅ Handle banner image upload
+    banner_file = request.FILES.get("banner_image")
+    if banner_file:
+        portfolio.banner_image = upload_portfolio_banner(banner_file, portfolio)
+        portfolio.save(update_fields=['banner_image'])
+
+    # ✅ Handle carousel images - FIXED
+    # Get existing URLs from POST data (not FILES)
+    existing_urls = request.POST.getlist("carousel_images_existing")
+    
+    # Get new file uploads
+    new_files = request.FILES.getlist("carousel_images_new")
+    
+    # Upload new files and get their URLs
+    uploaded_urls = upload_portfolio_carousel(new_files, portfolio) if new_files else []
+    
+    # Merge existing + newly uploaded
+    final_carousel = existing_urls + uploaded_urls
+    portfolio.carousel_images = final_carousel
+    portfolio.save(update_fields=['carousel_images'])
+
+    # ✅ Update other fields via serializer (excluding image fields)
+    mutable_data = request.data.copy()
+    mutable_data.pop('carousel_images_existing', None)
+    mutable_data.pop('carousel_images_new', None)
+    
+    serializer = PortfolioSerializer(portfolio, data=mutable_data, partial=True)
     if serializer.is_valid():
         serializer.save()
-        return Response(serializer.data)
+        portfolio.refresh_from_db()
+        response_serializer = PortfolioSerializer(portfolio)
+        return Response(response_serializer.data)
+
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# @api_view(['GET', 'PUT', 'PATCH'])
+# @permission_classes([permissions.IsAuthenticated])
+# def vendor_portfolio_manage(request):
+#     vendor = getattr(request.user, "vendor", None)
+#     if not vendor:
+#         return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+#     portfolio, _ = Portfolio.objects.get_or_create(  # we can create portfolio when the vendor onboarding is done - BG process ? i don't think so
+#         vendor=vendor,
+#         defaults={
+#             "display_name": vendor.business_name or f"{vendor.pk}-portfolio",
+#             "slug": vendor.business_name.lower().replace(' ', '-')[:90],
+#             "business_name_slug":vendor.business_name_slug
+#         }
+#     )
+#     if request.method == 'GET':
+#         serializer = PortfolioSerializer(portfolio)
+#         return Response(serializer.data)
+
+#     serializer = PortfolioSerializer(portfolio, data=request.data, partial=True)
+#     if serializer.is_valid():
+#         serializer.save()
+#         return Response(serializer.data)
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -323,7 +373,7 @@ def portfolio_collections(request):
         return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        data = get_vendor_collections(vendor)
+        data = PortfolioService.get_vendor_collections(vendor)
         return Response(data, status=status.HTTP_200_OK)
 
     portfolio = get_object_or_404(Portfolio, vendor=vendor)

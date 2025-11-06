@@ -73,6 +73,38 @@ def upload_collection_image(collection, file):
     return result
 
 
+
+from cloudinary.uploader import upload, destroy
+
+def upload_portfolio_banner(file, portfolio):
+    """Upload banner image (single file)"""
+    result = upload(
+        file,
+        folder=f"portfolio/{portfolio.id}/banner/",
+        overwrite=True,
+        resource_type="image"
+    )
+
+    # return Cloudinary URL / public ID
+    return result["secure_url"]
+
+
+def upload_portfolio_carousel(files, portfolio):
+    """Upload multiple carousel images"""
+    uploaded_images = []
+
+    for file in files:
+        result = upload(
+            file,
+            folder=f"portfolio/{portfolio.id}/carousel/",
+            overwrite=True,
+            resource_type="image"
+        )
+        uploaded_images.append(result["secure_url"])  # store only URL
+
+    return uploaded_images
+
+
 # def upload_collection_image(collection, file):
 #     """
 #     Upload or replace the collection cover image in Cloudinary.

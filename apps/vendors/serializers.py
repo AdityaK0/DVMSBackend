@@ -3,8 +3,9 @@ from .models import Vendor
 from apps.users.serializers import VendorProfileSerializer,AddressSerializer
 from apps.users.models import Address
 from django.utils.text import slugify
-
-
+from apps.portfolio.models import Portfolio
+from ..utils.update_things import update_portfolio_url
+import re
 
 class VendorSerializer(serializers.ModelSerializer):
     total_products = serializers.ReadOnlyField()
@@ -125,7 +126,11 @@ class VendorUpdate(serializers.ModelSerializer):
             setattr(instance, attr, value)
         
         if new_name != old_name:
-            instance.business_name_slug = f"{slugify(new_name)}-{instance.id}"      
+            new_slug = f"{slugify(new_name)}-{instance.id}"
+            instance.business_name_slug = new_slug
+            
+            portfolio =  Portfolio.objects.get(vendor=instance)
+            update_portfolio_url(portfolio,new_slug)
         instance.save()
         
 
@@ -152,3 +157,14 @@ class VendorUpdate(serializers.ModelSerializer):
                 )
         
         return instance
+    
+    def validate_business_name(self, value):
+        slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+
+        if len(slug) > 50:
+            raise serializers.ValidationError("Business name is too long. Choose a shorter name.")
+
+        if not re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", slug):
+            raise serializers.ValidationError("Only letters, numbers and hyphens allowed.")
+
+        return value

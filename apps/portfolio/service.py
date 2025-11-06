@@ -41,8 +41,8 @@ class PortfolioService:
         portfolio = get_object_or_404(Portfolio, vendor=vendor, is_public=True)
 
         # Track page views & last viewed
-        portfolio.view_count = (portfolio.view_count or 0) + 1
-        portfolio.last_viewed = timezone.now()
+        # portfolio.view_count = (portfolio.view_count or 0) + 1
+        portfolio.last_viewed = timezone.now()   # last updated can be used here i think
         portfolio.save(update_fields=["view_count", "last_viewed"])
 
         # Analytics tracking
@@ -67,7 +67,7 @@ class PortfolioService:
         ).count()
 
         # featured products
-        featured_products = portfolio.get_featured_products()[:8]
+        featured_products = portfolio.get_featured_products()[:8]  
 
         # Prepare response data
         return {

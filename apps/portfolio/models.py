@@ -1,6 +1,5 @@
 # apps/portfolio/models.py
 
-from hashlib import blake2b
 from django.db import models
 from django.utils.text import slugify
 from django.urls import reverse
@@ -8,7 +7,6 @@ from cloudinary.models import CloudinaryField
 from apps.vendors.models import Vendor
 from apps.products.models import Product
 from django.utils.timezone import now
-
 
 class Portfolio(models.Model):
     """Main portfolio model - one per vendor"""
@@ -38,6 +36,7 @@ class Portfolio(models.Model):
     gallery_images = models.JSONField(default=list, blank=True)  # Array of cloudinary URLs
     title = models.CharField(max_length=255, default='My Portfolio')
     featured_products = models.ManyToManyField(Product, blank=True, related_name='featured_in_portfolios')
+    carousel_images = models.JSONField(default=list, blank=True) 
     # Design Customization
     theme_color = models.CharField(max_length=7, default='#3B82F6')  # Hex color
     accent_color = models.CharField(max_length=7, default='#10B981')
@@ -72,6 +71,7 @@ class Portfolio(models.Model):
     # address = models.TextField(blank=True)
     
     # Social Media
+    portfolio_url = models.URLField(blank=True)
     facebook_url = models.URLField(blank=True)
     instagram_url = models.URLField(blank=True)
     twitter_url = models.URLField(blank=True)
@@ -90,6 +90,7 @@ class Portfolio(models.Model):
     # Portfolio Settings
     is_public = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False) 
+    is_carousel = models.BooleanField(default=False)
     want_to_show_on_platform = models.BooleanField(default=False)# For platform featuring
     custom_domain = models.CharField(max_length=100, blank=True, unique=True, null=True)
     custom_css = models.TextField(blank=True, help_text="Custom CSS for advanced styling")

@@ -155,71 +155,149 @@ class PortfolioThemeSerializer(serializers.ModelSerializer):
 
 from apps.vendors.serializers import VendorSerializer
 
+# class PortfolioSerializer(serializers.ModelSerializer):
+#     """Full portfolio serializer for management"""
+#     vendor = VendorBasicSerializer(read_only=True)
+#     sections = PortfolioSectionSerializer(many=True, read_only=True)
+#     # collections = PortfolioCollectionSerializer(many=True, read_only=True) no need cause we have diff api for this
+#     testimonials = PortfolioTestimonialSerializer(many=True, read_only=True)
+#     # featured_products = PortfolioProductSerializer(source='get_featured_products', many=True, read_only=True)
+#     featured_products = ProductListSerializer(many=True, read_only=True)
+    
+    
+#     carousel_images_input = serializers.ListField(
+#         child=serializers.CharField(),
+#         write_only=True,
+#         required=False
+#     )
+
+#     # write-only field to update featured products
+#     featured_product_ids = serializers.ListField(
+#         child=serializers.IntegerField(),
+#         write_only=True,
+#         required=False
+#     )
+
+    
+#     # Stats
+#     # total_products = serializers.SerializerMethodField()
+#     # total_collections = serializers.SerializerMethodField()
+#     total_testimonials = serializers.SerializerMethodField()
+#     banner_image = serializers.SerializerMethodField()
+    
+#     class Meta:
+#         model = Portfolio
+#         fields = [
+#             'id', 'display_name', 'tagline', 'slug', 'about_us', 'our_story','last_viewed',
+#             'mission', 'vision', 'logo', 'banner_image', 'gallery_images',
+#             'theme_color', 'accent_color', 'background_color', 'text_color',
+#             'font_family', 'layout_style','facebook_url', 'instagram_url',
+#             'twitter_url', 'linkedin_url', 'youtube_url', 'website_url',
+#             'show_pricing', 'show_stock_status', 'show_contact_form',
+#             'show_social_links', 'show_testimonials', 'show_gallery',
+#             'is_public', 'custom_domain', 'custom_css', 'meta_title',
+#             'meta_description', 'meta_keywords', 'view_count',
+#             'created_at', 'updated_at', 'vendor', 'sections','portfolio_url',
+#             'testimonials', 'featured_products', 'featured_product_ids','is_carousel', 'total_testimonials',  'carousel_images',          # ✅ read response
+#             # 'total_products', Not needed for portfolio summary
+
+#         ]
+#         read_only_fields = ['slug', 'view_count', 'vendor','carousel_images']
+#         write_only_fields = ['featured_product_ids','carousel_images_input']
+        
+        
+#     def get_banner_image(self,obj):
+#         if obj.banner_image:
+#             return obj.banner_image.url
+#         return None
+    
+#     # def get_total_products(self, obj):
+#     #     return obj.get_all_products().count()
+    
+        
+#     def update(self, instance, validated_data):
+#         featured_product_ids = validated_data.pop('featured_product_ids', None)
+#         portfolio = super().update(instance, validated_data)
+
+#         if featured_product_ids is not None:
+#             products = Product.objects.filter(
+#                 id__in=featured_product_ids,
+#                 vendor=portfolio.vendor
+#             )
+#             portfolio.featured_products.set(products)
+
+#         portfolio.refresh_from_db()
+#         return portfolio
+
+    
+#     def get_total_collections(self, obj):
+#         return obj.collections.filter(is_active=True).count()
+    
+#     def get_total_testimonials(self, obj):
+#         return obj.testimonials.filter(is_approved=True).count()
+
 class PortfolioSerializer(serializers.ModelSerializer):
     """Full portfolio serializer for management"""
     vendor = VendorBasicSerializer(read_only=True)
     sections = PortfolioSectionSerializer(many=True, read_only=True)
-    collections = PortfolioCollectionSerializer(many=True, read_only=True)
     testimonials = PortfolioTestimonialSerializer(many=True, read_only=True)
-    # featured_products = PortfolioProductSerializer(source='get_featured_products', many=True, read_only=True)
     featured_products = ProductListSerializer(many=True, read_only=True)
-
-    # write-only field to update featured products
+    
+    # Write-only field to update featured products
     featured_product_ids = serializers.ListField(
         child=serializers.IntegerField(),
         write_only=True,
         required=False
     )
 
-    
     # Stats
-    # total_products = serializers.SerializerMethodField()
-    total_collections = serializers.SerializerMethodField()
     total_testimonials = serializers.SerializerMethodField()
+    banner_image = serializers.SerializerMethodField()
     
     class Meta:
         model = Portfolio
         fields = [
-            'id', 'display_name', 'tagline', 'slug', 'about_us', 'our_story',
+            'id', 'display_name', 'tagline', 'slug', 'about_us', 'our_story', 'last_viewed',
             'mission', 'vision', 'logo', 'banner_image', 'gallery_images',
             'theme_color', 'accent_color', 'background_color', 'text_color',
-            'font_family', 'layout_style','facebook_url', 'instagram_url',
+            'font_family', 'layout_style', 'facebook_url', 'instagram_url',
             'twitter_url', 'linkedin_url', 'youtube_url', 'website_url',
             'show_pricing', 'show_stock_status', 'show_contact_form',
             'show_social_links', 'show_testimonials', 'show_gallery',
             'is_public', 'custom_domain', 'custom_css', 'meta_title',
             'meta_description', 'meta_keywords', 'view_count',
-            'created_at', 'updated_at', 'vendor', 'sections', 'collections',
-            'testimonials', 'featured_products', 'featured_product_ids',
-            # 'total_products', Not needed for portfolio summary
-            'total_collections', 'total_testimonials'
+            'created_at', 'updated_at', 'vendor', 'sections', 'portfolio_url',
+            'testimonials', 'featured_products', 'featured_product_ids', 
+            'is_carousel', 'total_testimonials', 'carousel_images',
         ]
-        # fields = [
-        #     'id', 'display_name', 'tagline', 'slug', 'about_us', 'our_story',
-        #     'mission', 'vision', 'logo', 'banner_image', 'gallery_images',
-        #     'theme_color', 'accent_color', 'background_color', 'text_color',
-        #     'font_family', 'layout_style', 'contact_email', 'contact_phone',
-        #     'whatsapp_number', 'address', 'facebook_url', 'instagram_url',
-        #     'twitter_url', 'linkedin_url', 'youtube_url', 'website_url',
-        #     'show_pricing', 'show_stock_status', 'show_contact_form',
-        #     'show_social_links', 'show_testimonials', 'show_gallery',
-        #     'is_public', 'custom_domain', 'custom_css', 'meta_title',
-        #     'meta_description', 'meta_keywords', 'view_count',
-        #     'created_at', 'updated_at', 'vendor', 'sections', 'collections',
-        #     'testimonials', 'featured_products', 'featured_product_ids',
-        #     # 'total_products', Not needed for portfolio summary
-        #     'total_collections', 'total_testimonials'
-        # ]
-        read_only_fields = ['slug', 'view_count', 'vendor']
-    
-    # def get_total_products(self, obj):
-    #     return obj.get_all_products().count()
-    
+        read_only_fields = ['slug', 'view_count', 'vendor', 'carousel_images']
+        extra_kwargs = {
+            'featured_product_ids': {'write_only': True}
+        }
         
+    def get_banner_image(self, obj):
+        if obj.banner_image:
+            return obj.banner_image.url
+        return None
+    
+    def get_total_testimonials(self, obj):
+        return obj.testimonials.filter(is_approved=True).count()
+    
+    
+    def validate_featured_product_ids(self, value):
+        if len(value) > 8:
+            raise serializers.ValidationError("Maximum 8 featured products are allowed.")
+        return value
+
+
     def update(self, instance, validated_data):
+        # Handle featured products
         featured_product_ids = validated_data.pop('featured_product_ids', None)
+        
+        # Update other fields
         portfolio = super().update(instance, validated_data)
 
+        # Update featured products if provided
         if featured_product_ids is not None:
             products = Product.objects.filter(
                 id__in=featured_product_ids,
@@ -227,17 +305,7 @@ class PortfolioSerializer(serializers.ModelSerializer):
             )
             portfolio.featured_products.set(products)
 
-        portfolio.refresh_from_db()
         return portfolio
-
-    
-    def get_total_collections(self, obj):
-        return obj.collections.filter(is_active=True).count()
-    
-    def get_total_testimonials(self, obj):
-        return obj.testimonials.filter(is_approved=True).count()
-
-
 class PublicPortfolioSerializer(serializers.ModelSerializer):
     """Public portfolio view - optimized for frontend"""
     vendor = VendorBasicSerializer(read_only=True)
