@@ -66,6 +66,7 @@ LOCAL_APPS = [
     'apps.payments',
     'apps.dashboard',
     'apps.portfolio',
+    'apps.subscriptions',
 ]
 INSTALLED_APPS = INSTALLED_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -185,6 +186,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
+        'apps.subscriptions.permissions.IsSubscribed',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
@@ -223,3 +225,7 @@ DEFAULT_SYNC_COUNT = os.getenv("DEFAUTL_SYNC_COUNT")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")  # default = dev
 FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL")
 FRONTEND_PORT = os.getenv("FRONTEND_PORT",3000) 
+
+
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')

@@ -28,7 +28,7 @@ from ..utils.upload_image import upload_portfolio_banner,upload_portfolio_carous
 # ---- product service currently importing but later on had to go on cache due to public api
 
 from apps.products.service import get_vendor_products_combined,get_filtered_products,get_product_details
-
+from apps.subscriptions.permissions import IsSubscribed
 
 # ---------- Public: vendor portfolio summary ----------
 # @api_view(['GET'])
@@ -436,7 +436,7 @@ def portfolio_collection_detail(request, id):
 
 
 @api_view(["POST"])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated,IsSubscribed])
 def trigger_sync(request):
     """
     Sync portfolio + products + collections to Elasticsearch
