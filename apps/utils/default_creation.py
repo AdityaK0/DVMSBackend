@@ -23,7 +23,7 @@ def create_default_categories_for_vendor(vendor):
 
 
 def create_default_portfolio_for_vendor(vendor):
-    from portfolio.models import Portfolio  # avoid circular import
+    from apps.portfolio.models import Portfolio  # avoid circular import
 
     # Check if already exists
     portfolio, created = Portfolio.objects.get_or_create(

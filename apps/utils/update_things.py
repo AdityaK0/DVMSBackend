@@ -8,4 +8,3 @@ def update_portfolio_url(portfolio,business_name_slug):
         
     portfolio.portfolio_url = portfolio_url
     portfolio.save()
-    pass
