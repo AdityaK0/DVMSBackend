@@ -171,7 +171,7 @@ def sync_vendor(vendor_id):
 
     vendor = Vendor.objects.get(id=vendor_id)
 
-    plan, _ = PortfolioService.create_vendor_sync_plan(vendor)
+    plan = PortfolioService.create_vendor_sync_plan(vendor)
 
     if not plan.can_sync():
         return {"status": "blocked", "reason": "sync_limit_reached"}

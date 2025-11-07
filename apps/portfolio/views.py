@@ -23,6 +23,7 @@ from scripts.es.sync_vendor_to_es import sync_vendor
 from .service import PortfolioService
 from ..utils.upload_image import upload_portfolio_banner, upload_portfolio_carousel
 import logging
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -386,6 +387,7 @@ def trigger_sync(request):
     Sync portfolio + products + collections to Elasticsearch
     """
     user = request.user
+    
 
     if user.role != "vendor":
         return Response(
@@ -397,7 +399,7 @@ def trigger_sync(request):
     if not vendor:
         return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    plan, _ = PortfolioService.create_vendor_sync_plan(vendor)
+    plan = PortfolioService.create_vendor_sync_plan(vendor)
 
     if not plan.can_sync():
         return Response(
@@ -431,15 +433,10 @@ def trigger_sync(request):
         )
 
 
-
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def sync_status(request):
-    """
-    Returns remaining syncs, used syncs and extra syncs for vendor
-    """
     user = request.user
-
     if user.role != "vendor":
         return Response(
             {"error": "Only vendors can view sync status."},
@@ -450,17 +447,32 @@ def sync_status(request):
     if not vendor:
         return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    plan, _ = PortfolioService.create_vendor_sync_plan(vendor)
+    sync_data = {
+        "remaining_syncs": 0,
+        "used_syncs_today": 0,
+        "allowed_syncs_per_day": getattr(settings, "DEFAULT_SYNC_COUNT", 5),
+        "extra_syncs_available": 0,
+        "last_sync_at": None,
+    }
 
-    return Response(
-        {
-            "remaining_syncs": plan.remaining_syncs,
-            "used_syncs_today": plan.used_syncs_today,
-            "allowed_syncs_per_day": plan.allowed_syncs_per_day,
-            "extra_syncs_available": plan.extra_syncs_available,
-            "last_sync_at": plan.last_sync_at,
-        }
-    )
+    try:
+        plan = PortfolioService.create_vendor_sync_plan(vendor)
+        sync_data.update({
+            "remaining_syncs": plan.remaining_syncs or 0,
+            "used_syncs_today": plan.used_syncs_today or 0,
+            "allowed_syncs_per_day": plan.allowed_syncs_per_day or getattr(settings, "DEFAULT_SYNC_COUNT", 5),
+            "extra_syncs_available": plan.extra_syncs_available or 0,
+            "last_sync_at": plan.last_sync_at.isoformat() if plan.last_sync_at else None,
+        })
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.exception("Error loading sync plan: %s", e)
+        sync_data["error"] = "Unable to load sync data; using defaults."
+
+    return Response(sync_data)
+
+
 
 # @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 # @permission_classes([permissions.IsAuthenticated])

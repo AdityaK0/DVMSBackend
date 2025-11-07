@@ -122,17 +122,25 @@ class PortfolioService:
     
     @staticmethod
     def create_vendor_sync_plan(vendor):
-        
-        portfolio_sync_plan =  PortfolioSyncPlan.objects.get_or_create(
+        plan, created = PortfolioSyncPlan.objects.get_or_create(
             vendor=vendor,
-            defaults={                # optional initial limits
+            defaults={
                 "allowed_syncs_per_day": settings.DEFAULT_SYNC_COUNT,
                 "used_syncs_today": 0,
                 "extra_syncs_available": 0,
-            }
+            },
         )
-        
-        return portfolio_sync_plan
+
+        # We don’t assign remaining_syncs — it's computed dynamically
+        if created:
+            plan.last_sync_at = None
+            plan.save()
+
+        plan.refresh_from_db()
+        return plan
+
+          
+
         
 
 

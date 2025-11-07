@@ -162,12 +162,13 @@ def create_vendor(request):
         vendor.save()
 
         vendor.business_name_slug = slugify(f"{vendor.business_name}-{vendor.id}")
-
+        
+        vendor.save()
         # Create or update Address linked to this user
         address, created = Address.objects.get_or_create(
             user=user,
             defaults={
-                'street_address': request.data.get('street', ''),
+                'street_address': request.data.get('street_address', ''),
                 'city': request.data.get('city', ''),
                 'state': request.data.get('state', ''),
                 'postal_code': request.data.get('zip_code', ''),
@@ -180,7 +181,7 @@ def create_vendor(request):
 
         if not created:
             # Update existing address if already exists
-            address.street_address = request.data.get('street', address.street_address)
+            address.street_address = request.data.get('street_address', address.street_address)
             address.city = request.data.get('city', address.city)
             address.state = request.data.get('state', address.state)
             address.postal_code = request.data.get('zip_code', address.postal_code)
