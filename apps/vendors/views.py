@@ -3,13 +3,17 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import Vendor
 from rest_framework import generics, status, permissions
-from .serializers import VendorSerializer, VendorListSerializer,VendorUpdate
+from .serializers import VendorSerializer, VendorListSerializer, VendorUpdate
 from shared.permissions import IsVendorOrReadOnly
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from apps.users.models import Address
 from apps.users.serializers import AddressSerializer
+from django.db.models import Prefetch
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 from rest_framework.decorators import api_view, permission_classes
@@ -26,7 +30,12 @@ from apps.portfolio.models import PortfolioSyncPlan
 
 
 class VendorListView(generics.ListAPIView):
-    queryset = Vendor.objects.filter(is_active=True)
+    # FIXED: Optimize queryset to avoid N+1 with user and addresses
+    queryset = (
+        Vendor.objects.filter(is_active=True)
+        .select_related('user')
+        .prefetch_related('user__addresses')
+    )
     serializer_class = VendorListSerializer
     permission_classes = [permissions.AllowAny]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -35,7 +44,12 @@ class VendorListView(generics.ListAPIView):
     filterset_fields = ['is_verified']
 
 class VendorDetailView(generics.RetrieveAPIView):
-    queryset = Vendor.objects.filter(is_active=True)
+    # FIXED: Optimize queryset for detail as well
+    queryset = (
+        Vendor.objects.filter(is_active=True)
+        .select_related('user')
+        .prefetch_related('user__addresses')
+    )
     serializer_class = VendorSerializer
     permission_classes = [permissions.AllowAny]
 
@@ -125,13 +139,12 @@ def create_vendor(request):
         )
 
     try:
-        # Get existing vendor
+        # Get existing vendor (business rule kept: update existing vendor only)
         vendor = getattr(user, 'vendor', None)
         if vendor is None:
-            # Safety fallback (optional)
             return Response(
-                {"error": "Vendor profile not found for this user."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"detail": "Vendor profile not found for this user."},
+                status=status.HTTP_404_NOT_FOUND
             )
 
         # Update vendor details from request
@@ -181,12 +194,12 @@ def create_vendor(request):
         serializer = VendorSerializer(vendor)
         create_default_categories_for_vendor(vendor)
         create_default_portfolio_for_vendor(vendor)
-        # Already existing logic
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     except Exception as e:
+        logger.exception("create_vendor failed: %s", e)
         return Response(
-            {"error": str(e)},
+            {"detail": "Unable to update vendor."},
             status=status.HTTP_400_BAD_REQUEST
         )        
         
@@ -200,9 +213,9 @@ def vendor_profile(request, pk=None):
     """
     try:
         if pk is not None:
-            vendor = Vendor.objects.get(id=pk)
+            vendor = Vendor.objects.select_related('user').prefetch_related('user__addresses').get(id=pk)
         else:
-            vendor = Vendor.objects.get(user=request.user)
+            vendor = Vendor.objects.select_related('user').prefetch_related('user__addresses').get(user=request.user)
     except Vendor.DoesNotExist:
         return Response(
             {"detail": "Vendor profile not found."},

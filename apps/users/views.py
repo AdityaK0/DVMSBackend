@@ -36,6 +36,8 @@ class UserLoginView(generics.GenericAPIView):
         })
 
 class UserProfileView(generics.RetrieveAPIView):
+    # FIXED: Ensure only authenticated users can hit this endpoint
+    permission_classes = [IsAuthenticated]
     serializer_class = UserSerializer
     
     def get_object(self):

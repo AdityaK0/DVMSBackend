@@ -129,8 +129,9 @@ class VendorUpdate(serializers.ModelSerializer):
             new_slug = f"{slugify(new_name)}-{instance.id}"
             instance.business_name_slug = new_slug
             
-            portfolio =  Portfolio.objects.get(vendor=instance)
-            update_portfolio_url(portfolio,new_slug)
+            # FIXED: Avoid DoesNotExist crash by get_or_create
+            portfolio, _ = Portfolio.objects.get_or_create(vendor=instance)
+            update_portfolio_url(portfolio, new_slug)
         instance.save()
         
 

@@ -1,15 +1,15 @@
 from rest_framework import status, permissions
-from rest_framework.decorators import api_view, permission_classes,parser_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Q, Prefetch
 from rest_framework.parsers import MultiPartParser, FormParser
 from apps.vendors.models import Vendor
-from apps.products.models import Product
+from apps.products.models import Product, ProductImage
 from .models import (
     Portfolio, PortfolioCollection, PortfolioTestimonial,
     PortfolioAnalytics
@@ -21,7 +21,10 @@ from .serializers import (
 from apps.utils.upload_image import upload_collection_image
 from scripts.es.sync_vendor_to_es import sync_vendor
 from .service import PortfolioService
-from ..utils.upload_image import upload_portfolio_banner,upload_portfolio_carousel
+from ..utils.upload_image import upload_portfolio_banner, upload_portfolio_carousel
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -112,24 +115,12 @@ def public_vendor_portfolio(request, business_name):
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def public_portfolio_products(request, business_name):
-    try:
-        vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
-    except:
-        return Response(
-        {"error": "business not found seems like may be url need to observed"},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    if not vendor:
-        return Response(
-        {"error": "May be business name issue Only vendors can access this endpoint"},
-        status=status.HTTP_403_FORBIDDEN
-    )
+    # FIXED: Use 404 for not found and avoid broad except
+    vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
     query = request.GET.get("search","").strip()
     page = int(request.GET.get('page', 1))
     page_size = int(request.GET.get('page_size', 10))
 
-    # data = get_vendor_products_data(vendor, request=request, page=page, page_size=page_size)
     data =  get_vendor_products_combined(
             vendor,
             request=request,
@@ -146,22 +137,9 @@ def public_portfolio_products(request, business_name):
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
 def public_portfolio_filter(request,business_name):
-    
-    try:
-        vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
-    except:
-        return Response(
-        {"error": "business not found seems like may be url need to observed"},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    if not vendor:
-        return Response(
-        {"error": "May be business name issue Only vendors can access this endpoint"},
-        status=status.HTTP_403_FORBIDDEN
-    )
-        
-        
+    # FIXED: 404 for not found, no broad except
+    vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
+
     data = get_filtered_products(vendor, request.GET, request=request)
     return Response(data)
     
@@ -169,32 +147,14 @@ def public_portfolio_filter(request,business_name):
 @permission_classes([permissions.AllowAny])
 def public_portfolio_products_detail(request, business_name,id):
     try:
-        try:
-            vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
-        except:
-            return Response(
-            {"error": "business not found seems like may be url need to observed"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        if not vendor:
-            return Response(
-            {"error": "May be business name issue Only vendors can access this endpoint"},
-            status=status.HTTP_403_FORBIDDEN
-        )
-        product = get_product_details(vendor=vendor,id=id)
-        
+        vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
+        product = get_product_details(vendor=vendor, id=id)
         return Response(product)
-
-
-
-
-
     except Exception as e:
-        # Log the full error for debugging
-
+        # FIXED: Log error with context
+        logger.exception("public_portfolio_products_detail failed: %s", e)
         return Response(
-            {"detail": "An unexpected error occurred.", "error": str(e)},
+            {"detail": "An unexpected error occurred."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
@@ -204,28 +164,13 @@ def public_portfolio_products_detail(request, business_name,id):
 @permission_classes([permissions.AllowAny])
 def public_portfolio_collections(request,business_name):
     try:
-        try:
-            vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
-        except:
-            return Response(
-            {"error": "business not found seems like may be url need to observed"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        if not vendor:
-            return Response(
-            {"error": "May be business name issue Only vendors can access this endpoint"},
-            status=status.HTTP_403_FORBIDDEN
-        )
-
+        vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
         data = PortfolioService.get_vendor_collections(vendor)
         return Response(data, status=status.HTTP_200_OK)
-
     except Exception as e:
-        # Log the full error for debugging
-
+        logger.exception("public_portfolio_collections failed: %s", e)
         return Response(
-            {"detail": "An unexpected error occurred.", "error": str(e)},
+            {"detail": "An unexpected error occurred."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
@@ -293,8 +238,8 @@ def vendor_portfolio_manage(request):
     vendor = getattr(request.user, "vendor", None)
     if not vendor:
         return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    portfolio = Portfolio.objects.get(vendor=vendor)
+    # FIXED: Avoid DoesNotExist crash; get_or_create
+    portfolio, _ = Portfolio.objects.get_or_create(vendor=vendor)
 
     if request.method == "GET":
         serializer = PortfolioSerializer(portfolio)
@@ -421,7 +366,6 @@ def portfolio_collection_detail(request, id):
             # Optional: handle image replacement
             image_file = request.FILES.get('image')
             if image_file:
-                print(image_file)
                 upload_collection_image(collection, image_file)
 
             response_serializer = PortfolioCollectionSerializer(collection)
@@ -467,17 +411,24 @@ def trigger_sync(request):
         )
 
     # ✅ Execute sync
-    result = sync_vendor(vendor.id)
-
-    return Response(
-        {
-            "status": "success",
-            "message": "Vendor synced successfully!",
-            "synced_docs": result["synced_docs"],
-            "remaining_syncs": plan.remaining_syncs,
-            "extra_syncs_available": plan.extra_syncs_available,
-        }
-    )
+    try:
+        # FIXED: Wrap external sync call to avoid unhandled exceptions
+        result = sync_vendor(vendor.id)
+        return Response(
+            {
+                "status": "success",
+                "message": "Vendor synced successfully!",
+                "synced_docs": result.get("synced_docs"),
+                "remaining_syncs": plan.remaining_syncs,
+                "extra_syncs_available": plan.extra_syncs_available,
+            }
+        )
+    except Exception as e:
+        logger.exception("trigger_sync failed for vendor %s: %s", vendor.id, e)
+        return Response(
+            {"detail": "Sync failed. Try again later."},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
 
 
 

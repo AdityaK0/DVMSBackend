@@ -6,12 +6,16 @@ from rest_framework import status
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.core.paginator import Paginator
-from django.db.models import Q,Prefetch
+from django.db import transaction
+from django.db.models import Q, Prefetch
 from .models import Product, Category, ProductImage
 from .serializers import ProductSerializer, ProductListSerializer, CategorySerializer
 from ..utils.upload_image import upload_product_images
 from django.db import connection
-from .service import get_vendor_products_combined ,get_filtered_products
+from .service import get_vendor_products_combined, get_filtered_products
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Product List with filters (Public)
@@ -19,8 +23,14 @@ from .service import get_vendor_products_combined ,get_filtered_products
 @permission_classes([AllowAny])
 def product_list(request):
     """List all active products with filtering, search, and pagination"""
-    
-    products = Product.objects.filter(is_active=True,is_archived=False)
+    # FIXED: Start with optimized queryset to avoid N+1 (vendor, category, images)
+    products = (
+        Product.objects.filter(is_active=True, is_archived=False)
+        .select_related('vendor', 'category')
+        .prefetch_related(
+            Prefetch('images', queryset=ProductImage.objects.only('id', 'github_image_url', 'image', 'is_primary'), to_attr='images_prefetched')
+        )
+    )
     
     # Apply filters
     category = request.GET.get('category')
@@ -84,8 +94,14 @@ def product_list(request):
 def product_detail(request, pk):
     """Get product details"""
     try:
-        # product = Product.objects.get(pk=pk, is_active=True)
-        product = Product.objects.get(pk=pk)
+        # FIXED: Restrict to active, non-archived and optimize relations
+        product = (
+            Product.objects.select_related('vendor', 'category')
+            .prefetch_related(
+                Prefetch('images', queryset=ProductImage.objects.only('id', 'github_image_url', 'image', 'is_primary'))
+            )
+            .get(pk=pk, is_active=True, is_archived=False)
+        )
         
     except Product.DoesNotExist:
         return Response(
@@ -103,8 +119,7 @@ def product_detail(request, pk):
 @parser_classes([MultiPartParser, FormParser])
 def create_product(request):
     """Create a new product"""
-    
-    # Check if user is a vendor
+    # FIXED: Guard vendor presence
     if not hasattr(request.user, 'vendor'):
         return Response(
             {"error": "Only vendors can create products"}, 
@@ -114,10 +129,8 @@ def create_product(request):
     vendor = request.user.vendor
     
     # Prepare data
-    # data = request.data.copy()
-    # # OR
-    data = request.POST.copy()
-    data['vendor'] = vendor.id
+    # FIXED: Use request.data; do not override vendor in payload
+    data = request.data.copy()
     # custom category integration
     
     category_id = data.get('category')
@@ -129,19 +142,17 @@ def create_product(request):
     except Category.DoesNotExist:
         return Response({"category": "Invalid category selected."}, status=status.HTTP_400_BAD_REQUEST)
     
-    print("Create Product Data:", data)
-    print("Files:", request.FILES)
-    
-    # Create product
+    # FIXED: Remove prints; use serializer validation
     serializer = ProductSerializer(data=data, context={'request': request})
     
     if serializer.is_valid():
-        product = serializer.save(vendor=vendor,category=category)
-        
-        # Handle multiple images
-        uploaded_images = request.FILES.getlist('uploaded_images')
-        if uploaded_images:
-            upload_product_images(product, uploaded_images)
+        # FIXED: Atomic save for product + images
+        with transaction.atomic():
+            product = serializer.save(vendor=vendor, category=category)
+            # Handle multiple images
+            uploaded_images = request.FILES.getlist('uploaded_images')
+            if uploaded_images:
+                upload_product_images(product, uploaded_images)
 
         response_serializer = ProductSerializer(product, context={'request': request})
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -155,7 +166,6 @@ def create_product(request):
 @parser_classes([MultiPartParser, FormParser])
 def update_product(request, pk):
     """Update a product"""
-    
     try:
         product = Product.objects.get(pk=pk, vendor__user=request.user)
     except Product.DoesNotExist:
@@ -167,10 +177,7 @@ def update_product(request, pk):
     # Prepare data
     data = request.data.copy()
     partial = request.method == 'PATCH'
-    
-    print("Update Product Data:", data)
-    print("Files:", request.FILES)
-    
+
     serializer = ProductSerializer(
         product, 
         data=data, 
@@ -179,7 +186,8 @@ def update_product(request, pk):
     )
     
     if serializer.is_valid():
-        updated_product = serializer.save()
+        with transaction.atomic():
+            updated_product = serializer.save()
         
         # Handle new images if provided
         # uploaded_images = request.FILES.getlist('images')
@@ -202,11 +210,6 @@ def update_product(request, pk):
         )
 
         if uploaded_images:
-            # Optional: Remove old images before uploading new ones
-            # for img in product.images.all():
-            #     destroy(img.image)
-            # product.images.all().delete()
-
             upload_product_images(updated_product, uploaded_images)  # 👈 reused util here
         
                 
@@ -230,7 +233,7 @@ def activate_product(request, pk):
             status=status.HTTP_404_NOT_FOUND
         )
     product.is_active = True
-    product.save()
+    product.save(update_fields=["is_active"])
     
     return Response(
             {"detail": "Product activated successfully"}, 
@@ -255,7 +258,7 @@ def delete_product(request, pk):
     
     # Soft delete
     product.is_archived = True
-    product.save()
+    product.save(update_fields=["is_archived"])
     
     return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -372,12 +375,19 @@ def vendor_products(request):
 @permission_classes([AllowAny])
 def vendor_catalog(request, vendor_id):
     """Get all active products for a specific vendor"""
-    
-    products = Product.objects.filter(
-        vendor_id=vendor_id,
-        is_active=True,
-        stock_quantity__gt=0
-    ).order_by('-created_at')
+    # FIXED: Optimize queryset (vendor, category, images)
+    products = (
+        Product.objects.filter(
+            vendor_id=vendor_id,
+            is_active=True,
+            stock_quantity__gt=0
+        )
+        .select_related('vendor', 'category')
+        .prefetch_related(
+            Prefetch('images', queryset=ProductImage.objects.only('id', 'github_image_url', 'image', 'is_primary'), to_attr='images_prefetched')
+        )
+        .order_by('-created_at')
+    )
     
     # Pagination
     page = request.GET.get('page', 1)
@@ -405,7 +415,7 @@ def vendor_catalog(request, vendor_id):
 @permission_classes([AllowAny])
 def category_list(request):
     """List all active categories"""
-    categories = Category.objects.filter(is_active=True)
+    categories = Category.objects.filter(is_active=True).only('id', 'name', 'is_default', 'vendor_id')
     serializer = CategorySerializer(categories, many=True)
     return Response(serializer.data)
 
@@ -576,11 +586,16 @@ def filter_products(request):
 @permission_classes([IsAuthenticated])
 def vendor_categories(request):
     if request.method == "GET":
+        # FIXED: Guard vendor
+        if not hasattr(request.user, 'vendor'):
+            return Response({"error": "Only vendors can access this endpoint"}, status=status.HTTP_403_FORBIDDEN)
         vendor = request.user.vendor
         categories = Category.objects.filter(is_active=True, vendor=vendor)
         data = [{"id": c.id, "name": c.name, "is_default": c.is_default} for c in categories]
         return Response(data)
     elif request.method == "POST": 
+        if not hasattr(request.user, 'vendor'):
+            return Response({"error": "Only vendors can access this endpoint"}, status=status.HTTP_403_FORBIDDEN)
         vendor = request.user.vendor
         name = request.data.get('name')
         description = request.data.get('description')
@@ -588,6 +603,10 @@ def vendor_categories(request):
         if not name or not description:
             return Response({'error': 'Name and Description is required'}, status=400)
         
+        # FIXED: Basic duplicate prevention per vendor
+        if Category.objects.filter(vendor=vendor, name=name).exists():
+            return Response({'error': 'Category with this name already exists'}, status=status.HTTP_400_BAD_REQUEST)
+
         category = Category.objects.create(
             name=name,
             vendor=vendor,
@@ -600,6 +619,8 @@ def vendor_categories(request):
 @permission_classes([IsAuthenticated])
 def update_category(request, pk):
     try:
+        if not hasattr(request.user, 'vendor'):
+            return Response({'error': 'Only vendors can access this endpoint'}, status=status.HTTP_403_FORBIDDEN)
         category = Category.objects.get(pk=pk, vendor=request.user.vendor)
         category.name = request.data.get('name', category.name)
         category.save()
@@ -611,6 +632,8 @@ def update_category(request, pk):
 @permission_classes([IsAuthenticated])
 def delete_category(request, pk):
     try:
+        if not hasattr(request.user, 'vendor'):
+            return Response({'error': 'Only vendors can access this endpoint'}, status=status.HTTP_403_FORBIDDEN)
         category = Category.objects.get(pk=pk, vendor=request.user.vendor)
         if category.is_default:
             return Response({'error': 'Cannot delete default category'}, status=status.HTTP_400_BAD_REQUEST)

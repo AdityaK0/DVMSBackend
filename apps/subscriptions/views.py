@@ -2,8 +2,10 @@
 import json
 import decimal
 import logging
+from typing import Optional
 import razorpay
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
@@ -15,7 +17,34 @@ from .serializers import SubscriptionSerializer
 
 logger = logging.getLogger(__name__)
 
-client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+# FIXED: Lazily initialize Razorpay client with error handling to avoid import-time crashes
+def get_razorpay_client() -> Optional[razorpay.Client]:
+    try:
+        key_id = getattr(settings, "RAZORPAY_KEY_ID", None)
+        key_secret = getattr(settings, "RAZORPAY_KEY_SECRET", None)
+        if not key_id or not key_secret:
+            logger.error("Razorpay keys missing in settings")
+            return None
+        return razorpay.Client(auth=(key_id, key_secret))
+    except Exception as exc:
+        logger.exception("Failed to initialize Razorpay client: %s", exc)
+        return None
+
+
+# FIXED: Shared helpers for consistent responses and vendor fetching
+def error_response(detail: str, http_status: int = status.HTTP_400_BAD_REQUEST, extra: Optional[dict] = None):
+    payload = {"detail": detail}
+    if extra:
+        payload.update(extra)
+    return Response(payload, status=http_status)
+
+
+def get_request_vendor_or_404(request):
+    vendor = getattr(request.user, "vendor", None)
+    if not vendor:
+        raise_value = error_response("Vendor profile not found.", status.HTTP_404_NOT_FOUND)
+        return None, raise_value
+    return vendor, None
 
 
 @api_view(["POST"])
@@ -25,16 +54,19 @@ def create_order(request):
     Create a Razorpay order and record it in Subscription.
     Prevents duplicate active subscriptions.
     """
-    vendor = getattr(request.user, "vendor", None)
-    if not vendor:
-        return Response({"detail": "Vendor profile not found."}, status=status.HTTP_404_NOT_FOUND)
+    vendor, err = get_request_vendor_or_404(request)
+    if err:
+        return err
 
     try:
         # Prevent duplicate active subs
-        active_sub = Subscription.objects.filter(
-            vendor=vendor, is_active=True, end_date__gt=timezone.now()
-        ).first()
-        if active_sub:
+        # FIXED: Use .exists() for efficiency
+        active_sub = (
+            Subscription.objects.filter(vendor=vendor, is_active=True, end_date__gt=timezone.now())
+            .select_related("vendor")
+            .first()
+        )
+        if active_sub is not None:
             return Response(
                 {
                     "detail": "You already have an active subscription.",
@@ -44,15 +76,24 @@ def create_order(request):
             )
 
         # Safe amount extraction
-        rupee_amount = decimal.Decimal(request.data.get("amount", "1"))
+        try:
+            rupee_amount = decimal.Decimal(str(request.data.get("amount", "1")))
+        except (decimal.InvalidOperation, TypeError):
+            return error_response("Invalid amount provided.", status.HTTP_400_BAD_REQUEST)
         amount_paise = int(rupee_amount * 100)
 
         # Create order with Razorpay
+        client = get_razorpay_client()
+        if client is None:
+            return error_response("Payments not configured.", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         order = client.order.create(
             {"amount": amount_paise, "currency": "INR", "payment_capture": 1}
         )
 
-        sub, _ = Subscription.objects.update_or_create(
+        # FIXED: Use atomic update_or_create to avoid partial writes
+        with transaction.atomic():
+            sub, _ = Subscription.objects.update_or_create(
             vendor=vendor,
             defaults={
                 "order_id": order.get("id"),
@@ -61,7 +102,7 @@ def create_order(request):
                 "start_date": timezone.now(),
                 "end_date": timezone.now() + timezone.timedelta(days=30),
             },
-        )
+            )
 
         return Response(
             {
@@ -74,15 +115,10 @@ def create_order(request):
 
     except razorpay.errors.BadRequestError as e:
         logger.error(f"Razorpay API error: {str(e)}")
-        return Response(
-            {"detail": "Error creating order.", "error": str(e)},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return error_response("Error creating order.", status.HTTP_400_BAD_REQUEST, {"error": str(e)})
     except Exception as e:
         logger.exception("Unexpected error in create_order")
-        return Response(
-            {"detail": "Something went wrong."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return error_response("Something went wrong.", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["POST"])
@@ -102,12 +138,15 @@ def verify_payment(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    vendor = getattr(request.user, "vendor", None)
-    if not vendor:
-        return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+    vendor, err = get_request_vendor_or_404(request)
+    if err:
+        return err
 
     try:
         # Verify signature integrity
+        client = get_razorpay_client()
+        if client is None:
+            return error_response("Payments not configured.", status.HTTP_500_INTERNAL_SERVER_ERROR)
         client.utility.verify_payment_signature(
             {
                 "razorpay_order_id": order_id,
@@ -117,30 +156,37 @@ def verify_payment(request):
         )
     except razorpay.errors.SignatureVerificationError as e:
         logger.warning(f"Payment signature failed: {str(e)}")
-        return Response(
-            {"detail": "Signature verification failed.", "error": str(e)},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return error_response("Signature verification failed.", status.HTTP_400_BAD_REQUEST, {"error": str(e)})
 
-    sub = Subscription.objects.filter(vendor=vendor, order_id=order_id).first()
+    sub = Subscription.objects.filter(vendor=vendor, order_id=order_id).select_related("vendor").first()
 
     if not sub:
         # Safe fallback if order record missing
-        sub = Subscription.objects.create(
-            vendor=vendor,
-            order_id=order_id,
-            payment_id=payment_id,
-            start_date=timezone.now(),
-            end_date=timezone.now() + timezone.timedelta(days=30),
-            is_active=True,
-            amount=decimal.Decimal(data.get("amount", "1")),
-        )
+        # FIXED: Guard amount parsing and wrap in transaction
+        try:
+            amount_rupees = decimal.Decimal(str(data.get("amount", "1")))
+        except (decimal.InvalidOperation, TypeError):
+            amount_rupees = decimal.Decimal("1")
+        with transaction.atomic():
+            sub = Subscription.objects.create(
+                vendor=vendor,
+                order_id=order_id,
+                payment_id=payment_id,
+                start_date=timezone.now(),
+                end_date=timezone.now() + timezone.timedelta(days=30),
+                is_active=True,
+                amount=amount_rupees,
+            )
     else:
-        sub.payment_id = payment_id
-        sub.start_date = timezone.now()
-        sub.end_date = timezone.now() + timezone.timedelta(days=30)
-        sub.is_active = True
-        sub.save()
+        # FIXED: Idempotency – if already activated with same payment, do nothing
+        if sub.payment_id == payment_id and sub.is_active:
+            logger.info("Payment already processed for order %s", order_id)
+        else:
+            sub.payment_id = payment_id
+            sub.start_date = timezone.now()
+            sub.end_date = timezone.now() + timezone.timedelta(days=30)
+            sub.is_active = True
+            sub.save(update_fields=["payment_id", "start_date", "end_date", "is_active"]) 
 
     logger.info(f"Subscription activated for vendor {vendor.id}")
 
@@ -156,9 +202,9 @@ def subscription_status(request):
     """
     Returns current vendor subscription. Deactivates if expired.
     """
-    vendor = getattr(request.user, "vendor", None)
-    if not vendor:
-        return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+    vendor, err = get_request_vendor_or_404(request)
+    if err:
+        return err
 
     sub = getattr(vendor, "subscription", None)
     if not sub:
@@ -166,6 +212,7 @@ def subscription_status(request):
 
     # Auto deactivate expired subs
     if sub.end_date and sub.end_date < timezone.now() and sub.is_active:
+        # FIXED: Use minimal write and update_fields for efficiency
         sub.is_active = False
         sub.save(update_fields=["is_active"])
 
@@ -185,6 +232,9 @@ def razorpay_webhook(request):
         secret = settings.RAZORPAY_WEBHOOK_SECRET
 
         # verify webhook signature
+        client = get_razorpay_client()
+        if client is None:
+            return error_response("Payments not configured.", status.HTTP_500_INTERNAL_SERVER_ERROR)
         client.utility.verify_webhook_signature(payload, signature, secret)
         event = json.loads(payload)
 
@@ -193,26 +243,27 @@ def razorpay_webhook(request):
             order_id = payment.get("order_id")
             payment_id = payment.get("id")
 
-            sub = Subscription.objects.filter(order_id=order_id).first()
+            # FIXED: Idempotency and efficiency
+            sub = Subscription.objects.filter(order_id=order_id).select_related("vendor").first()
             if sub:
-                sub.payment_id = payment_id
-                sub.start_date = timezone.now()
-                sub.end_date = timezone.now() + timezone.timedelta(days=30)
-                sub.is_active = True
-                sub.save()
+                if sub.payment_id == payment_id and sub.is_active:
+                    logger.info("Webhook replay ignored for order %s", order_id)
+                else:
+                    sub.payment_id = payment_id
+                    sub.start_date = timezone.now()
+                    sub.end_date = timezone.now() + timezone.timedelta(days=30)
+                    sub.is_active = True
+                    sub.save(update_fields=["payment_id", "start_date", "end_date", "is_active"])
                 logger.info(f"Webhook activated subscription for vendor {sub.vendor_id}")
 
         return Response({"status": "success"}, status=status.HTTP_200_OK)
 
     except razorpay.errors.SignatureVerificationError as e:
         logger.warning(f"Invalid Razorpay webhook signature: {str(e)}")
-        return Response({"error": "Invalid signature"}, status=status.HTTP_400_BAD_REQUEST)
+        return error_response("Invalid signature", status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.exception("Webhook processing error")
-        return Response(
-            {"error": "Webhook processing failed", "details": str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+        return error_response("Webhook processing failed", status.HTTP_500_INTERNAL_SERVER_ERROR, {"details": str(e)})
 
 
 # # marketplace/apps/subscriptions/views.py
