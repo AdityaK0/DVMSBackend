@@ -54,8 +54,8 @@ class PaymentTransaction(models.Model):
     
     # Razorpay IDs
     razorpay_order_id = models.CharField(max_length=255, unique=True)
-    razorpay_payment_id = models.CharField(max_length=255, blank=True, null=True)
-    razorpay_signature = models.CharField(max_length=255, blank=True, null=True)
+    razorpay_payment_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)  # ✅ Indexed for replay detection
+    razorpay_signature = models.CharField(max_length=255, blank=True, null=True, db_index=True)  # ✅ Indexed for signature check
     
     # Transaction details
     amount = models.IntegerField(help_text="Amount in paise")
@@ -76,6 +76,14 @@ class PaymentTransaction(models.Model):
         indexes = [
             models.Index(fields=['vendor', 'status']),
             models.Index(fields=['razorpay_order_id']),
+            models.Index(fields=['razorpay_payment_id']),  # ✅ Fast lookup for replay detection
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['razorpay_payment_id', 'razorpay_signature'],
+                name='unique_payment_signature_combo',
+                condition=models.Q(razorpay_payment_id__isnull=False) & models.Q(razorpay_signature__isnull=False)
+            )
         ]
     
     def __str__(self):

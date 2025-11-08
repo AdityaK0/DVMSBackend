@@ -1,5 +1,9 @@
 
 
+-- BUG 
+-- CAN ONE USER UPDATE ANOTHER USER DATA OR ANOTHER USER PRODUCT
+
+
 Custom Messaging and Portfolio Showcase
 
 Each user can receive personalized messages based on their templates. Additionally, vendors should have a dedicated **portfolio** section to showcase their products effectively.
@@ -183,3 +187,7 @@ need to add a kind of decorator or something in the api like is subscribed in ve
 
 and how i can avail the portfolio which is the main for free need to do something for this ok
 
+
+
+
+Added validation in create_product api so need to handle from frontend too that subscription expires

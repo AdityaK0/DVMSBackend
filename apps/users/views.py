@@ -11,6 +11,11 @@ from .serializers import (
 from .models import Address
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from .throttles import LoginRateThrottle
+
+
+import logging
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -22,6 +27,8 @@ class UserRegistrationView(generics.CreateAPIView):
 class UserLoginView(generics.GenericAPIView):
     serializer_class = UserLoginSerializer
     permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]  
+    
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -45,7 +52,7 @@ class UserProfileView(generics.RetrieveAPIView):
     
 # myapp/views.py
 
-
+# URL suggests users can update other profiles via PK
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def user_profile_update_fbv(request,pk=None):
@@ -54,7 +61,9 @@ def user_profile_update_fbv(request,pk=None):
     """
     # Retrieve the user instance from the request
     user = request.user
-    print(request.data)
+# Line 57: Replace print with logger
+# print(request.data)
+    logger.debug(f"Profile update request for user {request.user.id}: {request.data}")
     # Pass the instance to the serializer
     # For PATCH requests, pass partial=True to allow partial updates
     serializer = UserProfileUpdateSerializer(

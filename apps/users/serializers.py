@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import User, Address, CustomerProfile, VendorProfile
 from ..vendors.models import Vendor
 
@@ -13,7 +14,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                  'role', 'password', 'password_confirm']
 
     def validate(self, attrs):
-        if len(attrs['password'])<6 and len(attrs['password'])<6:
+        if len(attrs['password'])<6 or len(attrs['password_confirm'])<6:  # ❌ Logic error (AND instead of OR)
             raise serializers.ValidationError("Passwords length must be equal to greator than 6")
         
         if attrs['password'] != attrs['password_confirm']:
@@ -112,3 +113,26 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
         #     # validated_data.get('first_name', instance.first_name) might resolve to an empty string incorrectly
         #     instance.save()
         #     return instance
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Custom JWT serializer that adds vendor_id claim for security validation.
+    This prevents JWT token manipulation attacks.
+    """
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        
+        # Add custom claims for validation
+        token['username'] = user.username
+        token['role'] = user.role
+        token['email'] = user.email
+        
+        # Add vendor ID if user is a vendor
+        if hasattr(user, 'vendor') and user.vendor:
+            token['vendor_id'] = user.vendor.id
+        else:
+            token['vendor_id'] = None
+        
+        return token

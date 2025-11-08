@@ -14,30 +14,59 @@ from pathlib import Path
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
+import secrets as secrets_module
 # reading .env file
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 env_path = BASE_DIR / ".env"
 
-print("Looking for .env at:", env_path)
 load_dotenv(env_path) 
 
+if os.getenv('DEBUG', 'False') == 'True':
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Environment loaded from: {env_path}") 
+
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-vd3b_wa*#xd7k*pewu5071!rpr!p8z)+pca@cpp&fu%t#gb%^@'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    if os.getenv('ENVIRONMENT', 'development') == 'production':
+        raise ValueError("DJANGO_SECRET_KEY must be set in production")
+    else:
+        # Auto-generate for development only
+        SECRET_KEY = 'dev-only-key-' + secrets_module.token_urlsafe(50)
+        print("⚠️  WARNING: Using auto-generated SECRET_KEY for development")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
 
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     ".ngrok-free.app",  # allows any ngrok subdomain
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "https://your-production-domain.com"
 ]
 
 
@@ -60,7 +89,7 @@ THIRD_PARTY_APPS = [
     'django_filters',
     'cloudinary',
     'cloudinary_storage',
-    'debug_toolbar'
+    # 'debug_toolbar'
 ]
 
 LOCAL_APPS = [
@@ -75,20 +104,36 @@ LOCAL_APPS = [
 ]
 INSTALLED_APPS = INSTALLED_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
+# MIDDLEWARE = [
+#     'django.middleware.security.SecurityMiddleware',
+#     'corsheaders.middleware.CorsMiddleware',
+#     'django.middleware.common.CommonMiddleware',
+#     'django.contrib.sessions.middleware.SessionMiddleware',
+#     'django.middleware.csrf.CsrfViewMiddleware',
+#     'django.contrib.auth.middleware.AuthenticationMiddleware',
+#     'django.contrib.messages.middleware.MessageMiddleware',
+#     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
+#     'debug_toolbar.middleware.DebugToolbarMiddleware',  # <- must be separate
+#     'corsheaders.middleware.CorsMiddleware',  
+# ]
+
+
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.common.CommonMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Keep only once, at top
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
+    'django.middleware.common.CommonMiddleware',  # Keep only once
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    
-    'debug_toolbar.middleware.DebugToolbarMiddleware',  # <- must be separate
-    'corsheaders.middleware.CorsMiddleware',  
+    # 'debug_toolbar.middleware.DebugToolbarMiddleware',  # Only in DEBUG
 ]
+
+if DEBUG:
+    INSTALLED_APPS.append('debug_toolbar')
+    MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
 
 INTERNAL_IPS = ['127.0.0.1']
 
@@ -110,17 +155,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'marketplace.wsgi.application'
-
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-
-print(os.getenv("POSTGRES_DB"))
-print(os.getenv("POSTGRES_USER"))
-print(os.getenv("POSTGRES_PASSWORD"))
-print(os.getenv("POSTGRES_HOST"))
-print(os.getenv("POSTGRES_PORT"))   
 
 
 DATABASES = {
@@ -191,7 +225,6 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
-        'apps.subscriptions.permissions.IsSubscribed',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
@@ -203,10 +236,13 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=10),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),  # Reduced from 10 hours for security
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,  # Track login activity
+    # Custom token serializer with vendor_id claim
+    'TOKEN_OBTAIN_SERIALIZER': 'apps.users.serializers.CustomTokenObtainPairSerializer',
 }
     
 # CORS Configuration
@@ -236,3 +272,45 @@ FRONTEND_PORT = os.getenv("FRONTEND_PORT",3000)
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
 RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET')  # For webhook signature verification
+
+
+# Add proper logging configuration:
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
+            'maxBytes': 1024 * 1024 * 10,  # 10MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'] if not DEBUG else ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'] if not DEBUG else ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'apps': {
+            'handlers': ['console', 'file'] if not DEBUG else ['console'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': False,
+        },
+    },
+}

@@ -14,7 +14,6 @@ from ..utils.upload_image import upload_product_images
 from django.db import connection
 from .service import get_vendor_products_combined, get_filtered_products
 import logging
-
 logger = logging.getLogger(__name__)
 
 
@@ -262,7 +261,6 @@ def delete_product(request, pk):
     product.save(update_fields=["is_archived"])
     
     return Response(status=status.HTTP_204_NO_CONTENT)
-
 
 
 # apps/products/api.py
