@@ -10,7 +10,7 @@ from django.db import transaction
 from django.db.models import Q, Prefetch
 from .models import Product, Category, ProductImage
 from .serializers import ProductSerializer, ProductListSerializer, CategorySerializer
-from ..utils.upload_image import upload_product_images
+from ..utils.upload_image import upload_product_images,delete_product_images
 from django.db import connection
 from .service import get_vendor_products_combined, get_filtered_products
 import cloudinary.uploader
@@ -245,7 +245,7 @@ def update_product(request, pk):
     print(f"{'='*50}")
     
     # Prepare data
-    data = request.data.copy()
+    data = request.data
     partial = request.method == 'PATCH'
 
     serializer = ProductSerializer(
@@ -280,28 +280,29 @@ def update_product(request, pk):
                         print(f"    URL: {image_url}")
                         
                         try:
-                            # Get the public_id from the CloudinaryField
-                            public_id = str(image_obj.image)  # This gives us the public_id like "products/123/abc123"
-                            print(f"    Public ID: {public_id}")
+                            result = delete_product_images(image_obj)
+                            # # Get the public_id from the CloudinaryField
+                            # public_id = str(image_obj.image)  # This gives us the public_id like "products/123/abc123"
+                            # print(f"    Public ID: {public_id}")
                             
-                            # Delete from Cloudinary
-                            result = cloudinary.uploader.destroy(public_id, resource_type="image")
+                            # # Delete from Cloudinary
+                            # result = cloudinary.uploader.destroy(public_id, resource_type="image")
                             print(f"    Cloudinary response: {result}")
                             
-                            if result.get('result') == 'ok':
-                                print(f"    ✓ Successfully deleted from Cloudinary")
-                            else:
-                                print(f"    ⚠️  Cloudinary deletion status: {result.get('result')}")
+                            # if result.get('result') == 'ok':
+                            #     print(f"    ✓ Successfully deleted from Cloudinary")
+                            # else:
+                            #     print(f"    ⚠️  Cloudinary deletion status: {result.get('result')}")
                             
                         except Exception as e:
                             print(f"    ❌ Error deleting from Cloudinary: {str(e)}")
                         
-                        # Delete the database record regardless of Cloudinary status
-                        image_obj.delete()
-                        deleted_count += 1
-                        print(f"    ✓ Database record deleted")
+                        # # Delete the database record regardless of Cloudinary status
+                        # image_obj.delete()
+                        # deleted_count += 1
+                        # print(f"    ✓ Database record deleted")
                 
-                print(f"\n✓ Total images deleted: {deleted_count}")
+                # print(f"\n✓ Total images deleted: {deleted_count}")
             else:
                 print("\nℹ️  No images marked for deletion")
             
