@@ -130,7 +130,8 @@ def create_product(request):
     
     # Prepare data
     # FIXED: Use request.data; do not override vendor in payload
-    data = request.data.copy()
+    # data = request.data.copy()
+    data = request.data  
     # custom category integration
     
     category_id = data.get('category')

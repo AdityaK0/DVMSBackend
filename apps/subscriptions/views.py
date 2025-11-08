@@ -12,10 +12,48 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from .models import Subscription
-from .serializers import SubscriptionSerializer
+from .models import Subscription, SubscriptionPlan, PaymentTransaction
+from .serializers import SubscriptionSerializer, SubscriptionPlanSerializer, PaymentTransactionSerializer
 
 logger = logging.getLogger(__name__)
+
+
+# Elasticsearch sync helper
+def sync_vendor_to_elasticsearch(vendor):
+    """
+    Sync vendor data to Elasticsearch after successful subscription.
+    This updates the vendor's subscription status in ES for FastAPI access.
+    """
+    try:
+        from elasticsearch import Elasticsearch
+        from elasticsearch.helpers import bulk
+        
+        # Connect to Elasticsearch
+        es = Elasticsearch("http://localhost:9205")
+        
+        # Update vendor document with subscription status
+        vendor_doc = {
+            "_index": "vendor_index",
+            "_id": vendor.id,
+            "_op_type": "update",
+            "doc": {
+                "is_subscribed": True,
+                "subscription_active": True,
+                "last_sync": timezone.now().isoformat(),
+            },
+            "doc_as_upsert": True
+        }
+        
+        # Execute bulk update
+        bulk(es, [vendor_doc])
+        logger.info(f"Elasticsearch sync completed for vendor {vendor.id}")
+        
+    except ImportError:
+        logger.warning("Elasticsearch not installed. Skipping ES sync.")
+    except Exception as e:
+        logger.error(f"Elasticsearch sync error: {str(e)}")
+        raise
+
 
 # FIXED: Lazily initialize Razorpay client with error handling to avoid import-time crashes
 def get_razorpay_client() -> Optional[razorpay.Client]:
@@ -51,22 +89,23 @@ def get_request_vendor_or_404(request):
 @permission_classes([IsAuthenticated])
 def create_order(request):
     """
-    Create a Razorpay order and record it in Subscription.
-    Prevents duplicate active subscriptions.
+    🔒 SECURE: Create a Razorpay order WITHOUT activating subscription.
+    Only creates PaymentTransaction with status='created'.
+    Subscription is activated ONLY after payment verification.
     """
     vendor, err = get_request_vendor_or_404(request)
     if err:
         return err
 
     try:
-        # Prevent duplicate active subs
-        # FIXED: Use .exists() for efficiency
-        active_sub = (
-            Subscription.objects.filter(vendor=vendor, is_active=True, end_date__gt=timezone.now())
-            .select_related("vendor")
-            .first()
-        )
-        if active_sub is not None:
+        # Check for existing active subscription
+        active_sub = Subscription.objects.filter(
+            vendor=vendor, 
+            is_active=True, 
+            end_date__gt=timezone.now()
+        ).first()
+        
+        if active_sub:
             return Response(
                 {
                     "detail": "You already have an active subscription.",
@@ -75,125 +114,215 @@ def create_order(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Safe amount extraction
+        # Get plan_id from request
+        plan_id = request.data.get('plan_id')
+        if not plan_id:
+            return error_response("plan_id is required.", status.HTTP_400_BAD_REQUEST)
+        
+        # Fetch subscription plan
         try:
-            rupee_amount = decimal.Decimal(str(request.data.get("amount", "1")))
-        except (decimal.InvalidOperation, TypeError):
-            return error_response("Invalid amount provided.", status.HTTP_400_BAD_REQUEST)
-        amount_paise = int(rupee_amount * 100)
+            plan = SubscriptionPlan.objects.get(id=plan_id, is_active=True)
+        except SubscriptionPlan.DoesNotExist:
+            return error_response("Invalid or inactive subscription plan.", status.HTTP_404_NOT_FOUND)
+        
+        amount_paise = plan.price_in_paise
 
-        # Create order with Razorpay
+        # Create Razorpay order
         client = get_razorpay_client()
         if client is None:
-            return error_response("Payments not configured.", status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return error_response("Payment gateway not configured.", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        order = client.order.create(
-            {"amount": amount_paise, "currency": "INR", "payment_capture": 1}
-        )
+        razorpay_order = client.order.create({
+            'amount': amount_paise,
+            'currency': 'INR',
+            'payment_capture': 1,  # Auto-capture after authorization
+            'notes': {
+                'vendor_id': vendor.id,
+                'plan_id': plan.id,
+                'plan_name': plan.name,
+            }
+        })
 
-        # FIXED: Use atomic update_or_create to avoid partial writes
+        # 🔒 SECURITY: Create PaymentTransaction, NOT Subscription
         with transaction.atomic():
-            sub, _ = Subscription.objects.update_or_create(
-            vendor=vendor,
-            defaults={
-                "order_id": order.get("id"),
-                "amount": rupee_amount,
-                "is_active": False,
-                "start_date": timezone.now(),
-                "end_date": timezone.now() + timezone.timedelta(days=30),
-            },
+            payment_txn = PaymentTransaction.objects.create(
+                vendor=vendor,
+                plan=plan,
+                razorpay_order_id=razorpay_order['id'],
+                amount=amount_paise,
+                currency='INR',
+                status='created',
+                razorpay_response=razorpay_order
             )
+        
+        logger.info(f"Order created for vendor {vendor.id}: {razorpay_order['id']}")
 
         return Response(
             {
-                "order_id": order.get("id"),
-                "razorpay_key": settings.RAZORPAY_KEY_ID,
+                "order_id": razorpay_order['id'],
                 "amount": amount_paise,
+                "currency": "INR",
+                "key": settings.RAZORPAY_KEY_ID,
+                "plan": SubscriptionPlanSerializer(plan).data,
+                "transaction_id": payment_txn.id,
             },
-            status=status.HTTP_200_OK,
+            status=status.HTTP_201_CREATED,
         )
 
     except razorpay.errors.BadRequestError as e:
         logger.error(f"Razorpay API error: {str(e)}")
-        return error_response("Error creating order.", status.HTTP_400_BAD_REQUEST, {"error": str(e)})
+        return error_response("Error creating order with payment gateway.", status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.exception("Unexpected error in create_order")
-        return error_response("Something went wrong.", status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return error_response("Internal server error. Please try again.", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def verify_payment(request):
     """
-    Verify Razorpay payment and activate subscription.
+    🔐 SECURE: Verify Razorpay payment signature and activate subscription.
+    This is the ONLY endpoint that can activate a subscription.
+    
+    Steps:
+    1. Validate all required fields
+    2. Verify Razorpay signature (cryptographic proof)
+    3. Check PaymentTransaction exists and is pending
+    4. Create/Update Subscription
+    5. Mark PaymentTransaction as captured
+    6. Sync to Elasticsearch
     """
     data = request.data
-    payment_id = data.get("payment_id")
-    order_id = data.get("order_id")
-    signature = data.get("signature")
+    payment_id = data.get("razorpay_payment_id") or data.get("payment_id")
+    order_id = data.get("razorpay_order_id") or data.get("order_id")
+    signature = data.get("razorpay_signature") or data.get("signature")
 
     if not all([payment_id, order_id, signature]):
-        return Response(
-            {"detail": "Missing payment verification fields."},
-            status=status.HTTP_400_BAD_REQUEST,
+        return error_response(
+            "Missing payment verification fields (payment_id, order_id, signature).",
+            status.HTTP_400_BAD_REQUEST
         )
 
     vendor, err = get_request_vendor_or_404(request)
     if err:
         return err
 
+    # 🔐 STEP 1: Verify Razorpay signature (cryptographic proof)
     try:
-        # Verify signature integrity
         client = get_razorpay_client()
         if client is None:
-            return error_response("Payments not configured.", status.HTTP_500_INTERNAL_SERVER_ERROR)
-        client.utility.verify_payment_signature(
-            {
-                "razorpay_order_id": order_id,
-                "razorpay_payment_id": payment_id,
-                "razorpay_signature": signature,
-            }
-        )
+            return error_response("Payment gateway not configured.", status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        client.utility.verify_payment_signature({
+            "razorpay_order_id": order_id,
+            "razorpay_payment_id": payment_id,
+            "razorpay_signature": signature,
+        })
+        logger.info(f"✅ Payment signature verified for order {order_id}")
+        
     except razorpay.errors.SignatureVerificationError as e:
-        logger.warning(f"Payment signature failed: {str(e)}")
-        return error_response("Signature verification failed.", status.HTTP_400_BAD_REQUEST, {"error": str(e)})
+        logger.error(f"❌ Payment signature verification failed for order {order_id}: {str(e)}")
+        return error_response(
+            "Payment signature verification failed. This payment cannot be trusted.",
+            status.HTTP_400_BAD_REQUEST,
+            {"error": str(e)}
+        )
 
-    sub = Subscription.objects.filter(vendor=vendor, order_id=order_id).select_related("vendor").first()
+    # 🔐 STEP 2: Find PaymentTransaction (proof that order was created via our backend)
+    try:
+        payment_txn = PaymentTransaction.objects.select_related('plan', 'vendor').get(
+            razorpay_order_id=order_id,
+            vendor=vendor
+        )
+    except PaymentTransaction.DoesNotExist:
+        logger.error(f"❌ PaymentTransaction not found for order {order_id}")
+        return error_response(
+            "Payment transaction not found. Order may not have been created properly.",
+            status.HTTP_404_NOT_FOUND
+        )
 
-    if not sub:
-        # Safe fallback if order record missing
-        # FIXED: Guard amount parsing and wrap in transaction
-        try:
-            amount_rupees = decimal.Decimal(str(data.get("amount", "1")))
-        except (decimal.InvalidOperation, TypeError):
-            amount_rupees = decimal.Decimal("1")
+    # 🔐 STEP 3: Idempotency check - prevent duplicate activation
+    if payment_txn.status == 'captured' and payment_txn.razorpay_payment_id == payment_id:
+        logger.info(f"⚠️ Payment already processed for order {order_id}")
+        existing_sub = Subscription.objects.filter(vendor=vendor).first()
+        return Response(
+            {
+                "detail": "Payment already processed.",
+                "subscription": SubscriptionSerializer(existing_sub).data if existing_sub else None,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    # 🔐 STEP 4: Create or update subscription (atomic transaction)
+    try:
         with transaction.atomic():
-            sub = Subscription.objects.create(
+            # Mark transaction as captured
+            payment_txn.status = 'authorized'  # temporary
+            payment_txn.razorpay_payment_id = payment_id
+            payment_txn.razorpay_signature = signature
+            payment_txn.save(update_fields=['status', 'razorpay_payment_id', 'razorpay_signature', 'updated_at'])
+            
+            # Get plan from transaction
+            plan = payment_txn.plan
+            start_date = timezone.now()
+            duration = plan.duration_days if plan else 30
+            end_date = start_date + timezone.timedelta(days=duration)
+            
+            # Create or update subscription
+            sub, created = Subscription.objects.update_or_create(
                 vendor=vendor,
-                order_id=order_id,
-                payment_id=payment_id,
-                start_date=timezone.now(),
-                end_date=timezone.now() + timezone.timedelta(days=30),
-                is_active=True,
-                amount=amount_rupees,
+                defaults={
+                    'plan': plan,
+                    'transaction': payment_txn,
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'is_active': False,
+                    'amount': decimal.Decimal(payment_txn.amount) / 100,  # Convert paise to rupees
+                    'order_id': order_id,
+                    'payment_id': payment_id,
+                }
             )
-    else:
-        # FIXED: Idempotency – if already activated with same payment, do nothing
-        if sub.payment_id == payment_id and sub.is_active:
-            logger.info("Payment already processed for order %s", order_id)
-        else:
-            sub.payment_id = payment_id
-            sub.start_date = timezone.now()
-            sub.end_date = timezone.now() + timezone.timedelta(days=30)
-            sub.is_active = True
-            sub.save(update_fields=["payment_id", "start_date", "end_date", "is_active"]) 
+            
+            action = "created" if created else "updated"
+            logger.info(f"✅ Subscription {action} for vendor {vendor.id}")
+            
+            # 🔐 STEP 5: Sync to Elasticsearch
+            try:
+                sync_vendor_to_elasticsearch(vendor)
+                logger.info(f"✅ Vendor {vendor.id} synced to Elasticsearch")
+            except Exception as es_error:
+                logger.error(f"⚠️ Elasticsearch sync failed for vendor {vendor.id}: {str(es_error)}")
+                # Don't fail the payment - ES sync is secondary
+            
+            return Response(
+                {
+                    "success": True,
+                    "detail": f"Payment verified and subscription {action} successfully.",
+                    "subscription": SubscriptionSerializer(sub).data,
+                    "transaction": PaymentTransactionSerializer(payment_txn).data,
+                },
+                status=status.HTTP_200_OK,
+            )
+            
+    except Exception as e:
+        logger.exception(f"❌ Error activating subscription for vendor {vendor.id}")
+        # Mark transaction as failed
+        payment_txn.mark_as_failed(str(e))
+        return error_response(
+            "Failed to activate subscription. Please contact support.",
+            status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
-    logger.info(f"Subscription activated for vendor {vendor.id}")
 
-    return Response(
-        {"detail": "Subscription activated.", "subscription": SubscriptionSerializer(sub).data},
-        status=status.HTTP_200_OK,
-    )
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def subscription_plans(request):
+    """
+    List all available subscription plans.
+    """
+    plans = SubscriptionPlan.objects.filter(is_active=True).order_by('price')
+    serializer = SubscriptionPlanSerializer(plans, many=True)
+    return Response({"plans": serializer.data}, status=status.HTTP_200_OK)
 
 
 @api_view(["GET"])
@@ -224,46 +353,112 @@ def subscription_status(request):
 @permission_classes([AllowAny])  # public webhook
 def razorpay_webhook(request):
     """
-    Razorpay Webhook for production.
+    🔐 SECURE: Razorpay Webhook Handler for production.
+    Handles automatic payment notifications from Razorpay.
+    
+    Events handled:
+    - payment.captured: Activate subscription
+    - payment.failed: Mark transaction as failed
     """
     try:
         payload = request.body
         signature = request.headers.get("X-Razorpay-Signature")
-        secret = settings.RAZORPAY_WEBHOOK_SECRET
+        webhook_secret = getattr(settings, "RAZORPAY_WEBHOOK_SECRET", None)
 
-        # verify webhook signature
+        if not webhook_secret:
+            logger.error("RAZORPAY_WEBHOOK_SECRET not configured")
+            return Response({"status": "error", "message": "Webhook not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 🔐 Verify webhook signature
         client = get_razorpay_client()
         if client is None:
-            return error_response("Payments not configured.", status.HTTP_500_INTERNAL_SERVER_ERROR)
-        client.utility.verify_webhook_signature(payload, signature, secret)
+            return Response({"status": "error", "message": "Payment gateway not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        client.utility.verify_webhook_signature(payload.decode('utf-8'), signature, webhook_secret)
         event = json.loads(payload)
+        
+        event_type = event.get("event")
+        logger.info(f"📥 Webhook received: {event_type}")
+        print("++"*30,event)
 
-        if event.get("event") == "payment.captured":
+        # Handle payment.captured event
+        if event_type == "payment.captured":
             payment = event["payload"]["payment"]["entity"]
             order_id = payment.get("order_id")
             payment_id = payment.get("id")
-
-            # FIXED: Idempotency and efficiency
-            sub = Subscription.objects.filter(order_id=order_id).select_related("vendor").first()
-            if sub:
-                if sub.payment_id == payment_id and sub.is_active:
-                    logger.info("Webhook replay ignored for order %s", order_id)
-                else:
-                    sub.payment_id = payment_id
-                    sub.start_date = timezone.now()
-                    sub.end_date = timezone.now() + timezone.timedelta(days=30)
-                    sub.is_active = True
-                    sub.save(update_fields=["payment_id", "start_date", "end_date", "is_active"])
-                logger.info(f"Webhook activated subscription for vendor {sub.vendor_id}")
+            
+            # Find transaction
+            try:
+                payment_txn = PaymentTransaction.objects.select_related('plan', 'vendor').get(
+                    razorpay_order_id=order_id
+                )
+            except PaymentTransaction.DoesNotExist:
+                logger.warning(f"⚠️ PaymentTransaction not found for order {order_id}")
+                return Response({"status": "ignored", "message": "Transaction not found"}, status=status.HTTP_200_OK)
+            
+            # Idempotency check
+            if payment_txn.status == 'captured':
+                logger.info(f"⚠️ Webhook replay ignored for order {order_id}")
+                return Response({"status": "success", "message": "Already processed"}, status=status.HTTP_200_OK)
+            
+            # Activate subscription
+            with transaction.atomic():
+                # Extract signature from payment metadata (if available)
+                signature_from_webhook = payment.get("signature", "")
+                payment_txn.mark_as_captured(payment_id, signature_from_webhook)
+                
+                # Get plan from transaction
+                plan = payment_txn.plan
+                vendor = payment_txn.vendor
+                start_date = timezone.now()
+                duration = plan.duration_days if plan else 30
+                end_date = start_date + timezone.timedelta(days=duration)
+                
+                # Create or update subscription
+                sub, created = Subscription.objects.update_or_create(
+                    vendor=vendor,
+                    defaults={
+                        'plan': plan,
+                        'transaction': payment_txn,
+                        'start_date': start_date,
+                        'end_date': end_date,
+                        'is_active': True,
+                        'after_webhook_called':True,
+                        'amount': decimal.Decimal(payment_txn.amount) / 100,
+                        'order_id': order_id,
+                        'payment_id': payment_id,
+                    }
+                )
+                
+                logger.info(f"✅ Webhook activated subscription for vendor {vendor.id}")
+                
+                # Sync to Elasticsearch
+                try:
+                    sync_vendor_to_elasticsearch(vendor)
+                except Exception as es_error:
+                    logger.error(f"⚠️ ES sync failed in webhook: {str(es_error)}")
+        
+        # Handle payment.failed event
+        elif event_type == "payment.failed":
+            payment = event["payload"]["payment"]["entity"]
+            order_id = payment.get("order_id")
+            error_description = payment.get("error_description", "Payment failed")
+            
+            try:
+                payment_txn = PaymentTransaction.objects.get(razorpay_order_id=order_id)
+                payment_txn.mark_as_failed(error_description)
+                logger.info(f"❌ Payment failed for order {order_id}: {error_description}")
+            except PaymentTransaction.DoesNotExist:
+                logger.warning(f"⚠️ Transaction not found for failed payment {order_id}")
 
         return Response({"status": "success"}, status=status.HTTP_200_OK)
 
     except razorpay.errors.SignatureVerificationError as e:
-        logger.warning(f"Invalid Razorpay webhook signature: {str(e)}")
-        return error_response("Invalid signature", status.HTTP_400_BAD_REQUEST)
+        logger.error(f"❌ Invalid Razorpay webhook signature: {str(e)}")
+        return Response({"status": "error", "message": "Invalid signature"}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
-        logger.exception("Webhook processing error")
-        return error_response("Webhook processing failed", status.HTTP_500_INTERNAL_SERVER_ERROR, {"details": str(e)})
+        logger.exception("❌ Webhook processing error")
+        return Response({"status": "error", "message": "Webhook processing failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # # marketplace/apps/subscriptions/views.py

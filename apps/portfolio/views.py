@@ -416,6 +416,8 @@ def trigger_sync(request):
     try:
         # FIXED: Wrap external sync call to avoid unhandled exceptions
         result = sync_vendor(vendor.id)
+        plan.refresh_from_db()
+        
         return Response(
             {
                 "status": "success",

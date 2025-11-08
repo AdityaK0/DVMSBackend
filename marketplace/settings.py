@@ -34,7 +34,12 @@ SECRET_KEY = 'django-insecure-vd3b_wa*#xd7k*pewu5071!rpr!p8z)+pca@cpp&fu%t#gb%^@
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    ".ngrok-free.app",  # allows any ngrok subdomain
+]
+
 
 
 # Application definition
@@ -230,3 +235,4 @@ FRONTEND_PORT = os.getenv("FRONTEND_PORT",3000)
 
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
+RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET')  # For webhook signature verification

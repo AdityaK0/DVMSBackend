@@ -6,6 +6,22 @@ Each user can receive personalized messages based on their templates. Additional
 
 ---
 
+EVEN AFTER PAYMENT FAILED THEN RELAOD STILL GOT ACTIVATED :) - SOLVED
+
+
+
+how i implemented this razorpay
+create account get threee things id,secret,webhook-secret
+
+subscription purchased on paymnet still not subscriber cause its is_active is false 
+then webhook called and update the subscription is_active to true 
+
+tables i have payment details , subscription , subscription plan 
+
+
+
+
+
 Cost Optimization**
 
 To minimize initial infrastructure costs, **Cloudinary** can be used as the cloud storage solution. It allows efficient media management without upfront storage expenses.
@@ -147,6 +163,10 @@ $50 = 2 times
 
 
 MOST IMP 
+
+need to test evey error scenarios
+
+need to remove count of any views intially
 
 what the intial stuff after first time will look like on thing is done that is
 oboading but directly showing portfolio 

@@ -64,7 +64,7 @@ class VendorUpdate(serializers.ModelSerializer):
     whatsapp_number = serializers.CharField(required=False)
     
     # Address fields - all optional
-    street = serializers.CharField(write_only=True, required=False)
+    street_address = serializers.CharField(write_only=True, required=False)
     city = serializers.CharField(write_only=True, required=False)
     state = serializers.CharField(write_only=True, required=False)
     zip_code = serializers.CharField(write_only=True, required=False)
@@ -78,7 +78,7 @@ class VendorUpdate(serializers.ModelSerializer):
         fields = [
             "business_name", "business_description", "business_type",
             "website", "logo", "gstin",
-            "street", "city", "state", "zip_code", "country",
+            "street_address", "city", "state", "zip_code", "country",
             "address_details","whatsapp_number",
         ]
         read_only_fields = ["user", "is_verified", "created_at", "updated_at"]
@@ -91,7 +91,7 @@ class VendorUpdate(serializers.ModelSerializer):
         
         if address:
             return {
-                'street': address.street_address,
+                'street_address': address.street_address,
                 'city': address.city,
                 'state': address.state,
                 'zip_code': address.zip_code,
@@ -102,13 +102,13 @@ class VendorUpdate(serializers.ModelSerializer):
     
     def update(self, instance, validated_data):
         # Extract address fields
-        address_fields = ['street', 'city', 'state', 'zip_code', 'country']
+        address_fields = ['street_address', 'city', 'state', 'zip_code', 'country']
         address_data = {}
         
         for field in address_fields:
             if field in validated_data:
                 value = validated_data.pop(field)
-                if field == 'street':
+                if field == 'street_address':
                     address_data['street_address'] = value
                 elif field == 'zip_code':
                     address_data['postal_code'] = value
