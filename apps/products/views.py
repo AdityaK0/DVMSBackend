@@ -13,6 +13,10 @@ from .serializers import ProductSerializer, ProductListSerializer, CategorySeria
 from ..utils.upload_image import upload_product_images
 from django.db import connection
 from .service import get_vendor_products_combined, get_filtered_products
+import cloudinary.uploader
+
+
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -160,12 +164,74 @@ def create_product(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# Update Product (Vendor only - their own products)
+
+
+# @api_view(['PUT', 'PATCH'])
+# @permission_classes([IsAuthenticated])
+# @parser_classes([MultiPartParser, FormParser])
+# def update_product(request, pk):
+#     """Update a product with proper image management"""
+#     try:
+#         product = Product.objects.get(pk=pk, vendor__user=request.user)
+#     except Product.DoesNotExist:
+#         return Response(
+#             {"detail": "Product not found or you don't have permission"}, 
+#             status=status.HTTP_404_NOT_FOUND
+#         )
+    
+#     # Prepare data
+#     data = request.data.copy()
+#     partial = request.method == 'PATCH'
+
+#     serializer = ProductSerializer(
+#         product, 
+#         data=data, 
+#         partial=partial, 
+#         context={'request': request}
+#     )
+    
+#     if serializer.is_valid():
+#         with transaction.atomic():
+#             updated_product = serializer.save()
+            
+#             # Handle image deletions
+#             images_to_delete = request.data.getlist('images_to_delete') or []
+#             if images_to_delete:
+#                 ProductImage.objects.filter(
+#                     product=updated_product,
+#                     image_url__in=images_to_delete
+#                 ).delete()
+            
+#             # Handle new image uploads
+#             new_images = request.FILES.getlist('images_new') or []
+            
+#             # Validate total image count
+#             existing_count = ProductImage.objects.filter(product=updated_product).count()
+#             total_count = existing_count + len(new_images)
+            
+#             if total_count > 4:
+#                 return Response(
+#                     {"detail": f"Maximum 4 images allowed. You have {existing_count} existing and trying to add {len(new_images)} new images."},
+#                     status=status.HTTP_400_BAD_REQUEST
+#                 )
+            
+#             # Upload new images
+#             if new_images:
+#                 upload_product_images(updated_product, new_images)
+        
+#         response_serializer = ProductSerializer(updated_product, context={'request': request})
+#         return Response(response_serializer.data)
+    
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])
 def update_product(request, pk):
-    """Update a product"""
+    """Update a product with proper Cloudinary image management"""
     try:
         product = Product.objects.get(pk=pk, vendor__user=request.user)
     except Product.DoesNotExist:
@@ -173,6 +239,10 @@ def update_product(request, pk):
             {"detail": "Product not found or you don't have permission"}, 
             status=status.HTTP_404_NOT_FOUND
         )
+    
+    print(f"\n{'='*50}")
+    print(f"📦 Updating Product ID: {pk}")
+    print(f"{'='*50}")
     
     # Prepare data
     data = request.data.copy()
@@ -188,36 +258,106 @@ def update_product(request, pk):
     if serializer.is_valid():
         with transaction.atomic():
             updated_product = serializer.save()
-        
-        # Handle new images if provided
-        # uploaded_images = request.FILES.getlist('images')
-        # if uploaded_images:
-        #     # Optional: Remove old images if you want to replace all
-        #     # product.images.all().delete()
             
-        #     for i, image_file in enumerate(uploaded_images):
-        #         ProductImage.objects.create(
-        #             product=updated_product,
-        #             image=image_file,
-        #             is_primary=(i == 0 and not product.images.filter(is_primary=True).exists()),
-        #             alt_text=f"{updated_product.name} image {i+1}"
-        #         )
+            # ✅ STEP 1: Handle image deletions from Cloudinary
+            images_to_delete = request.data.getlist('images_to_delete')
+            deleted_count = 0
+            
+            if images_to_delete:
+                print(f"\n🗑️  Processing {len(images_to_delete)} images for deletion")
+                print(f"Images to delete: {images_to_delete}")
                 
-        
-        uploaded_images = (
-            request.FILES.getlist('images') or
-            request.FILES.getlist('images[]')
-        )
-
-        if uploaded_images:
-            upload_product_images(updated_product, uploaded_images)  # 👈 reused util here
-        
+                # Get all existing images for this product
+                existing_images = ProductImage.objects.filter(product=updated_product)
+                print(f"Current images in DB: {existing_images.count()}")
                 
+                for image_obj in existing_images:
+                    image_url = image_obj.image.url if hasattr(image_obj.image, 'url') else str(image_obj.image)
+                    
+                    # Check if this image's URL is in the deletion list
+                    if image_url in images_to_delete:
+                        print(f"\n  → Deleting image ID {image_obj.id}")
+                        print(f"    URL: {image_url}")
+                        
+                        try:
+                            # Get the public_id from the CloudinaryField
+                            public_id = str(image_obj.image)  # This gives us the public_id like "products/123/abc123"
+                            print(f"    Public ID: {public_id}")
+                            
+                            # Delete from Cloudinary
+                            result = cloudinary.uploader.destroy(public_id, resource_type="image")
+                            print(f"    Cloudinary response: {result}")
+                            
+                            if result.get('result') == 'ok':
+                                print(f"    ✓ Successfully deleted from Cloudinary")
+                            else:
+                                print(f"    ⚠️  Cloudinary deletion status: {result.get('result')}")
+                            
+                        except Exception as e:
+                            print(f"    ❌ Error deleting from Cloudinary: {str(e)}")
+                        
+                        # Delete the database record regardless of Cloudinary status
+                        image_obj.delete()
+                        deleted_count += 1
+                        print(f"    ✓ Database record deleted")
+                
+                print(f"\n✓ Total images deleted: {deleted_count}")
+            else:
+                print("\nℹ️  No images marked for deletion")
+            
+            # ✅ STEP 2: Get current count after deletions
+            existing_count = ProductImage.objects.filter(product=updated_product).count()
+            print(f"\n📊 Current image count after deletions: {existing_count}")
+            
+            # ✅ STEP 3: Handle new image uploads
+            new_images = request.FILES.getlist('images_new')
+            uploaded_count = 0
+            
+            if new_images:
+                print(f"\n📤 Processing {len(new_images)} new images for upload")
+                
+                # Validate total image count
+                total_count = existing_count + len(new_images)
+                print(f"   Existing: {existing_count}, New: {len(new_images)}, Total: {total_count}")
+                
+                if total_count > 4:
+                    error_msg = f"Maximum 4 images allowed. You have {existing_count} existing images and are trying to add {len(new_images)} new images (total: {total_count})."
+                    print(f"\n❌ Validation failed: {error_msg}")
+                    return Response(
+                        {"detail": error_msg},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Upload new images to Cloudinary
+                try:
+                    uploaded_images = upload_product_images(updated_product, new_images)
+                    uploaded_count = len(uploaded_images)
+                    print(f"\n✓ Successfully uploaded {uploaded_count} images to Cloudinary")
+                except Exception as e:
+                    print(f"\n❌ Error uploading images: {str(e)}")
+                    return Response(
+                        {"detail": f"Error uploading images: {str(e)}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                print("\nℹ️  No new images to upload")
         
+        # ✅ STEP 4: Return updated product data
         response_serializer = ProductSerializer(updated_product, context={'request': request})
+        
+        final_count = ProductImage.objects.filter(product=updated_product).count()
+        print(f"\n{'='*50}")
+        print(f"✅ Product update complete!")
+        print(f"   Images deleted: {deleted_count}")
+        print(f"   Images uploaded: {uploaded_count}")
+        print(f"   Final image count: {final_count}")
+        print(f"{'='*50}\n")
+        
         return Response(response_serializer.data)
     
+    print(f"\n❌ Serializer validation failed: {serializer.errors}")
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
