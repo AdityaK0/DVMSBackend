@@ -12,6 +12,7 @@ class VendorSerializer(serializers.ModelSerializer):
     average_rating = serializers.ReadOnlyField()
     address_details = serializers.SerializerMethodField()  # Custom method to get user's address
     logo_url = serializers.SerializerMethodField()
+    # telegram_link_valid = serializers.SerializerMethodField()
     
     class Meta:
         model = Vendor
@@ -39,7 +40,12 @@ class VendorSerializer(serializers.ModelSerializer):
         if obj.logo:
             return obj.logo.url  # full Cloudinary URL
         return None
-
+    
+    # def get_telegram_link_valid(self, obj):
+    #     """
+    #     Returns True if vendor has valid Telegram link (chat_id exists & bot not blocked).
+    #     """
+    #     return is_telegram_chat_active(obj.telegram_chat_id)
 
 class VendorListSerializer(serializers.ModelSerializer):
     total_products = serializers.ReadOnlyField()

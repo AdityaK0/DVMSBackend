@@ -1,6 +1,6 @@
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-
+from django.http import QueryDict
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -233,53 +233,50 @@ def portfolio_contact(request, business_name):
 
 
 # ---------- Vendor: manage portfolio ----------
+
 @api_view(['GET', 'PUT', 'PATCH'])
 @permission_classes([permissions.IsAuthenticated])
 def vendor_portfolio_manage(request):
     vendor = getattr(request.user, "vendor", None)
     if not vendor:
         return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-    # FIXED: Avoid DoesNotExist crash; get_or_create
-    portfolio, _ = Portfolio.objects.get_or_create(vendor=vendor)
+
+    portfolio = Portfolio.objects.get(vendor=vendor)
 
     if request.method == "GET":
-        serializer = PortfolioSerializer(portfolio)
-        return Response(serializer.data)
+        return Response(PortfolioSerializer(portfolio).data)
 
-    # ✅ Handle banner image upload
+    # ✅ Validate file size (per file)
+    MAX_MB = 3
+    for file in request.FILES.getlist("carousel_images_new"):
+        if file.size > MAX_MB * 1024 * 1024:
+            return Response(
+                {"detail": f"One or more images exceed {MAX_MB}MB limit."},
+                status=400
+            )
+
     banner_file = request.FILES.get("banner_image")
     if banner_file:
         portfolio.banner_image = upload_portfolio_banner(banner_file, portfolio)
-        portfolio.save(update_fields=['banner_image'])
+        portfolio.save(update_fields=["banner_image"])
 
-    # ✅ Handle carousel images - FIXED
-    # Get existing URLs from POST data (not FILES)
     existing_urls = request.POST.getlist("carousel_images_existing")
-    
-    # Get new file uploads
     new_files = request.FILES.getlist("carousel_images_new")
-    
-    # Upload new files and get their URLs
     uploaded_urls = upload_portfolio_carousel(new_files, portfolio) if new_files else []
-    
-    # Merge existing + newly uploaded
-    final_carousel = existing_urls + uploaded_urls
-    portfolio.carousel_images = final_carousel
-    portfolio.save(update_fields=['carousel_images'])
+    portfolio.carousel_images = existing_urls + uploaded_urls
+    portfolio.save(update_fields=["carousel_images"])
 
-    # ✅ Update other fields via serializer (excluding image fields)
-    mutable_data = request.data.copy()
-    mutable_data.pop('carousel_images_existing', None)
-    mutable_data.pop('carousel_images_new', None)
-    
+    mutable_data = request.POST.copy()
+    for key in ["carousel_images_existing", "carousel_images_new", "banner_image"]:
+        mutable_data.pop(key, None)
+
     serializer = PortfolioSerializer(portfolio, data=mutable_data, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        portfolio.refresh_from_db()
-        response_serializer = PortfolioSerializer(portfolio)
-        return Response(response_serializer.data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return Response(PortfolioSerializer(portfolio).data)
+
+
 
 
 # @api_view(['GET', 'PUT', 'PATCH'])
@@ -288,26 +285,60 @@ def vendor_portfolio_manage(request):
 #     vendor = getattr(request.user, "vendor", None)
 #     if not vendor:
 #         return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+#     # FIXED: Avoid DoesNotExist crash; get_or_create
+#     portfolio, _ = Portfolio.objects.get_or_create(vendor=vendor)
 
-#     portfolio, _ = Portfolio.objects.get_or_create(  # we can create portfolio when the vendor onboarding is done - BG process ? i don't think so
-#         vendor=vendor,
-#         defaults={
-#             "display_name": vendor.business_name or f"{vendor.pk}-portfolio",
-#             "slug": vendor.business_name.lower().replace(' ', '-')[:90],
-#             "business_name_slug":vendor.business_name_slug
-#         }
-#     )
-#     if request.method == 'GET':
+#     if request.method == "GET":
 #         serializer = PortfolioSerializer(portfolio)
 #         return Response(serializer.data)
 
-#     serializer = PortfolioSerializer(portfolio, data=request.data, partial=True)
+#     # ✅ Handle banner image upload
+#     banner_file = request.FILES.get("banner_image")
+#     if banner_file:
+#         portfolio.banner_image = upload_portfolio_banner(banner_file, portfolio)
+#         portfolio.save(update_fields=['banner_image'])
+
+#     # ✅ Handle carousel images - FIXED
+#     # Get existing URLs from POST data (not FILES)
+#     existing_urls = request.POST.getlist("carousel_images_existing")
+    
+#     # Get new file uploads
+#     new_files = request.FILES.getlist("carousel_images_new")
+    
+#     # Upload new files and get their URLs
+#     uploaded_urls = upload_portfolio_carousel(new_files, portfolio) if new_files else []
+    
+#     # Merge existing + newly uploaded
+#     final_carousel = existing_urls + uploaded_urls
+#     portfolio.carousel_images = final_carousel
+#     portfolio.save(update_fields=['carousel_images'])
+
+#     # ✅ Update other fields via serializer (excluding image fields)
+#     # mutable_data = request.data
+    
+#     if isinstance(request.data, QueryDict):
+#         # Shallow copy to make it mutable (does NOT deep-copy files)
+#         mutable_data = request.data.copy()
+#     else:
+#         # JSON request -> normal dict
+#         mutable_data = dict(request.data)
+        
+#     # mutable_data.pop('carousel_images_existing', None)
+#     # mutable_data.pop('carousel_images_new', None)
+    
+    
+#     for key in ["carousel_images_existing", "carousel_images_new", "banner_image"]:
+#         if key in mutable_data:
+#             del mutable_data[key]
+    
+#     serializer = PortfolioSerializer(portfolio, data=mutable_data, partial=True)
 #     if serializer.is_valid():
 #         serializer.save()
-#         return Response(serializer.data)
+#         portfolio.refresh_from_db()
+#         response_serializer = PortfolioSerializer(portfolio)
+#         return Response(response_serializer.data)
+
 #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 
 
 @api_view(['GET', 'POST'])

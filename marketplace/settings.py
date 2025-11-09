@@ -233,6 +233,7 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler'
 }
 
 SIMPLE_JWT = {
@@ -262,6 +263,10 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     # r"^https?:\/\/([a-zA-Z0-9-]+)\.yourdomain\.com$", # For production
 ]
 
+# dont know how this will work but here i have just added this let see 
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20MB
+
 
 DEFAULT_SYNC_COUNT = os.getenv("DEFAUTL_SYNC_COUNT")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")  # default = dev
@@ -272,6 +277,18 @@ FRONTEND_PORT = os.getenv("FRONTEND_PORT",3000)
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
 RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET')  # For webhook signature verification
+
+
+
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME')
+JWT_SECRET = os.getenv('JWT_SECRET')
+
+
+
+
+
+REDIS_URL = "redis://localhost:6380/0"
 
 
 # Add proper logging configuration:

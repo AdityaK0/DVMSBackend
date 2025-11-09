@@ -22,6 +22,7 @@ class Vendor(models.Model):
     gstin = models.CharField(max_length=20, blank=True)
     website = models.URLField(blank=True,null=True)
     # logo = models.ImageField(upload_to='vendor_logos/', blank=True)
+    telegram_chat_id = models.CharField(max_length=40, blank=True, null=True)
     logo = CloudinaryField('image', folder='vendors', blank=True, null=True)
     is_onboarded = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)

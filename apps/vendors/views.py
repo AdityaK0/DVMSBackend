@@ -249,3 +249,20 @@ def vendor_profile(request, pk=None):
 
 
 
+import requests
+from django.conf import settings
+
+def is_telegram_chat_active(chat_id: str) -> bool:
+    """
+    Verify if the Telegram chat_id is still valid and user has not blocked the bot.
+    """
+    if not chat_id:
+        return False
+    try:
+        url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getChat"
+        resp = requests.post(url, json={"chat_id": chat_id}, timeout=5)
+        data = resp.json()
+        # Telegram returns {"ok": false, "description": "Forbidden: bot was blocked by the user"}
+        return data.get("ok", False)
+    except Exception:
+        return False
