@@ -24,20 +24,29 @@ def get_vendor_products_combined(
     """
 
     # ✅ Base queryset
+    # queryset = (.  new query set is now included cause we have eliminitated the ProductImage table
+    #     Product.objects.filter(
+    #         vendor=vendor,
+    #         is_active=True,
+    #         is_archived=False,
+    #     )
+    #     .select_related("vendor", "category")
+    #     .prefetch_related(
+    #         Prefetch(
+    #             "images",
+    #             queryset=ProductImage.objects.all(),
+    #             to_attr="images_prefetched",
+    #         )
+    #     )
+    #     .order_by("-created_at")
+    # )
+    
     queryset = (
         Product.objects.filter(
             vendor=vendor,
-            is_active=True,
-            is_archived=False,
+            is_archived=False
         )
         .select_related("vendor", "category")
-        .prefetch_related(
-            Prefetch(
-                "images",
-                queryset=ProductImage.objects.all(),
-                to_attr="images_prefetched",
-            )
-        )
         .order_by("-created_at")
     )
 

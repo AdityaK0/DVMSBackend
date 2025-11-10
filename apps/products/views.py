@@ -116,52 +116,111 @@ def product_detail(request, pk):
     return Response(serializer.data)
 
 
-# Create Product (Vendor only)
+
+
+# views.py
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.db import transaction
+from .models import Product, Category
+from .serializers import ProductSerializer
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-@parser_classes([MultiPartParser, FormParser])
 def create_product(request):
-    """Create a new product"""
-    # FIXED: Guard vendor presence
+    """Create a new product (text data only)."""
     if not hasattr(request.user, 'vendor'):
         return Response(
-            {"error": "Only vendors can create products"}, 
+            {"error": "Only vendors can create products"},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     vendor = request.user.vendor
-    
-    # Prepare data
-    # FIXED: Use request.data; do not override vendor in payload
-    # data = request.data.copy()
-    data = request.data  
-    # custom category integration
-    
+    data = request.data
     category_id = data.get('category')
     if not category_id:
         return Response({"category": "This field is required."}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         category = Category.objects.get(id=category_id, is_active=True)
     except Category.DoesNotExist:
         return Response({"category": "Invalid category selected."}, status=status.HTTP_400_BAD_REQUEST)
-    
-    # FIXED: Remove prints; use serializer validation
+
     serializer = ProductSerializer(data=data, context={'request': request})
-    
     if serializer.is_valid():
-        # FIXED: Atomic save for product + images
         with transaction.atomic():
-            product = serializer.save(vendor=vendor, category=category)
-            # Handle multiple images
-            uploaded_images = request.FILES.getlist('uploaded_images')
-            if uploaded_images:
-                upload_product_images(product, uploaded_images)
+            image_urls = data.get('image_urls') or data.getlist('image_urls[]') or []
+
+            # Normalize the data to a clean list
+            if isinstance(image_urls, str):
+                import json
+                try:
+                    image_urls = json.loads(image_urls)
+                except Exception:
+                    image_urls = [image_urls]
+            elif not isinstance(image_urls, (list, tuple)):
+                image_urls = [image_urls]
+
+            product = serializer.save(
+                vendor=vendor,
+                category=category,
+                image_urls=image_urls,
+                primary_image=image_urls[0] if image_urls else None
+            )
 
         response_serializer = ProductSerializer(product, context={'request': request})
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-    
+
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# Create Product (Vendor only)
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# @parser_classes([MultiPartParser, FormParser])
+# def create_product(request):
+#     """Create a new product"""
+#     # FIXED: Guard vendor presence
+#     if not hasattr(request.user, 'vendor'):
+#         return Response(
+#             {"error": "Only vendors can create products"}, 
+#             status=status.HTTP_403_FORBIDDEN
+#         )
+    
+#     vendor = request.user.vendor
+    
+#     # Prepare data
+#     # FIXED: Use request.data; do not override vendor in payload
+#     # data = request.data.copy()
+#     data = request.data  
+#     # custom category integration
+    
+#     category_id = data.get('category')
+#     if not category_id:
+#         return Response({"category": "This field is required."}, status=status.HTTP_400_BAD_REQUEST)
+    
+#     try:
+#         category = Category.objects.get(id=category_id, is_active=True)
+#     except Category.DoesNotExist:
+#         return Response({"category": "Invalid category selected."}, status=status.HTTP_400_BAD_REQUEST)
+    
+#     # FIXED: Remove prints; use serializer validation
+#     serializer = ProductSerializer(data=data, context={'request': request})
+    
+#     if serializer.is_valid():
+#         # FIXED: Atomic save for product + images
+#         with transaction.atomic():
+#             product = serializer.save(vendor=vendor, category=category)
+#             # Handle multiple images
+#             uploaded_images = request.FILES.getlist('uploaded_images')
+#             if uploaded_images:
+#                 upload_product_images(product, uploaded_images)
+
+#         response_serializer = ProductSerializer(product, context={'request': request})
+#         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+    
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 

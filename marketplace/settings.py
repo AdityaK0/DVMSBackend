@@ -21,7 +21,8 @@ import secrets as secrets_module
 BASE_DIR = Path(__file__).resolve().parent.parent
 env_path = BASE_DIR / ".env"
 
-load_dotenv(env_path) 
+# load_dotenv(env_path) 
+load_dotenv()
 
 if os.getenv('DEBUG', 'False') == 'True':
     import logging
@@ -170,16 +171,20 @@ DATABASES = {
     }
 }
 
-# CLOUDINARY_STORAGE = {
-#     'CLOUDINARY_CLOUD_NAME': os.getenv("CLOUD_NAME"),
-#     'CLOUDINARY_API_KEY': os.getenv("API_KEY"),
-#     'CLOUDINARY_API_SECRET': os.getenv("API_SECRET"),
-# }
+
+AWS_ACCESS_KEY_ID=os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY=os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME=os.getenv("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME=os.getenv("AWS_S3_REGION_NAME")
+
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.getenv("CLOUDINARY_CLOUD_NAME"),
-    'API_KEY': os.getenv("CLOUDINARY_API_KEY"),
-    'API_SECRET': os.getenv("CLOUDINARY_API_SECRET"),
+    "CLOUDINARY_CLOUD_NAME": os.getenv("CLOUDINARY_CLOUD_NAME"),
+    "CLOUDINARY_API_KEY": os.getenv("CLOUDINARY_API_KEY"),
+    "CLOUDINARY_API_SECRET": os.getenv("CLOUDINARY_API_SECRET"),
 }
+
+
+
 
 
 UPLOAD_PROVIDER = "cloudinary"  # or 's3'

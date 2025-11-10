@@ -1,7 +1,7 @@
 # core/urls.py
 from django.urls import path
-from .views import get_task_status
+from .views import get_presigned_url
 
 urlpatterns = [
-    path("bg-tasks/<int:task_id>/", get_task_status, name="bg_task_status"),
+    path("get_presigned_url/", get_presigned_url, name="get_presigned_url"),
 ]
