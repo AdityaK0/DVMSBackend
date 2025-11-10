@@ -3,6 +3,22 @@
 -- BUG 
 -- CAN ONE USER UPDATE ANOTHER USER DATA OR ANOTHER USER PRODUCT
 
+-- MOST IMP
+
+Instead of uploading the image together with creating and product  and updating product 
+we can give them option like upload image then they can upload then create or update the product in
+this way upload and deleting the image can be handled in the background jobs
+in this way all i will need is to store the url only
+
+like before the user will click on create or update or update any crausal or banner or logo
+anything they will click on upload image uploaded got the link then just save the link 
+and then save whatever object with the link 
+
+i think this is the best solution i ever know 
+
+benifit is that even if there will be error in image upload user can update the product 
+without any issue  
+
 
 Custom Messaging and Portfolio Showcase
 

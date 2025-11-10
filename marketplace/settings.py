@@ -101,6 +101,8 @@ LOCAL_APPS = [
     'apps.dashboard',
     'apps.portfolio',
     'apps.subscriptions',
+    'apps.core',
+    
 ]
 INSTALLED_APPS = INSTALLED_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -180,6 +182,8 @@ CLOUDINARY_STORAGE = {
 }
 
 
+UPLOAD_PROVIDER = "cloudinary"  # or 's3'
+
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
@@ -233,7 +237,7 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
-    'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler'
+    'EXCEPTION_HANDLER': 'apps.core.exceptions_.exceptions.custom_exception_handler'
 }
 
 SIMPLE_JWT = {
@@ -286,9 +290,19 @@ JWT_SECRET = os.getenv('JWT_SECRET')
 
 
 
-
-
+# Redis running inside Docker, exposed to host on port 6380
 REDIS_URL = "redis://localhost:6380/0"
+
+# Celery uses Redis as both broker and result backend
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+
+# Optional tuning
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
 
 
 # Add proper logging configuration:

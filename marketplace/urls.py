@@ -31,6 +31,8 @@ urlpatterns = [
     path('api/dashboard/', include('apps.dashboard.urls')),
     path('api/portfolio/', include('apps.portfolio.urls')),
     path('api/subscriptions/', include('apps.subscriptions.urls')),
+    path('api/core/', include('apps.core.urls')),
+    
 
 
 ]
