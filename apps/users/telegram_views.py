@@ -4,6 +4,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from apps.users.models import User
+from apps.vendors.models import Vendor
+from django.core.cache import cache
 
 r = redis.from_url(settings.REDIS_URL)
 
@@ -56,28 +58,129 @@ def generate_telegram_link(request):
     return Response({"telegram_link": deep_link})
 
 
+# @api_view(["POST"])
+# @permission_classes([AllowAny])
+# def telegram_webhook(request):
+#     """Webhook for Telegram messages"""
+#     data = request.data
+#     msg = data.get("message") or {}
+#     text = msg.get("text", "")
+#     chat = msg.get("chat", {})
+#     chat_id = chat.get("id")
+
+#     if text.startswith("/start"):
+#         parts = text.split()
+#         if len(parts) == 2:
+#             token = parts[1]
+#             vendor_id = verify_vendor_token(token)
+#             if vendor_id:
+#                 user = User.objects.filter(id=vendor_id).first()
+#                 if user:
+#                     user.telegram_chat_id = chat_id
+#                     user.save()
+#                     send_telegram_message(chat_id, "✅ Telegram successfully linked to your account!")
+#     return Response({"ok": True})
+
+
+
+
+
+
+# Config
+RATE_LIMIT_SECONDS = 5           # throttle per chat request
+MAX_FAIL_ATTEMPTS = 5
+BLOCK_DURATION = 86400           # 24 hours (in seconds)
+
+
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def telegram_webhook(request):
-    """Webhook for Telegram messages"""
+
+    # ✅ Verify webhook secret (ensures request is really from Telegram)
+    header_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+    if header_secret != settings.TELEGRAM_WEBHOOK_SECRET:
+        return Response({"error": "forbidden"}, status=403)
+
     data = request.data
     msg = data.get("message") or {}
-    text = msg.get("text", "")
-    chat = msg.get("chat", {})
-    chat_id = chat.get("id")
+    text = str(msg.get("text", "")).strip()
+    chat_id = msg.get("chat", {}).get("id")
 
-    if text.startswith("/start"):
-        parts = text.split()
-        if len(parts) == 2:
-            token = parts[1]
-            vendor_id = verify_vendor_token(token)
-            if vendor_id:
-                user = User.objects.filter(id=vendor_id).first()
-                if user:
-                    user.telegram_chat_id = chat_id
-                    user.save()
-                    send_telegram_message(chat_id, "✅ Telegram successfully linked to your account!")
+    if not chat_id:
+        return Response({"ok": True})
+
+    print("Received message from chat:", chat_id)
+
+    # ✅ Rate limit (1 request every 5 seconds)
+    if cache.get(f"tg_rate:{chat_id}"):
+        send_telegram_message(chat_id, "⚠️ Slow down. Try again in a few seconds.")
+        return Response({"ok": True})
+    cache.set(f"tg_rate:{chat_id}", True, timeout=RATE_LIMIT_SECONDS)
+
+    # ✅ Blocked chat due to too many failures
+    if cache.get(f"tg_block:{chat_id}"):
+        send_telegram_message(chat_id, "⛔ Too many invalid attempts. Try again after 24 hours.")
+        return Response({"ok": True})
+
+    # ✅ Unlink command
+    if text.lower() == "unlink":
+        vendor = Vendor.objects.filter(telegram_chat_id=chat_id).first()
+        if vendor:
+            vendor.telegram_chat_id = None
+            vendor.save()
+            cache.delete(f"tg_fails:{chat_id}")
+            send_telegram_message(chat_id, "🔓 Unlinked successfully. You can link again anytime.")
+        else:
+            send_telegram_message(chat_id, "⚠️ No account is linked to unlink.")
+        return Response({"ok": True})
+
+
+    # ✅ Check if chat_id is already linked
+    vendor = Vendor.objects.filter(telegram_chat_id=chat_id).first()
+    if vendor:
+        send_telegram_message(chat_id, "✅ Telegram already linked.\nSend `unlink` to change number.")
+        return Response({"ok": True})
+
+
+    # ✅ Validate expected command format
+    if not text.lower().startswith("link"):
+        send_telegram_message(chat_id, "Format: link <vendor_id> <phone> <secret>")
+        return Response({"ok": True})
+
+
+    parts = text.split()
+
+    if len(parts) != 4:
+        send_telegram_message(chat_id, "⚠️ Format must be:\nlink <vendor_id> <phone> <secret>")
+        return Response({"ok": True})
+
+    _, vendor_id, phone, secret = parts
+
+    # ✅ Check if vendorId, phone and secret match
+    vendor = Vendor.objects.filter(id=vendor_id, business_phone=phone, secret=secret).first()
+
+    if not vendor:
+        # ❌ Invalid attempt — track it
+        fail_count = cache.get(f"tg_fails:{chat_id}", 0) + 1
+        cache.set(f"tg_fails:{chat_id}", fail_count, timeout=BLOCK_DURATION)
+
+        if fail_count >= MAX_FAIL_ATTEMPTS:
+            cache.set(f"tg_block:{chat_id}", True, timeout=BLOCK_DURATION)
+            send_telegram_message(chat_id, "⛔ Too many invalid attempts. Blocked for 24 hours.")
+        else:
+            send_telegram_message(chat_id, f"❌ Invalid details. Attempts left: {MAX_FAIL_ATTEMPTS - fail_count}")
+        return Response({"ok": True})
+
+    # ✅ Valid link request
+    vendor.telegram_chat_id = chat_id
+    vendor.save()
+    cache.delete(f"tg_fails:{chat_id}")  # reset failure counter
+
+    send_telegram_message(chat_id, "✅ Telegram linked to your account!")
     return Response({"ok": True})
+
+
+
 
 
 @api_view(["POST"])

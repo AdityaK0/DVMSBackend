@@ -11,7 +11,7 @@ class VendorSerializer(serializers.ModelSerializer):
     total_products = serializers.ReadOnlyField()
     average_rating = serializers.ReadOnlyField()
     address_details = serializers.SerializerMethodField()  # Custom method to get user's address
-    logo_url = serializers.SerializerMethodField()
+    # logo_url = serializers.SerializerMethodField()
     # telegram_link_valid = serializers.SerializerMethodField()
     
     class Meta:
@@ -19,12 +19,12 @@ class VendorSerializer(serializers.ModelSerializer):
         fields = [
             "id", "business_name", "business_description",
             "business_email", "business_type", "business_phone","business_name_slug",
-            "gstin", "website", "logo","logo_url",
+            "gstin", "website", "logo",
             "is_active", "is_verified", 
             "total_products", "average_rating","whatsapp_number",
-            "created_at", "updated_at", "is_onboarded", "address_details"
+            "created_at", "updated_at", "is_onboarded", "address_details","secret","telegram_chat_id"
         ]
-        read_only_fields = ["user", "is_verified", "created_at", "updated_at","logo_url"]
+        read_only_fields = ["user", "is_verified", "created_at", "updated_at","logo_url","telegram_chat_id","secret"]
     
     def get_address_details(self, obj):
         # Get user's default address or first address
@@ -36,10 +36,10 @@ class VendorSerializer(serializers.ModelSerializer):
             return AddressSerializer(address).data
         return None
     
-    def get_logo_url(self, obj):
-        if obj.logo:
-            return obj.logo
-        return None
+    # def get_logo_url(self, obj):
+    #     if obj.logo:
+    #         return obj.logo
+    #     return None
     
     # def get_telegram_link_valid(self, obj):
     #     """
@@ -68,6 +68,8 @@ class VendorUpdate(serializers.ModelSerializer):
     logo = serializers.ImageField(required=False)
     gstin = serializers.CharField(required=False)
     whatsapp_number = serializers.CharField(required=False)
+    business_phone = serializers.CharField(required=False)
+
     
     # Address fields - all optional
     street_address = serializers.CharField(write_only=True, required=False)
@@ -84,7 +86,7 @@ class VendorUpdate(serializers.ModelSerializer):
         fields = [
             "business_name", "business_description", "business_type",
             "website", "logo", "gstin",
-            "street_address", "city", "state", "zip_code", "country",
+            "street_address", "city", "state", "zip_code", "country","business_phone",
             "address_details","whatsapp_number",
         ]
         read_only_fields = ["user", "is_verified", "created_at", "updated_at"]

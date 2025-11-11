@@ -292,7 +292,7 @@ RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET')  # For webhook si
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME')
 JWT_SECRET = os.getenv('JWT_SECRET')
-
+TELEGRAM_WEBHOOK_SECRET = os.getenv('TELEGRAM_WEBHOOK_SECRET')
 
 
 # Redis running inside Docker, exposed to host on port 6380

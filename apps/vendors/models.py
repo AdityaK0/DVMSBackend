@@ -1,8 +1,12 @@
+from email.policy import default
 from django.db import models
 from django.conf import settings
 from cloudinary.models import CloudinaryField
 
+import uuid
 
+def generate_secret():
+    return uuid.uuid4().hex[:8]
 
 class Vendor(models.Model):
     BUSSINES_TYPE = [
@@ -29,6 +33,13 @@ class Vendor(models.Model):
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    secret = models.CharField(
+    max_length=10,
+    blank=True,
+    null=True,
+    default=generate_secret
+    )
+    secret_expires_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return self.business_name
