@@ -35,7 +35,9 @@ def get_presigned_url(request):
     print("BUCKET NAME == * "*10,settings.AWS_STORAGE_BUCKET_NAME)
     file_name = request.data.get("file_name")
     file_type = request.data.get("file_type")
-    folder = request.data.get("folder", "products")
+    # folder = request.data.get("folder", "products")
+    folder = request.data.get("folder", "products").strip("/")
+
 
     if not file_name or not file_type:
         return Response({"error": "file_name and file_type required"}, status=400)
@@ -49,6 +51,7 @@ def get_presigned_url(request):
 
     # Generate unique filename
     key = f"{folder}/{uuid.uuid4()}-{file_name}"
+    
     
     
     presigned_url = s3.generate_presigned_url(
