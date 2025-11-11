@@ -38,7 +38,7 @@ class VendorSerializer(serializers.ModelSerializer):
     
     def get_logo_url(self, obj):
         if obj.logo:
-            return obj.logo.url  # full Cloudinary URL
+            return obj.logo
         return None
     
     # def get_telegram_link_valid(self, obj):

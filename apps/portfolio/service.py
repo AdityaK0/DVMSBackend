@@ -90,7 +90,9 @@ class PortfolioService:
             "featured_products": ProductListSerializer(
                 portfolio.featured_products.all(), many=True
             ).data,
-            "banner_image": portfolio.banner_image.url if portfolio.banner_image else None,
+            "banner_image": portfolio.banner_image if portfolio.banner_image else None,
+            "carousel_images": portfolio.carousel_images or [],
+            "is_carousel": portfolio.is_carousel,
             "logo": portfolio.logo.url if portfolio.logo else None,
             "gallery_images": portfolio.gallery_images or [],
             "contact_email": vendor.business_email,

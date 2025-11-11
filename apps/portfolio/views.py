@@ -234,47 +234,81 @@ def portfolio_contact(request, business_name):
 
 # ---------- Vendor: manage portfolio ----------
 
+# @api_view(['GET', 'PUT', 'PATCH'])
+# @permission_classes([permissions.IsAuthenticated])
+# def vendor_portfolio_manage(request):
+#     vendor = getattr(request.user, "vendor", None)
+#     if not vendor:
+#         return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+#     portfolio = Portfolio.objects.get(vendor=vendor)
+
+#     if request.method == "GET":
+#         return Response(PortfolioSerializer(portfolio).data)
+
+#     # ✅ Validate file size (per file)
+#     MAX_MB = 3
+#     for file in request.FILES.getlist("carousel_images_new"):
+#         if file.size > MAX_MB * 1024 * 1024:
+#             return Response(
+#                 {"detail": f"One or more images exceed {MAX_MB}MB limit."},
+#                 status=400
+#             )
+
+#     banner_file = request.FILES.get("banner_image")
+#     if banner_file:
+#         portfolio.banner_image = upload_portfolio_banner(banner_file, portfolio)
+#         portfolio.save(update_fields=["banner_image"])
+
+#     existing_urls = request.POST.getlist("carousel_images_existing")
+#     new_files = request.FILES.getlist("carousel_images_new")
+#     uploaded_urls = upload_portfolio_carousel(new_files, portfolio) if new_files else []
+#     portfolio.carousel_images = existing_urls + uploaded_urls
+#     portfolio.save(update_fields=["carousel_images"])
+
+#     mutable_data = request.POST.copy()
+#     for key in ["carousel_images_existing", "carousel_images_new", "banner_image"]:
+#         mutable_data.pop(key, None)
+
+#     serializer = PortfolioSerializer(portfolio, data=mutable_data, partial=True)
+#     serializer.is_valid(raise_exception=True)
+#     serializer.save()
+
+#     return Response(PortfolioSerializer(portfolio).data)
+
+
 @api_view(['GET', 'PUT', 'PATCH'])
 @permission_classes([permissions.IsAuthenticated])
 def vendor_portfolio_manage(request):
-    vendor = getattr(request.user, "vendor", None)
-    if not vendor:
-        return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-
+    vendor = request.user.vendor
     portfolio = Portfolio.objects.get(vendor=vendor)
 
     if request.method == "GET":
         return Response(PortfolioSerializer(portfolio).data)
 
-    # ✅ Validate file size (per file)
-    MAX_MB = 3
-    for file in request.FILES.getlist("carousel_images_new"):
-        if file.size > MAX_MB * 1024 * 1024:
-            return Response(
-                {"detail": f"One or more images exceed {MAX_MB}MB limit."},
-                status=400
-            )
+    # ✅ Banner image already uploaded from frontend
+    banner_url = request.data.get("banner_image_url")
+    if banner_url == "":
+        portfolio.banner_image = None  # ✅ Remove banner
+    elif banner_url:
+        portfolio.banner_image = banner_url  # ✅ Update banner
 
-    banner_file = request.FILES.get("banner_image")
-    if banner_file:
-        portfolio.banner_image = upload_portfolio_banner(banner_file, portfolio)
-        portfolio.save(update_fields=["banner_image"])
 
-    existing_urls = request.POST.getlist("carousel_images_existing")
-    new_files = request.FILES.getlist("carousel_images_new")
-    uploaded_urls = upload_portfolio_carousel(new_files, portfolio) if new_files else []
-    portfolio.carousel_images = existing_urls + uploaded_urls
-    portfolio.save(update_fields=["carousel_images"])
+    # ✅ Existing carousel URLs (kept by user)
+    existing = request.data.getlist("carousel_images_existing")
 
-    mutable_data = request.POST.copy()
-    for key in ["carousel_images_existing", "carousel_images_new", "banner_image"]:
-        mutable_data.pop(key, None)
+    # ✅ New carousel URLs uploaded from frontend
+    new_uploaded = request.data.getlist("carousel_images_new_urls")
 
-    serializer = PortfolioSerializer(portfolio, data=mutable_data, partial=True)
+    portfolio.carousel_images = existing + new_uploaded
+    portfolio.save(update_fields=["banner_image", "carousel_images"])
+
+    serializer = PortfolioSerializer(portfolio, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
     serializer.save()
 
-    return Response(PortfolioSerializer(portfolio).data)
+    return Response(serializer.data)
+
 
 
 

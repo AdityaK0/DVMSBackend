@@ -31,8 +31,8 @@ class Portfolio(models.Model):
     vision = models.TextField(blank=True)
     
     # Media
-    logo = CloudinaryField('image', folder='portfolio/logos', blank=True, null=True)
-    banner_image = CloudinaryField('image', folder='portfolio/banners', blank=True, null=True)
+    logo = models.URLField(max_length=500, blank=True, null=True)
+    banner_image = models.URLField(max_length=500, blank=True, null=True)
     gallery_images = models.JSONField(default=list, blank=True)  # Array of cloudinary URLs
     title = models.CharField(max_length=255, default='My Portfolio')
     featured_products = models.ManyToManyField(Product, blank=True, related_name='featured_in_portfolios')

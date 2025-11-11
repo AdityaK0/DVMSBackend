@@ -270,15 +270,15 @@ class PortfolioSerializer(serializers.ModelSerializer):
             'testimonials', 'featured_products', 'featured_product_ids', 
             'is_carousel', 'total_testimonials', 'carousel_images',
         ]
-        read_only_fields = ['slug', 'view_count', 'vendor', 'carousel_images']
+        # read_only_fields = ['slug', 'view_count', 'vendor', 'carousel_images']
+        read_only_fields = ['slug', 'view_count', 'vendor']
+
         extra_kwargs = {
             'featured_product_ids': {'write_only': True}
         }
         
     def get_banner_image(self, obj):
-        if obj.banner_image:
-            return obj.banner_image.url
-        return None
+        return obj.banner_image or None
     
     def get_total_testimonials(self, obj):
         return obj.testimonials.filter(is_approved=True).count()
@@ -306,6 +306,7 @@ class PortfolioSerializer(serializers.ModelSerializer):
             portfolio.featured_products.set(products)
 
         return portfolio
+
 class PublicPortfolioSerializer(serializers.ModelSerializer):
     """Public portfolio view - optimized for frontend"""
     vendor = VendorBasicSerializer(read_only=True)
