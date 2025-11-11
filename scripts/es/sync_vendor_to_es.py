@@ -55,7 +55,7 @@ def serialize_vendor(vendor):
         "updated_at": vendor.updated_at,
     }
 
-def serialize_product(product):
+def serialize_product(product): # currently not using this but will use this 
     return {
         "_index": "product_index",
         "_id": product.id,
