@@ -236,6 +236,10 @@ def create_vendor(request):
                 {"detail": "Vendor profile not found for this user."},
                 status=status.HTTP_404_NOT_FOUND
             )
+        
+        incoming_phone = request.data.get("business_phone")
+        if incoming_phone and Vendor.objects.exclude(id=vendor.id).filter(business_phone=incoming_phone).exists():
+            raise ValidationError({"business_phone": "This business phone is already registered."})
 
         # ✅ Duplicate email check before saving
         incoming_email = request.data.get("business_email")
@@ -255,6 +259,7 @@ def create_vendor(request):
         vendor.save()
 
         # ✅ Auto-generate slug
+        # vendor.business_name_slug = slugify(f"{vendor.business_name}-{vendor.id}")
         vendor.business_name_slug = slugify(f"{vendor.business_name}-{vendor.id}")
         vendor.save()
 

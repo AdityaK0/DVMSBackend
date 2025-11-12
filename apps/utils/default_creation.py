@@ -46,6 +46,7 @@ def create_default_portfolio_for_vendor(vendor):
             "carousel_images": [],
         }
     )
+    print("Portfolio created:", created)  # <-- Debug
     
     if settings.ENVIRONMENT == "development":
         portfolio_url = f"http://{vendor.business_name_slug}.localhost:3000"

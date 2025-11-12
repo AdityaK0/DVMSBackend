@@ -30,6 +30,7 @@ class BackgroundTask(models.Model):
     class TaskType(models.TextChoices):
         IMAGE_UPLOAD = "IMAGE_UPLOAD"
         PRODUCT_CREATION = "PRODUCT_CREATION"
+        TELEGRAM_LINK = "TELEGRAM_LINK"  
 
     task_type = models.CharField(max_length=50, choices=TaskType.choices)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)

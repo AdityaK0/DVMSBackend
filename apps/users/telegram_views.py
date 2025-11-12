@@ -6,43 +6,15 @@ from rest_framework.response import Response
 from apps.users.models import User
 from apps.vendors.models import Vendor
 from django.core.cache import cache
+from .service import process_telegram_update
+from .tasks import process_telegram_celery
+from .utils import *
+from apps.core.models import BackgroundTask
 
 r = redis.from_url(settings.REDIS_URL)
 
 # ---------- Helper functions ----------
 
-def sign_vendor_token(vendor_id, ttl=600):
-    payload = {"vendor_id": vendor_id, "exp": time.time() + ttl}
-    return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
-
-def verify_vendor_token(token):
-    try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
-        return payload.get("vendor_id")
-    except Exception:
-        return None
-
-def send_telegram_message(chat_id, text):
-    url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
-    data = {"chat_id": chat_id, "text": text}
-    requests.post(url, json=data)
-
-def generate_otp():
-    return str(int(time.time()))[-6:]  # simple 6-digit OTP
-
-def store_otp(vendor_id, otp, ttl=300):
-    h = hmac.new(settings.JWT_SECRET.encode(), otp.encode(), hashlib.sha256).hexdigest()
-    r.setex(f"otp:{vendor_id}", ttl, h)
-
-def verify_otp_in_redis(vendor_id, otp):
-    h = r.get(f"otp:{vendor_id}")
-    if not h:
-        return False
-    expected = hmac.new(settings.JWT_SECRET.encode(), otp.encode(), hashlib.sha256).hexdigest()
-    if h.decode() == expected:
-        r.delete(f"otp:{vendor_id}")
-        return True
-    return False
 
 # ---------- API endpoints ----------
 
@@ -58,129 +30,56 @@ def generate_telegram_link(request):
     return Response({"telegram_link": deep_link})
 
 
+
 # @api_view(["POST"])
 # @permission_classes([AllowAny])
 # def telegram_webhook(request):
-#     """Webhook for Telegram messages"""
+
+#     # ✅ verify bot secret
+#     header_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+#     if header_secret != settings.TELEGRAM_WEBHOOK_SECRET:
+#         return Response({"error": "forbidden"}, status=403)
+
 #     data = request.data
-#     msg = data.get("message") or {}
-#     text = msg.get("text", "")
-#     chat = msg.get("chat", {})
-#     chat_id = chat.get("id")
 
-#     if text.startswith("/start"):
-#         parts = text.split()
-#         if len(parts) == 2:
-#             token = parts[1]
-#             vendor_id = verify_vendor_token(token)
-#             if vendor_id:
-#                 user = User.objects.filter(id=vendor_id).first()
-#                 if user:
-#                     user.telegram_chat_id = chat_id
-#                     user.save()
-#                     send_telegram_message(chat_id, "✅ Telegram successfully linked to your account!")
-#     return Response({"ok": True})
+#     try:
+#         # ✅ Send to Celery
+#         process_telegram_celery.delay(data)
+#     except Exception:
+#         # ✅ Celery down? Fallback to direct execution
+#         process_telegram_update(data)
 
+#     return Response({"ok": True}) 
 
-
-
-
-
-# Config
-RATE_LIMIT_SECONDS = 5           # throttle per chat request
-MAX_FAIL_ATTEMPTS = 5
-BLOCK_DURATION = 86400           # 24 hours (in seconds)
 
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def telegram_webhook(request):
-
-    # ✅ Verify webhook secret (ensures request is really from Telegram)
     header_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
     if header_secret != settings.TELEGRAM_WEBHOOK_SECRET:
         return Response({"error": "forbidden"}, status=403)
 
     data = request.data
-    msg = data.get("message") or {}
-    text = str(msg.get("text", "")).strip()
-    chat_id = msg.get("chat", {}).get("id")
 
-    if not chat_id:
-        return Response({"ok": True})
+    # ✅ store event as background task
+    task = BackgroundTask.objects.create(
+        task_type="TELEGRAM_LINK",
+        status=BackgroundTask.Status.PENDING,
+        result_data=data,
+    )
 
-    print("Received message from chat:", chat_id)
+    try:
+        celery_id = process_telegram_celery.delay(task.id, data)
+        task.celery_task_id = celery_id
+        task.save()
+    except:
+        # fallback if celery unavailable
+        process_telegram_update(data)
+        task.status = BackgroundTask.Status.COMPLETED
+        task.save()
 
-    # ✅ Rate limit (1 request every 5 seconds)
-    if cache.get(f"tg_rate:{chat_id}"):
-        send_telegram_message(chat_id, "⚠️ Slow down. Try again in a few seconds.")
-        return Response({"ok": True})
-    cache.set(f"tg_rate:{chat_id}", True, timeout=RATE_LIMIT_SECONDS)
-
-    # ✅ Blocked chat due to too many failures
-    if cache.get(f"tg_block:{chat_id}"):
-        send_telegram_message(chat_id, "⛔ Too many invalid attempts. Try again after 24 hours.")
-        return Response({"ok": True})
-
-    # ✅ Unlink command
-    if text.lower() == "unlink":
-        vendor = Vendor.objects.filter(telegram_chat_id=chat_id).first()
-        if vendor:
-            vendor.telegram_chat_id = None
-            vendor.save()
-            cache.delete(f"tg_fails:{chat_id}")
-            send_telegram_message(chat_id, "🔓 Unlinked successfully. You can link again anytime.")
-        else:
-            send_telegram_message(chat_id, "⚠️ No account is linked to unlink.")
-        return Response({"ok": True})
-
-
-    # ✅ Check if chat_id is already linked
-    vendor = Vendor.objects.filter(telegram_chat_id=chat_id).first()
-    if vendor:
-        send_telegram_message(chat_id, "✅ Telegram already linked.\nSend `unlink` to change number.")
-        return Response({"ok": True})
-
-
-    # ✅ Validate expected command format
-    if not text.lower().startswith("link"):
-        send_telegram_message(chat_id, "Format: link <vendor_id> <phone> <secret>")
-        return Response({"ok": True})
-
-
-    parts = text.split()
-
-    if len(parts) != 4:
-        send_telegram_message(chat_id, "⚠️ Format must be:\nlink <vendor_id> <phone> <secret>")
-        return Response({"ok": True})
-
-    _, vendor_id, phone, secret = parts
-
-    # ✅ Check if vendorId, phone and secret match
-    vendor = Vendor.objects.filter(id=vendor_id, business_phone=phone, secret=secret).first()
-
-    if not vendor:
-        # ❌ Invalid attempt — track it
-        fail_count = cache.get(f"tg_fails:{chat_id}", 0) + 1
-        cache.set(f"tg_fails:{chat_id}", fail_count, timeout=BLOCK_DURATION)
-
-        if fail_count >= MAX_FAIL_ATTEMPTS:
-            cache.set(f"tg_block:{chat_id}", True, timeout=BLOCK_DURATION)
-            send_telegram_message(chat_id, "⛔ Too many invalid attempts. Blocked for 24 hours.")
-        else:
-            send_telegram_message(chat_id, f"❌ Invalid details. Attempts left: {MAX_FAIL_ATTEMPTS - fail_count}")
-        return Response({"ok": True})
-
-    # ✅ Valid link request
-    vendor.telegram_chat_id = chat_id
-    vendor.save()
-    cache.delete(f"tg_fails:{chat_id}")  # reset failure counter
-
-    send_telegram_message(chat_id, "✅ Telegram linked to your account!")
     return Response({"ok": True})
-
-
-
 
 
 @api_view(["POST"])

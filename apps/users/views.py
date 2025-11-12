@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
+
+def generate_otp():
+    return str(int(time.time()))[-6:]
+
 class UserRegistrationView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserRegistrationSerializer

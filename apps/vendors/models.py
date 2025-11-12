@@ -21,7 +21,7 @@ class Vendor(models.Model):
     business_description = models.TextField(blank=True)
     business_email = models.EmailField(unique=True,null=True)
     business_type = models.CharField(max_length=25, choices=BUSSINES_TYPE, default='other')
-    business_phone = models.CharField(max_length=20)
+    business_phone = models.CharField(max_length=20,unique=True,null=True)
     whatsapp_number = models.CharField(max_length=20, blank=True, null=True)
     gstin = models.CharField(max_length=20, blank=True)
     website = models.URLField(blank=True,null=True)

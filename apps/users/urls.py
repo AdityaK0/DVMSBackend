@@ -5,10 +5,13 @@ from .views import (
     AddressListCreateView, AddressDetailView
 )
 from . import telegram_views
+from . import auth_views
 
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='user-register'),
-    path('login/', UserLoginView.as_view(), name='user-login'),
+    path('login/', auth_views.user_login_view, name='user-login'),
+    path('login/otp/request/', auth_views.request_otp_view, name='request-otp'),
+    path('login/otp/verify/', auth_views.verify_otp_login_view, name='verify-otp'),
     path('logout/', logout, name='user-logout'),
     path('refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('profile/', UserProfileView.as_view(), name='user-profile'),
@@ -21,6 +24,19 @@ urlpatterns = [
     path("verify_otp/", telegram_views.verify_otp),
     
 ]
+
+
+# urls.py configuration
+"""
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('api/login/', views.user_login_view, name='user-login'),
+    path('api/login/otp/request/', views.request_otp_view, name='request-otp'),
+    path('api/login/otp/verify/', views.verify_otp_login_view, name='verify-otp'),
+]
+"""
 
 
 # /api/telegram/link → creates signed deep-link for vendor
