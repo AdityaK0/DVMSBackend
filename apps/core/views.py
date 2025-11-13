@@ -59,7 +59,7 @@ def get_presigned_url(request):
     Params={
         "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
         "Key": key,
-        "ContentType": file_type,
+        # "ContentType": file_type,
     },
     ExpiresIn=120,
     )

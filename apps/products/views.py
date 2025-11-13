@@ -152,6 +152,8 @@ def create_product(request):
     if serializer.is_valid():
         with transaction.atomic():
             image_urls = data.get('image_urls') or data.getlist('image_urls[]') or []
+            sizes = data.get('sizes') or data.getlist('sizes[]') or []
+            
 
             # Normalize the data to a clean list
             if isinstance(image_urls, str):
@@ -167,7 +169,8 @@ def create_product(request):
                 vendor=vendor,
                 category=category,
                 image_urls=image_urls,
-                primary_image=image_urls[0] if image_urls else None
+                primary_image=image_urls[0] if image_urls else None,
+                sizes=sizes
             )
 
         response_serializer = ProductSerializer(product, context={'request': request})
@@ -359,51 +362,160 @@ def create_product(request):
 #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+# @api_view(['PUT', 'PATCH'])
+# @permission_classes([IsAuthenticated])
+# @parser_classes([MultiPartParser, FormParser])
+# def update_product(request, pk):
+#     """Update product, handle S3 image updates (add/remove), no Cloudinary."""
+#     # from apps.products.models import Product, ProductImage
+#     # import uuid
+
+#     try:
+#         product = Product.objects.get(pk=pk, vendor__user=request.user)
+#     except Product.DoesNotExist:
+#         return Response(
+#             {"detail": "Product not found or you don't have permission"},
+#             status=status.HTTP_404_NOT_FOUND,
+#         )
+
+#     serializer = ProductSerializer(
+#         product,
+#         data=request.data,
+#         partial=True,
+#         context={"request": request},
+#     )
+
+#     if not serializer.is_valid():
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+#     with transaction.atomic():
+#         updated_product = serializer.save()
+
+#         # ✅ DELETE IMAGES
+#         images_to_delete = request.data.getlist("images_to_delete")
+#         if images_to_delete:
+#             ProductImage.objects.filter(image_url__in=images_to_delete).delete()
+
+#         # ✅ NEW IMAGES ADDED? (already uploaded to S3)
+#         new_image_urls = request.data.getlist("image_urls")
+#         for url in new_image_urls:
+#             ProductImage.objects.update_or_create(
+#                 product=updated_product,
+#                 image_url=url,
+#             )
+
+#     # ✅ return latest updated product
+#     response_serializer = ProductSerializer(updated_product, context={"request": request})
+#     return Response(response_serializer.data)
+
+
+
+# @api_view(['PUT', 'PATCH'])
+# @permission_classes([IsAuthenticated])
+# # @parser_classes([MultiPartParser, FormParser])
+# def update_product(request, pk):
+#     try:
+#         product = Product.objects.get(pk=pk, vendor__user=request.user)
+#     except Product.DoesNotExist:
+#         return Response(
+#             {"detail": "Product not found or no permission"},
+#             status=status.HTTP_404_NOT_FOUND,
+#         )
+
+#     serializer = ProductSerializer(
+#         product,
+#         data=request.data,
+#         partial=True,
+#         context={"request": request},
+#     )
+
+#     if not serializer.is_valid():
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+#     with transaction.atomic():
+#         updated_product = serializer.save()
+
+#         # -------------------------
+#         # 1️⃣ HANDLE EXISTING IMAGES
+#         # -------------------------
+#         existing_urls = updated_product.image_urls or []
+
+#         # images_to_delete[] sent from frontend
+#         # images_to_delete = request.data.getlist("images_to_delete")
+#         images_to_delete = request.data.get("images_to_delete", [])
+
+
+#         # remove deleted ones
+#         updated_urls = [url for url in existing_urls if url not in images_to_delete]
+
+#         # -------------------------
+#         # 2️⃣ MERGE NEW IMAGE URLs FROM S3
+#         # -------------------------
+#         # new_urls = request.data.getlist("image_urls")
+#         new_urls = request.data.get("image_urls", [])
+#         for url in new_urls:
+#             if url not in updated_urls:
+#                 updated_urls.append(url)
+
+#         # -------------------------
+#         # 3️⃣ UPDATE PRODUCT FIELDS
+#         # -------------------------
+#         updated_product.image_urls = updated_urls
+
+#         updated_product.primary_image = (
+#             updated_urls[0] if updated_urls else None
+#         )
+
+#         updated_product.save()
+
+#     # -------------------------
+#     # 4️⃣ RETURN CLEAN RESPONSE
+#     # -------------------------
+#     response_serializer = ProductSerializer(updated_product, context={"request": request})
+#     return Response(response_serializer.data)
+from .serializers import ProductUpdateSerializer
+
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
-@parser_classes([MultiPartParser, FormParser])
 def update_product(request, pk):
-    """Update product, handle S3 image updates (add/remove), no Cloudinary."""
-    # from apps.products.models import Product, ProductImage
-    # import uuid
-
+    """Update product; image updates handled manually."""
+    
     try:
         product = Product.objects.get(pk=pk, vendor__user=request.user)
     except Product.DoesNotExist:
-        return Response(
-            {"detail": "Product not found or you don't have permission"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        return Response({"detail": "Product not found"}, status=404)
 
-    serializer = ProductSerializer(
+    # Update normal fields (no image updates here)
+    serializer = ProductUpdateSerializer(
         product,
         data=request.data,
-        partial=True,
-        context={"request": request},
+        partial=True
     )
+    serializer.is_valid(raise_exception=True)
+    updated_product = serializer.save()
 
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    # -----------------------
+    # IMAGE HANDLING
+    # -----------------------
+    
+    existing = updated_product.image_urls or []
+    images_to_delete = request.data.get("images_to_delete", [])
+    new_urls = request.data.get("image_urls", [])
 
-    with transaction.atomic():
-        updated_product = serializer.save()
+    # Remove deleted images
+    final_urls = [url for url in existing if url not in images_to_delete]
 
-        # ✅ DELETE IMAGES
-        images_to_delete = request.data.getlist("images_to_delete")
-        if images_to_delete:
-            ProductImage.objects.filter(image_url__in=images_to_delete).delete()
+    # Add new S3 URLs
+    for url in new_urls:
+        if url not in final_urls:
+            final_urls.append(url)
 
-        # ✅ NEW IMAGES ADDED? (already uploaded to S3)
-        new_image_urls = request.data.getlist("image_urls")
-        for url in new_image_urls:
-            ProductImage.objects.update_or_create(
-                product=updated_product,
-                image_url=url,
-            )
+    updated_product.image_urls = final_urls
+    updated_product.primary_image = final_urls[0] if final_urls else None
+    updated_product.save()
 
-    # ✅ return latest updated product
-    response_serializer = ProductSerializer(updated_product, context={"request": request})
-    return Response(response_serializer.data)
+    return Response(ProductUpdateSerializer(updated_product).data)
+
 
 
 

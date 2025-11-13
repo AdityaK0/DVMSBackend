@@ -102,12 +102,16 @@ class ProductSerializer(serializers.ModelSerializer):
         child=serializers.CharField(),
         required=False
     )
+    sizes = serializers.ListField(
+        child=serializers.CharField(),
+        required=False
+    )
 
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'description', 'category', 'price', 'cost_price','vendor_id',
-            'stock_quantity', 'min_stock_level', 'sku', 'weight', 'dimensions',
+            'stock_quantity', 'min_stock_level', 'sku', 'sizes', 'dimensions',
             'is_active', 'is_featured', 'meta_title', 'meta_description',
             'created_at', 'updated_at', 'image_urls', 'primary_image',
             'vendor_name', 'category_name', 'is_in_stock', 'is_low_stock',
@@ -115,15 +119,32 @@ class ProductSerializer(serializers.ModelSerializer):
         read_only_fields = ['vendor', 'created_at', 'updated_at']
 
     def validate_sku(self, value):
-        """Ensure SKU is unique."""
-        qs = Product.objects.filter(sku=value)
+        request = self.context.get("request")
+        vendor = request.user.vendor
+
+        qs = Product.objects.filter(sku=value, vendor=vendor)
+
+        # Exclude the current product when updating
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
+
         if qs.exists():
-            raise serializers.ValidationError("Product with this SKU already exists.")
+            raise serializers.ValidationError("Product with this SKU already exists for your store.")
+
         return value
 
 
+
+class ProductUpdateSerializer(serializers.ModelSerializer):
+    """Used only for UPDATE product"""
+
+    class Meta:
+        model = Product
+        fields = "__all__"
+        extra_kwargs = {
+            "image_urls": {"read_only": True},
+            "primary_image": {"read_only": True},
+        }
 
 
 

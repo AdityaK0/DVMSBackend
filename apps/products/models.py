@@ -44,8 +44,10 @@ class Product(models.Model):
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     stock_quantity = models.IntegerField(default=0)
     min_stock_level = models.IntegerField(default=5)
-    sku = models.CharField(max_length=100, unique=True)
-    weight = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
+    sku = models.CharField(max_length=100)
+    # weight = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
+    sizes = models.JSONField(default=list, blank=True)
+    
     dimensions = models.JSONField(default=dict, blank=True)  # {length, width, height}
     is_active = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False)
@@ -54,6 +56,9 @@ class Product(models.Model):
     meta_description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ('vendor', 'sku')
     
 
     def __str__(self):
