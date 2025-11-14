@@ -1,8 +1,9 @@
+from apps.core import views
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     UserRegistrationView, UserLoginView, UserProfileView,user_profile_update_fbv,logout,
-    AddressListCreateView, AddressDetailView
+    AddressListCreateView, AddressDetailView,me_view
 )
 from . import telegram_views
 from . import auth_views
@@ -11,7 +12,9 @@ urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='user-register'),
     path('login/', auth_views.user_login_view, name='user-login'),
     path('login/otp/request/', auth_views.request_otp_view, name='request-otp'),
+    path('otp/send_final_otp/', auth_views.resend_final_otp, name='send_final_otp'),
     path('login/otp/verify/', auth_views.verify_otp_login_view, name='verify-otp'),
+    path('otp/verify_final_otp/', auth_views.verify_final_otp_login_view, name='verify-final-otp'),
     path('logout/', logout, name='user-logout'),
     path('refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('profile/', UserProfileView.as_view(), name='user-profile'),
@@ -22,6 +25,7 @@ urlpatterns = [
     path("telegram/webhook/", telegram_views.telegram_webhook),
     path("request_otp/", telegram_views.request_otp),
     path("verify_otp/", telegram_views.verify_otp),
+    path("me/", me_view, name='me'),
     
 ]
 

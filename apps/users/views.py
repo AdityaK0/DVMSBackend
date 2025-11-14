@@ -12,6 +12,8 @@ from .models import Address
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from .throttles import LoginRateThrottle
+from apps.vendors.serializers import VendorSerializer
+from apps.vendors.models import Vendor
 
 
 import logging
@@ -118,3 +120,29 @@ def logout(request):
         return Response({"message": "Logout successful!"}, status=status.HTTP_200_OK) 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me_view(request):
+    """
+    Returns complete authenticated user context:
+    - user info
+    - vendor info
+    - addresses
+    """
+    user = request.user
+
+    # Try to fetch vendor
+    vendor = Vendor.objects.filter(user=user).first()
+
+    data = {
+        "user": UserSerializer(user).data,
+        "vendor": None
+    }
+
+    if vendor:
+        data["vendor"] = VendorSerializer(vendor).data
+
+    return Response(data, status=status.HTTP_200_OK)

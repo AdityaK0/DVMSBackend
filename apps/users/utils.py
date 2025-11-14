@@ -21,7 +21,7 @@ def send_telegram_message(chat_id, text):
     data = {"chat_id": chat_id, "text": text}
 
     try:
-        response = requests.post(url, json=data, timeout=3)  # ⬅️ timeout added
+        response = requests.post(url, json=data, timeout=60)  # ⬅️ timeout added
         result = response.json()
 
         if not result.get("ok"):

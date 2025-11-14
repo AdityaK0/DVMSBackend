@@ -3,7 +3,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -248,3 +248,122 @@ urlpatterns = [
     path('api/login/otp/verify/', views.verify_otp_login_view, name='verify-otp'),
 ]
 """
+
+    
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@throttle_classes([LoginRateThrottle])
+def verify_final_otp_login_view(request):
+    phone_number = request.data.get('phone')
+    otp = request.data.get('otp')
+    
+    if not phone_number or not otp:
+        return Response(
+            {'error': 'Phone number and OTP are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    redis_key = f"otp:{phone_number}:final"
+    stored_otp = r.get(redis_key)
+
+    if not stored_otp:
+        return Response(
+            {'error': 'OTP expired or not found. Please request a new OTP.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if stored_otp.decode('utf-8') != otp:
+        return Response(
+            {'error': 'Invalid OTP'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+    
+    # Look up vendor
+    try:
+        from .models import Vendor
+        vendor = Vendor.objects.get(business_phone=phone_number)
+    except Vendor.DoesNotExist:
+        return Response(
+            {'error': 'Vendor not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    # Mark verified
+    vendor.is_verified = True
+    vendor.save()
+
+    # Remove OTP
+    r.delete(redis_key)
+
+    return Response({
+        'success': True,
+        'message': 'Vendor linked successfully',
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def resend_final_otp(request):
+    phone = request.data.get("phone")
+
+    if not phone:
+        return Response({"error": "Phone number required"}, status=400)
+
+    try:
+        vendor = Vendor.objects.get(business_phone=phone)
+    except Vendor.DoesNotExist:
+        return Response({"error": "Vendor not found"}, status=404)
+
+    # Chat ID required
+    if not vendor.telegram_chat_id:
+        return Response({"error": "Telegram not linked yet"}, status=400)
+
+    # Generate OTP
+    otp = str(random.randint(100000, 999999))
+
+    redis_key = f"otp:{phone}:final"
+    r.setex(redis_key, 300, otp)  # 5 minutes expiry
+
+    # Send OTP to Telegram
+    send_telegram_message(vendor.telegram_chat_id, f"Your final verification OTP is: {otp}")
+
+    return Response({"success": True, "message": "Final OTP sent"}, status=200)
+
+
+
+# api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def verify_final_otp_login_view(request):
+#     phone_number = request.data.get('phone')
+#     otp = request.data.get('otp')
+
+#     if not phone_number or not otp:
+#         return Response({'error': 'Phone and OTP required'}, status=400)
+
+#     redis_key = f"otp:{phone_number}:final"
+#     stored_otp = cache.get(redis_key)
+
+#     if not stored_otp:
+#         return Response({'error': 'OTP expired or not found'}, status=400)
+
+#     if stored_otp != otp:
+#         return Response({'error': 'Invalid OTP'}, status=401)
+
+#     # Get vendor
+#     try:
+#         vendor = Vendor.objects.get(business_phone=phone_number)
+#     except Vendor.DoesNotExist:
+#         return Response({'error': 'Vendor not found'}, status=404)
+
+#     vendor.is_verified = True
+#     vendor.save()
+
+#     # Delete OTP
+#     cache.delete(redis_key)
+
+#     return Response({
+#         "success": True,
+#         "message": "Vendor linked successfully",
+#         "vendor_id": vendor.id
+#     }, status=200)
