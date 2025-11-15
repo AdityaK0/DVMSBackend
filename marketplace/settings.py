@@ -63,6 +63,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     ".ngrok-free.app",  # allows any ngrok subdomain
+    "10.82.67.215"
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -265,7 +266,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3001",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http?:\/\/([a-zA-Z0-9-]+)\.localhost:3000$",  # For local development

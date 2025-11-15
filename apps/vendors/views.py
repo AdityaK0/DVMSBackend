@@ -261,6 +261,8 @@ def create_vendor(request):
         # ✅ Auto-generate slug
         # vendor.business_name_slug = slugify(f"{vendor.business_name}-{vendor.id}")
         vendor.business_name_slug = slugify(f"{vendor.business_name}-{vendor.id}")
+        vendor.is_active = True
+        
         vendor.save()
 
         # ✅ Create/update Address

@@ -163,7 +163,7 @@ def process_telegram_update(data):
     vendor.save()
     cache.delete(f"tg_fails:{chat_id}")
 
-    send_telegram_message(chat_id, f"Wow {first_name} \nTelegram linked to your account! now need to add the final OTP on integration side")
+    # send_telegram_message(chat_id, f"Wow {first_name} \nTelegram linked to your account! now need to add the final OTP on integration side")
 
     # -----------------------------
     # 🔐 SEND FINAL OTP AUTOMATICALLY
@@ -172,7 +172,11 @@ def process_telegram_update(data):
     redis_key = f"otp:{vendor.business_phone}:final"
     r.setex(redis_key, 300, otp)  # 5 minutes expiry
 
-    send_telegram_message(
-        chat_id,
-        f"🔐 Final Verification OTP: *{otp}*\n\nEnter this OTP in your dashboard to complete Telegram linking."
+    message = (
+        f"🎉 Wow {first_name}!\n\n"
+        "Your Telegram has been successfully linked to your account.\n\n"
+        f"🔐 To complete the final verification, here is your OTP: *{otp}*\n\n"
+        "Please enter this OTP in your dashboard to finish the Telegram integration."
     )
+    send_telegram_message(chat_id, message)
+
