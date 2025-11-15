@@ -12,9 +12,10 @@ import random
 import requests
 from datetime import datetime
 from .serializers import *
-from .utils import send_telegram_message
+from .utils import send_telegram_message,generate_otp
 from django.contrib.auth import get_user_model
 from .serializers import UserSerializer
+from apps.vendors.models import Vendor
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from .throttles import LoginRateThrottle
@@ -115,7 +116,6 @@ def request_otp_view(request):
     
     # Check if phone number exists in vendor profile
     try:
-        from .models import Vendor  # Adjust import based on your models location
         vendor = Vendor.objects.get(business_phone=phone_number)
     except Vendor.DoesNotExist:
         return Response(
@@ -131,7 +131,7 @@ def request_otp_view(request):
         )
     
     # Generate 6-digit OTP
-    otp = str(random.randint(100000, 999999))
+    otp = generate_otp()
     
     # Store OTP in Redis with 5 minute expiry
     redis_key = f"otp:{phone_number}"
@@ -208,7 +208,6 @@ def verify_otp_login_view(request):
     
     # Get vendor and user
     try:
-        from .models import Vendor
         vendor = Vendor.objects.get(business_phone=phone_number)
         user = vendor.user
     except Vendor.DoesNotExist:
@@ -281,7 +280,6 @@ def verify_final_otp_login_view(request):
     
     # Look up vendor
     try:
-        from .models import Vendor
         vendor = Vendor.objects.get(business_phone=phone_number)
     except Vendor.DoesNotExist:
         return Response(
@@ -320,7 +318,7 @@ def resend_final_otp(request):
         return Response({"error": "Telegram not linked yet"}, status=400)
 
     # Generate OTP
-    otp = str(random.randint(100000, 999999))
+    otp = generate_otp()
 
     redis_key = f"otp:{phone}:final"
     r.setex(redis_key, 300, otp)  # 5 minutes expiry

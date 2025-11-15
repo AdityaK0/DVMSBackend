@@ -89,31 +89,43 @@ def telegram_webhook(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def request_otp(request):
-    """Send OTP via Telegram"""
+    """Send OTP via Telegram for a vendor identified by phone."""
     phone = request.data.get("phone")
-    user = User.objects.filter(phone=phone).first()
-    if not user:
-        return Response({"error": "User not found"}, status=404)
-    if not user.telegram_chat_id:
+    if not phone:
+        return Response({"error": "Phone number is required"}, status=400)
+
+    vendor = Vendor.objects.filter(business_phone=phone).select_related("user").first()
+    if not vendor:
+        return Response({"error": "Vendor not found"}, status=404)
+
+    if  vendor.telegram_chat_id and  vendor.is_verified:
         return Response({"error": "Telegram not linked"}, status=400)
 
     otp = generate_otp()
-    store_otp(user.id, otp)
-    send_telegram_message(user.telegram_chat_id, f"🔐 Your OTP is: {otp}\nValid for 5 minutes.")
+    # Reuse existing HMAC-based OTP storage helper, keyed by vendor.id
+    store_otp(vendor.id, otp)
+    send_telegram_message(
+        vendor.telegram_chat_id,
+        f" Your OTP is: {otp}\nValid for 5 minutes.",
+    )
     return Response({"success": True, "message": "OTP sent via Telegram."})
 
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def verify_otp(request):
-    """Verify OTP"""
+    """Verify OTP sent via Telegram for a vendor identified by phone."""
     phone = request.data.get("phone")
     otp = request.data.get("otp")
-    user = User.objects.filter(phone=phone).first()
-    if not user:
-        return Response({"error": "User not found"}, status=404)
 
-    if verify_otp_in_redis(user.id, otp):
+    if not phone or not otp:
+        return Response({"error": "Phone number and OTP are required"}, status=400)
+
+    vendor = Vendor.objects.filter(business_phone=phone).first()
+    if not vendor:
+        return Response({"error": "Vendor not found"}, status=404)
+
+    if verify_otp_in_redis(vendor.id, otp):
         return Response({"success": True, "message": "OTP verified. Login successful."})
     else:
         return Response({"error": "Invalid or expired OTP."}, status=400)

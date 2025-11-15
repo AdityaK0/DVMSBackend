@@ -15,10 +15,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                  'role', 'password', 'password_confirm']
 
     def validate(self, attrs):
-        if len(attrs['password'])<6 or len(attrs['password_confirm'])<6:  # ❌ Logic error (AND instead of OR)
-            raise serializers.ValidationError("Passwords length must be equal to greator than 6")
+        password = attrs.get('password')
+        password_confirm = attrs.get('password_confirm')
+
+        if not password or not password_confirm:
+            raise serializers.ValidationError("Both password and password_confirm are required")
+
+        if len(password) < 6 or len(password_confirm) < 6:
+            raise serializers.ValidationError("Password length must be at least 6 characters")
         
-        if attrs['password'] != attrs['password_confirm']:
+        if password != password_confirm:
             raise serializers.ValidationError("Passwords don't match")
         return attrs
 

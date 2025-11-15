@@ -85,7 +85,7 @@
 # apps/users/services/telegram_service.py
 
 from django.core.cache import cache
-from apps.users.models import Vendor
+from apps.vendors.models import Vendor
 from .utils import send_telegram_message
 from django.conf import settings
 import random
@@ -105,6 +105,10 @@ def process_telegram_update(data):
     first_name = msg.get("chat", {}).get("first_name")
     update_id = data.get("update_id")
     if not chat_id:
+        return
+    
+    # Block brute-force if this chat is temporarily blocked
+    if cache.get(f"tg_block:{chat_id}"):
         return
     print("Processing chat:", chat_id, "|", text)
 

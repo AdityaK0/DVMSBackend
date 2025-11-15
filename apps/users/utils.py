@@ -6,6 +6,7 @@ import hmac
 import hashlib
 import requests
 import redis
+import secrets
 r = redis.from_url(settings.REDIS_URL)
 
 # def send_telegram_message(chat_id, text):
@@ -48,7 +49,11 @@ def verify_vendor_token(token):
         return None
 
 def generate_otp():
-    return str(int(time.time()))[-6:]  # simple 6-digit OTP
+    """Generate a cryptographically strong 6-digit OTP.
+
+    Keeps the same return type and length but avoids predictable time-based patterns.
+    """
+    return f"{secrets.randbelow(10**6):06d}"
 
 def store_otp(vendor_id, otp, ttl=300):
     h = hmac.new(settings.JWT_SECRET.encode(), otp.encode(), hashlib.sha256).hexdigest()
