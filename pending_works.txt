@@ -1,0 +1,15 @@
+so in feature product we have update the one thing which is
+now vendor will mark the product as featured and un_featured
+i think 
+
+first is fix that at update time need to add is_featured so when it is added as is_featured 
+then i'll updated the portfolio to include this ok. -> and at update
+
+validation is like if vendor will mark the product as featured there are maximum 8 products are allowed in
+portfolio for featured products.
+
+at view level 
+
+so even we dont add at create level like is_featured then we still need to add validation at
+create api too even its not shown at ui level
+
