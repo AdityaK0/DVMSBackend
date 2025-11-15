@@ -102,18 +102,18 @@ def process_telegram_update(data):
     msg = data.get("message") or {}
     text = (msg.get("text") or "").strip()
     chat_id = msg.get("chat", {}).get("id")
+    first_name = msg.get("chat", {}).get("first_name")
     update_id = data.get("update_id")
-
     if not chat_id:
         return
-
     print("Processing chat:", chat_id, "|", text)
 
     # Prevent duplicate Telegram retry
     if cache.get(f"tg_update:{update_id}"):
         return
     cache.set(f"tg_update:{update_id}", True, timeout=60)
-
+    # print("HOOK CALLED HERE 3")
+    
     # Already linked
     vendor = Vendor.objects.filter(telegram_chat_id=chat_id).first()
     if vendor and vendor.is_verified:
@@ -159,7 +159,7 @@ def process_telegram_update(data):
     vendor.save()
     cache.delete(f"tg_fails:{chat_id}")
 
-    send_telegram_message(chat_id, "✅ Telegram linked to your account!")
+    send_telegram_message(chat_id, f"Wow {first_name} \nTelegram linked to your account! now need to add the final OTP on integration side")
 
     # -----------------------------
     # 🔐 SEND FINAL OTP AUTOMATICALLY

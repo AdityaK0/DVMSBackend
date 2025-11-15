@@ -62,23 +62,26 @@ def telegram_webhook(request):
         return Response({"error": "forbidden"}, status=403)
 
     data = request.data
+    
+    process_telegram_update(data)
+    
 
     # ✅ store event as background task
-    task = BackgroundTask.objects.create(
-        task_type="TELEGRAM_LINK",
-        status=BackgroundTask.Status.PENDING,
-        result_data=data,
-    )
-
-    try:
-        celery_id = process_telegram_celery.delay(task.id, data)
-        task.celery_task_id = celery_id
-        task.save()
-    except:
-        # fallback if celery unavailable
-        process_telegram_update(data)
-        task.status = BackgroundTask.Status.COMPLETED
-        task.save()
+    # task = BackgroundTask.objects.create(
+    #     task_type="TELEGRAM_LINK",
+    #     status=BackgroundTask.Status.PENDING, not using celery here cause telegram bot should reply within 1 seconds
+    #     result_data=data,
+    # )
+    
+    # try:
+    #     celery_id = process_telegram_celery.delay(task.id, data)
+    #     task.celery_task_id = celery_id
+    #     task.save()
+    # except:
+    #     # fallback if celery unavailable
+    #     process_telegram_update(data)
+    #     task.status = BackgroundTask.Status.COMPLETED
+    #     task.save()
 
     return Response({"ok": True})
 
