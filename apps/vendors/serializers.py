@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from .models import Vendor
-from apps.users.serializers import VendorProfileSerializer,AddressSerializer
 from apps.users.models import Address
 from django.utils.text import slugify
 from apps.portfolio.models import Portfolio
@@ -28,6 +27,7 @@ class VendorSerializer(serializers.ModelSerializer):
     
     def get_address_details(self, obj):
         # Get user's default address or first address
+        from apps.users.serializers import AddressSerializer
         address = obj.user.addresses.filter(is_default=True).first()
         if not address:
             address = obj.user.addresses.first()

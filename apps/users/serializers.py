@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import User, Address, CustomerProfile, VendorProfile
 from ..vendors.models import Vendor
+from apps.vendors.serializers import VendorSerializer
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -67,21 +68,9 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['user']
 
-class VendorProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Vendor
-        fields = [
-            "id", "business_name", "business_description",
-            "business_email", "business_type", "business_phone","whatsapp_number",
-            "gstin", "website", "logo",
-            "is_active", "is_verified", 
-             "total_products", "average_rating",
-            "created_at", "updated_at","is_onboarded","secret","telegram_chat_id"
-        ]
-        read_only_fields = ["user", "is_verified", "created_at", "updated_at"]
         
 class UserSerializer(serializers.ModelSerializer):
-    vendor_profile = VendorProfileSerializer(source="vendor", read_only=True)
+    vendor_profile = VendorSerializer(source="vendor", read_only=True)
     addresses = AddressSerializer(many=True, read_only=True)
 
     class Meta:

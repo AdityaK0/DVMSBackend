@@ -28,29 +28,3 @@ urlpatterns = [
     path("me/", me_view, name='me'),
     
 ]
-
-
-# urls.py configuration
-"""
-from django.urls import path
-from . import views
-
-urlpatterns = [
-    path('api/login/', views.user_login_view, name='user-login'),
-    path('api/login/otp/request/', views.request_otp_view, name='request-otp'),
-    path('api/login/otp/verify/', views.verify_otp_login_view, name='verify-otp'),
-]
-"""
-
-
-# /api/telegram/link → creates signed deep-link for vendor
-
-# /api/telegram/webhook → handles /start <token> from Telegram
-
-
-# {
-#   "message": {
-#     "chat": {"id": 987654321},
-#     "text": "/start vendor_abc123"
-#   }
-# }
