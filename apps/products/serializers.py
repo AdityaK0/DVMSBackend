@@ -145,6 +145,40 @@ class ProductUpdateSerializer(serializers.ModelSerializer):
             "image_urls": {"read_only": True},
             "primary_image": {"read_only": True},
         }
+        
+    
+    def validate(self, attrs):
+        """Custom validation for featured products."""
+
+        # If is_featured was not provided → skip validation
+        if 'is_featured' not in attrs:
+            return attrs
+
+        new_value = attrs['is_featured']
+        product = self.instance
+        vendor = product.vendor
+        portfolio = getattr(vendor, 'portfolio', None)
+
+        # If no portfolio yet → safe to continue
+        if not portfolio:
+            return attrs
+
+        if new_value is True:
+            # Count existing featured products (excluding current)
+            current_featured_count = (
+                portfolio.featured_products
+                .exclude(id=product.id)
+                .count()
+            )
+
+            if current_featured_count >= 8:
+                raise serializers.ValidationError({
+                    "is_featured": [
+                        "You can only feature up to 8 products."
+                    ]
+                })
+
+        return attrs    
 
 
 

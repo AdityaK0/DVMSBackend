@@ -34,6 +34,29 @@ logger = logging.getLogger(__name__)
 from apps.products.service import get_vendor_products_combined,get_filtered_products,get_product_details
 from apps.subscriptions.permissions import IsSubscribed
 
+
+
+def safe_get_list(data, key):
+    """
+    Safely extract list-like data from request.data,
+    supporting both QueryDict (multipart) and dict (JSON).
+    """
+    # If multipart QueryDict
+    if hasattr(data, "getlist"):
+        return data.getlist(key)
+
+    # If JSON dict
+    value = data.get(key)
+
+    if value is None:
+        return []
+
+    if isinstance(value, list):
+        return value
+
+    # Single value fallback
+    return [value]
+
 # ---------- Public: vendor portfolio summary ----------
 # @api_view(['GET'])
 # @permission_classes([permissions.AllowAny])
@@ -295,10 +318,16 @@ def vendor_portfolio_manage(request):
 
 
     # ✅ Existing carousel URLs (kept by user)
-    existing = request.data.getlist("carousel_images_existing")
+    # existing = request.data.getlist("carousel_images_existing")
+    existing = safe_get_list(request.data, "carousel_images_existing")
+    
 
     # ✅ New carousel URLs uploaded from frontend
-    new_uploaded = request.data.getlist("carousel_images_new_urls")
+    # new_uploaded = request.data.getlist("carousel_images_new_urls")
+    new_uploaded = safe_get_list(request.data, "carousel_images_new_urls")
+    
+    featured = safe_get_list(request.data, "featured_product_ids")
+    
 
     portfolio.carousel_images = existing + new_uploaded
     portfolio.save(update_fields=["banner_image", "carousel_images"])

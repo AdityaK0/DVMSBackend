@@ -291,19 +291,30 @@ class PortfolioSerializer(serializers.ModelSerializer):
 
 
     def update(self, instance, validated_data):
-        # Handle featured products
         featured_product_ids = validated_data.pop('featured_product_ids', None)
-        
-        # Update other fields
+
         portfolio = super().update(instance, validated_data)
 
-        # Update featured products if provided
         if featured_product_ids is not None:
+            # Set M2M
             products = Product.objects.filter(
                 id__in=featured_product_ids,
                 vendor=portfolio.vendor
             )
             portfolio.featured_products.set(products)
+
+            # ---- NEW: Sync product.is_featured with M2M ----
+
+            # 1️⃣ Mark selected as featured
+            Product.objects.filter(
+                id__in=featured_product_ids,
+                vendor=portfolio.vendor
+            ).update(is_featured=True)
+
+            # 2️⃣ Mark all other vendor products as NOT featured
+            Product.objects.filter(
+                vendor=portfolio.vendor
+            ).exclude(id__in=featured_product_ids).update(is_featured=False)
 
         return portfolio
 

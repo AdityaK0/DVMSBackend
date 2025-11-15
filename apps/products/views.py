@@ -474,6 +474,7 @@ def create_product(request):
 #     response_serializer = ProductSerializer(updated_product, context={"request": request})
 #     return Response(response_serializer.data)
 from .serializers import ProductUpdateSerializer
+from .service import sync_featured_product
 
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
@@ -513,7 +514,7 @@ def update_product(request, pk):
     updated_product.image_urls = final_urls
     updated_product.primary_image = final_urls[0] if final_urls else None
     updated_product.save()
-
+    sync_featured_product(updated_product)
     return Response(ProductUpdateSerializer(updated_product).data)
 
 
@@ -940,3 +941,8 @@ def delete_category(request, pk):
         return Response({'detail': 'Product deleted successfully'},status=status.HTTP_200_OK)
     except Category.DoesNotExist:
         return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    
+    
+
+    

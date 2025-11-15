@@ -253,3 +253,23 @@ def get_product_details(vendor, id):
 #         "has_next": page_obj.has_next(),
 #         "has_previous": page_obj.has_previous(),
 #     }
+
+
+
+from apps.portfolio.models import Portfolio
+
+def sync_featured_product(product):
+    """
+    Sync Product.is_featured with Portfolio.featured_products M2M.
+    """
+
+    vendor = product.vendor
+    try:
+        portfolio = vendor.portfolio
+    except Portfolio.DoesNotExist:
+        return  # No portfolio yet
+
+    if product.is_featured:
+        portfolio.featured_products.add(product)
+    else:
+        portfolio.featured_products.remove(product)
