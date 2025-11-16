@@ -85,6 +85,7 @@ class PortfolioService:
             "layout_style": portfolio.layout_style,
             "show_pricing": portfolio.show_pricing,
             "show_contact_form": portfolio.show_contact_form,
+            "show_stock_status":portfolio.show_stock_status,
             "is_public": portfolio.is_public,
             "view_count": portfolio.view_count,
             "total_collections": total_collections,

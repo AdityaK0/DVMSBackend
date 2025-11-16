@@ -18,7 +18,7 @@ class Portfolio(models.Model):
     
     # Basic Info
     display_name = models.CharField(max_length=200, help_text="Display name for portfolio")
-    tagline = models.CharField(max_length=300, blank=True, help_text="Short tagline/slogan")
+    tagline = models.CharField(max_length=300, blank=True, help_text="Short tagline/slogan",default="Your Vision Our Product")
     slug = models.SlugField(unique=True, max_length=100)
     business_name_slug = models.SlugField(max_length=200, blank=True, null=True)
     
