@@ -104,6 +104,7 @@ LOCAL_APPS = [
     'apps.portfolio',
     'apps.subscriptions',
     'apps.core',
+    'apps.events',
     
 ]
 INSTALLED_APPS = INSTALLED_APPS + THIRD_PARTY_APPS + LOCAL_APPS

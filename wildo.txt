@@ -1,0 +1,37 @@
+4. Digital Business Card (FREE)
+
+Every vendor gets:
+
+QR code
+
+Mini landing page
+
+Logo + tagline
+
+Contact info
+
+"View Portfolio" button
+
+They share this with customers.
+
+
+
+6. Customer Inquiries CRM (Mini CRM).  --  using lambda + telegram + separate db + cron base data transfer on daily basis
+
+When customers contact via portfolio:
+
+Add:
+
+Inquiry list
+
+Tags (hot, cold, follow-up)
+
+Notes
+
+Rating so vendor remembers
+
+Reminder (“Follow up tomorrow”)
+
+WhatsApp quick reply templates
+
+This is EASY and highly useful.
