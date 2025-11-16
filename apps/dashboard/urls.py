@@ -5,7 +5,7 @@ app_name = 'dashboard'
 
 urlpatterns = [
     # Dashboard Stats
-    path('stats/', views.dashboard_stats, name='dashboard-stats'),
+    # path('stats/', views.dashboard_stats, name='dashboard-stats'),
     path('summary/', views.dashboard_summary, name='dashboard-summary'),
     
     # Activity
@@ -13,8 +13,8 @@ urlpatterns = [
     path('activity/<int:activity_id>/', views.delete_activity, name='delete-activity'),
     
     # Events
-    path('events/', views.get_events, name='get-events'),
-    path('events/create/', views.create_event, name='create-event'),
+    # path('events/', views.get_events, name='get-events'),
+    # path('events/create/', views.create_event, name='create-event'),
     
     # Customers
     path('customers/', views.get_customers, name='get-customers'),

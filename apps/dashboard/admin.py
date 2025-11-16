@@ -1,13 +1,13 @@
 from django.contrib import admin
-from .models import Event, CustomerMessage, Customer, ActivityLog
+from .models import  CustomerMessage, Customer, ActivityLog
 
 
-@admin.register(Event)
-class EventAdmin(admin.ModelAdmin):
-    list_display = ['name', 'vendor', 'event_type', 'start_date', 'status', 'created_at']
-    list_filter = ['status', 'event_type', 'created_at']
-    search_fields = ['name', 'vendor__business_name']
-    date_hierarchy = 'created_at'
+# @admin.register(Event)
+# class EventAdmin(admin.ModelAdmin):
+#     list_display = ['name', 'vendor', 'event_type', 'start_date', 'status', 'created_at']
+#     list_filter = ['status', 'event_type', 'created_at']
+#     search_fields = ['name', 'vendor__business_name']
+#     date_hierarchy = 'created_at'
 
 
 @admin.register(CustomerMessage)

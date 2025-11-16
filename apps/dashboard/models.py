@@ -1,32 +1,32 @@
 from django.db import models
 from apps.vendors.models import Vendor
 
-class Event(models.Model):
-    """Store vendor events/campaigns"""
-    EVENT_STATUS = [
-        ('draft', 'Draft'),
-        ('scheduled', 'Scheduled'),
-        ('active', 'Active'),
-        ('completed', 'Completed'),
-        ('cancelled', 'Cancelled'),
-    ]
+# class Event(models.Model):
+#     """Store vendor events/campaigns"""
+#     EVENT_STATUS = [
+#         ('draft', 'Draft'),
+#         ('scheduled', 'Scheduled'),
+#         ('active', 'Active'),
+#         ('completed', 'Completed'),
+#         ('cancelled', 'Cancelled'),
+#     ]
     
-    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='events')
-    name = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
-    event_type = models.CharField(max_length=50, blank=True)  # festival, sale, campaign
-    start_date = models.DateTimeField()
-    end_date = models.DateTimeField()
-    status = models.CharField(max_length=20, choices=EVENT_STATUS, default='draft')
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+#     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='events')
+#     name = models.CharField(max_length=200)
+#     description = models.TextField(blank=True)
+#     event_type = models.CharField(max_length=50, blank=True)  # festival, sale, campaign
+#     start_date = models.DateTimeField()
+#     end_date = models.DateTimeField()
+#     status = models.CharField(max_length=20, choices=EVENT_STATUS, default='draft')
+#     is_active = models.BooleanField(default=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        ordering = ['-created_at']
+#     class Meta:
+#         ordering = ['-created_at']
 
-    def __str__(self):
-        return f"{self.name} - {self.vendor.business_name}"
+#     def __str__(self):
+#         return f"{self.name} - {self.vendor.business_name}"
 
 
 class CustomerMessage(models.Model):

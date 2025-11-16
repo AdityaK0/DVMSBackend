@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Event, CustomerMessage, Customer, ActivityLog
+from .models import  CustomerMessage, Customer, ActivityLog
 
 class DashboardStatsSerializer(serializers.Serializer):
     """Serializer for dashboard statistics"""
@@ -55,12 +55,12 @@ class ActivityLogSerializer(serializers.ModelSerializer):
             return obj.created_at.strftime("%b %d, %Y")
 
 
-class EventSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Event
-        fields = ['id', 'name', 'description', 'event_type', 'start_date', 
-                  'end_date', 'status', 'created_at']
-        read_only_fields = ['created_at']
+# class EventSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Event
+#         fields = ['id', 'name', 'description', 'event_type', 'start_date', 
+#                   'end_date', 'status', 'created_at']
+#         read_only_fields = ['created_at']
 
 
 class CustomerSerializer(serializers.ModelSerializer):

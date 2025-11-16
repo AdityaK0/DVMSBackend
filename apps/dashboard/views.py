@@ -8,11 +8,10 @@ from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.core.cache import cache
 from apps.products.models import Product
-from .models import Event, CustomerMessage, Customer, ActivityLog
+from .models import  CustomerMessage, Customer, ActivityLog
 from .serializers import (
     DashboardStatsSerializer, 
     ActivityLogSerializer,
-    EventSerializer,
     CustomerSerializer,
     CustomerMessageSerializer
 )
@@ -26,119 +25,119 @@ def calculate_percentage_change(current, previous):
     return round(((current - previous) / previous) * 100, 1)
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def dashboard_stats(request):
-    """
-    Get dashboard statistics for vendor
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def dashboard_stats(request):
+#     """
+#     Get dashboard statistics for vendor
     
-    Returns:
-        - total_products: Current count of active products
-        - products_change_percentage: % change from last month
-        - active_customers: Current count of active customers
-        - customers_change_percentage: % change from last month
-        - events_this_month: Events created this month
-        - events_change: Difference from last month
-        - messages_sent: Total messages sent
-        - messages_change_percentage: % change from last month
-    """
-    try:
-        vendor = request.user.vendor
-    except AttributeError:
-        return Response(
-            {'error': 'User is not associated with a vendor'},
-            status=status.HTTP_403_FORBIDDEN
-        )
+#     Returns:
+#         - total_products: Current count of active products
+#         - products_change_percentage: % change from last month
+#         - active_customers: Current count of active customers
+#         - customers_change_percentage: % change from last month
+#         - events_this_month: Events created this month
+#         - events_change: Difference from last month
+#         - messages_sent: Total messages sent
+#         - messages_change_percentage: % change from last month
+#     """
+#     try:
+#         vendor = request.user.vendor
+#     except AttributeError:
+#         return Response(
+#             {'error': 'User is not associated with a vendor'},
+#             status=status.HTTP_403_FORBIDDEN
+#         )
     
-    now = timezone.now()
-    last_month = now - relativedelta(months=1)
-    current_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+#     now = timezone.now()
+#     last_month = now - relativedelta(months=1)
+#     current_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # Total Products
-    total_products = Product.objects.filter(
-        vendor=vendor, 
-        is_active=True,
-        is_archived=False
-    ).count()
+#     # Total Products
+#     total_products = Product.objects.filter(
+#         vendor=vendor, 
+#         is_active=True,
+#         is_archived=False
+#     ).count()
     
-    products_last_month = Product.objects.filter(
-        vendor=vendor,
-        is_active=True,
-        is_archived=False,
-        created_at__lte=last_month
-    ).count()
+#     products_last_month = Product.objects.filter(
+#         vendor=vendor,
+#         is_active=True,
+#         is_archived=False,
+#         created_at__lte=last_month
+#     ).count()
     
-    products_change = calculate_percentage_change(
-        total_products, 
-        products_last_month
-    )
+#     products_change = calculate_percentage_change(
+#         total_products, 
+#         products_last_month
+#     )
 
-    # Active Customers
-    active_customers = Customer.objects.filter(
-        vendor=vendor,
-        is_active=True
-    ).count()
+#     # Active Customers
+#     active_customers = Customer.objects.filter(
+#         vendor=vendor,
+#         is_active=True
+#     ).count()
     
-    customers_last_month = Customer.objects.filter(
-        vendor=vendor,
-        is_active=True,
-        registered_at__lte=last_month
-    ).count()
+#     customers_last_month = Customer.objects.filter(
+#         vendor=vendor,
+#         is_active=True,
+#         registered_at__lte=last_month
+#     ).count()
     
-    customers_change = calculate_percentage_change(
-        active_customers,
-        customers_last_month
-    )
+#     customers_change = calculate_percentage_change(
+#         active_customers,
+#         customers_last_month
+#     )
 
-    # Events This Month
-    events_this_month = Event.objects.filter(
-        vendor=vendor,
-        created_at__gte=current_month_start,
-        is_active=True
-    ).count()
+#     # Events This Month
+#     events_this_month = Event.objects.filter(
+#         vendor=vendor,
+#         created_at__gte=current_month_start,
+#         is_active=True
+#     ).count()
     
-    last_month_start = (now - relativedelta(months=1)).replace(
-        day=1, hour=0, minute=0, second=0, microsecond=0
-    )
-    last_month_end = current_month_start - timedelta(seconds=1)
+#     last_month_start = (now - relativedelta(months=1)).replace(
+#         day=1, hour=0, minute=0, second=0, microsecond=0
+#     )
+#     last_month_end = current_month_start - timedelta(seconds=1)
     
-    events_last_month = Event.objects.filter(
-        vendor=vendor,
-        created_at__gte=last_month_start,
-        created_at__lte=last_month_end,
-        is_active=True
-    ).count()
+#     events_last_month = Event.objects.filter(
+#         vendor=vendor,
+#         created_at__gte=last_month_start,
+#         created_at__lte=last_month_end,
+#         is_active=True
+#     ).count()
     
-    events_change = events_this_month - events_last_month
+#     events_change = events_this_month - events_last_month
 
-    # Messages Sent
-    messages_sent = CustomerMessage.objects.filter(
-        vendor=vendor
-    ).count()
+#     # Messages Sent
+#     messages_sent = CustomerMessage.objects.filter(
+#         vendor=vendor
+#     ).count()
     
-    messages_last_month = CustomerMessage.objects.filter(
-        vendor=vendor,
-        sent_at__lte=last_month
-    ).count()
+#     messages_last_month = CustomerMessage.objects.filter(
+#         vendor=vendor,
+#         sent_at__lte=last_month
+#     ).count()
     
-    messages_change = calculate_percentage_change(
-        messages_sent,
-        messages_last_month
-    )
+#     messages_change = calculate_percentage_change(
+#         messages_sent,
+#         messages_last_month
+#     )
 
-    stats = {
-        'total_products': total_products,
-        'products_change_percentage': products_change,
-        'active_customers': active_customers,
-        'customers_change_percentage': customers_change,
-        'events_this_month': events_this_month,
-        'events_change': events_change,
-        'messages_sent': messages_sent,
-        'messages_change_percentage': messages_change,
-    }
+#     stats = {
+#         'total_products': total_products,
+#         'products_change_percentage': products_change,
+#         'active_customers': active_customers,
+#         'customers_change_percentage': customers_change,
+#         'events_this_month': events_this_month,
+#         'events_change': events_change,
+#         'messages_sent': messages_sent,
+#         'messages_change_percentage': messages_change,
+#     }
 
-    serializer = DashboardStatsSerializer(stats)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+#     serializer = DashboardStatsSerializer(stats)
+#     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -175,45 +174,45 @@ def recent_activity(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_event(request):
-    """
-    Create a new event
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def create_event(request):
+#     """
+#     Create a new event
     
-    Required fields:
-        - name: Event name
-        - start_date: Event start datetime
-        - end_date: Event end datetime
+#     Required fields:
+#         - name: Event name
+#         - start_date: Event start datetime
+#         - end_date: Event end datetime
     
-    Optional fields:
-        - description: Event description
-        - event_type: Type of event
-        - status: Event status (default: draft)
-    """
-    try:
-        vendor = request.user.vendor
-    except AttributeError:
-        return Response(
-            {'error': 'User is not associated with a vendor'},
-            status=status.HTTP_403_FORBIDDEN
-        )
+#     Optional fields:
+#         - description: Event description
+#         - event_type: Type of event
+#         - status: Event status (default: draft)
+#     """
+#     try:
+#         vendor = request.user.vendor
+#     except AttributeError:
+#         return Response(
+#             {'error': 'User is not associated with a vendor'},
+#             status=status.HTTP_403_FORBIDDEN
+#         )
     
-    serializer = EventSerializer(data=request.data)
-    if serializer.is_valid():
-        event = serializer.save(vendor=vendor)
+#     serializer = EventSerializer(data=request.data)
+#     if serializer.is_valid():
+#         event = serializer.save(vendor=vendor)
         
-        # Log activity
-        ActivityLog.objects.create(
-            vendor=vendor,
-            activity_type='event_created',
-            description=f'Event "{event.name}" created',
-            metadata={'event_id': event.id, 'event_name': event.name}
-        )
+#         # Log activity
+#         ActivityLog.objects.create(
+#             vendor=vendor,
+#             activity_type='event_created',
+#             description=f'Event "{event.name}" created',
+#             metadata={'event_id': event.id, 'event_name': event.name}
+#         )
         
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
@@ -393,41 +392,41 @@ def send_message(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_events(request):
-    """
-    Get all events for vendor
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def get_events(request):
+#     """
+#     Get all events for vendor
     
-    Query Parameters:
-        - status: Filter by status (draft, scheduled, active, completed, cancelled)
-        - limit: Number of events to return (default: all)
-    """
-    try:
-        vendor = request.user.vendor
-    except AttributeError:
-        return Response(
-            {'error': 'User is not associated with a vendor'},
-            status=status.HTTP_403_FORBIDDEN
-        )
+#     Query Parameters:
+#         - status: Filter by status (draft, scheduled, active, completed, cancelled)
+#         - limit: Number of events to return (default: all)
+#     """
+#     try:
+#         vendor = request.user.vendor
+#     except AttributeError:
+#         return Response(
+#             {'error': 'User is not associated with a vendor'},
+#             status=status.HTTP_403_FORBIDDEN
+#         )
     
-    events = Event.objects.filter(vendor=vendor)
+#     events = Event.objects.filter(vendor=vendor)
     
-    # Filter by status if provided
-    event_status = request.query_params.get('status')
-    if event_status:
-        events = events.filter(status=event_status)
+#     # Filter by status if provided
+#     event_status = request.query_params.get('status')
+#     if event_status:
+#         events = events.filter(status=event_status)
     
-    # Limit results if specified
-    limit = request.query_params.get('limit')
-    if limit:
-        try:
-            events = events[:int(limit)]
-        except ValueError:
-            pass
+#     # Limit results if specified
+#     limit = request.query_params.get('limit')
+#     if limit:
+#         try:
+#             events = events[:int(limit)]
+#         except ValueError:
+#             pass
     
-    serializer = EventSerializer(events, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+#     serializer = EventSerializer(events, many=True)
+#     return Response(serializer.data, status=status.HTTP_200_OK)
 
 from django.core.paginator import Paginator
 from rest_framework.decorators import api_view, permission_classes
