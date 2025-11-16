@@ -80,6 +80,8 @@ class PortfolioService:
             "about_us": portfolio.about_us,
             "theme_color": portfolio.theme_color,
             "accent_color": portfolio.accent_color,
+            "background_color": portfolio.background_color,
+            "font_family": portfolio.font_family,
             "layout_style": portfolio.layout_style,
             "show_pricing": portfolio.show_pricing,
             "show_contact_form": portfolio.show_contact_form,

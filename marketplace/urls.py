@@ -25,6 +25,7 @@ urlpatterns = [
     path('__debug__/', include(debug_toolbar.urls)),
     path('api/auth/', include('apps.users.urls')),
     path('api/vendors/', include('apps.vendors.urls')),
+    path('api/events/', include('apps.events.urls')),  # Events API under /api/events/
     path('api/products/', include('apps.products.urls')),
     path('api/orders/', include('apps.orders.urls')),
     path('api/payments/', include('apps.payments.urls')),

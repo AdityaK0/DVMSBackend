@@ -27,8 +27,8 @@ class Portfolio(models.Model):
     # Content
     about_us = models.TextField(blank=True)
     our_story = models.TextField(blank=True)
-    mission = models.TextField(blank=True)
-    vision = models.TextField(blank=True)
+    mission = models.TextField(blank=True,default="To provide exceptional products and services that exceed our customers' expectations.")
+    vision = models.TextField(blank=True,default="To become the leading provider in our industry, known for innovation and customer satisfaction.")
     
     # Media
     logo = models.URLField(max_length=500, blank=True, null=True)
@@ -38,10 +38,10 @@ class Portfolio(models.Model):
     featured_products = models.ManyToManyField(Product, blank=True, related_name='featured_in_portfolios')
     carousel_images = models.JSONField(default=list, blank=True) 
     # Design Customization
-    theme_color = models.CharField(max_length=7, default='#3B82F6')  # Hex color
-    accent_color = models.CharField(max_length=7, default='#10B981')
-    background_color = models.CharField(max_length=7, default='#FFFFFF')
-    text_color = models.CharField(max_length=7, default='#1F2937')
+    theme_color = models.CharField(max_length=7, default='#141414')  # Hex color
+    accent_color = models.CharField(max_length=7, default='#ffffff')
+    background_color = models.CharField(max_length=7, default='#ffffff')
+    text_color = models.CharField(max_length=7, default='#ffffff')
     font_family = models.CharField(
         max_length=50, 
         default='Inter',
@@ -62,13 +62,6 @@ class Portfolio(models.Model):
         ('minimal', 'Minimal Cards'),
     ]
     layout_style = models.CharField(max_length=20, choices=LAYOUT_CHOICES, default='modern')
-    
-    # Contact Information no need to store in portfolio cause vendor has this information 
-    # if stored this then can lead to data redundancy
-    # contact_email = models.EmailField(blank=True)
-    # contact_phone = models.CharField(max_length=20, blank=True)
-    # whatsapp_number = models.CharField(max_length=20, blank=True)
-    # address = models.TextField(blank=True)
     
     # Social Media
     portfolio_url = models.URLField(blank=True)
