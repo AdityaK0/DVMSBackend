@@ -111,7 +111,7 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'name', 'description', 'category', 'price', 'cost_price','vendor_id',
-            'stock_quantity', 'min_stock_level', 'sku', 'sizes', 'dimensions',
+            'stock_quantity', 'min_stock_level', 'sku', 'sizes','gender', 'dimensions',
             'is_active', 'is_featured', 'meta_title', 'meta_description',
             'created_at', 'updated_at', 'image_urls', 'primary_image',
             'vendor_name', 'category_name', 'is_in_stock', 'is_low_stock',
@@ -193,7 +193,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'price', 'stock_quantity', 'vendor_name',
             'category_name', 'meta_title', 'meta_description', 'images',
-            'is_in_stock', 'is_featured', 'created_at', 'is_active'
+            'is_in_stock', 'is_featured', 'created_at', 'is_active','gender'
         ]
 
     def get_images(self, obj):

@@ -47,6 +47,7 @@ class Product(models.Model):
     sku = models.CharField(max_length=100)
     # weight = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
     sizes = models.JSONField(default=list, blank=True)
+    gender = models.CharField(max_length=100, blank=True, null=True)
     
     dimensions = models.JSONField(default=dict, blank=True)  # {length, width, height}
     is_active = models.BooleanField(default=True)

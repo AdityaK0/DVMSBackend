@@ -836,7 +836,6 @@ def filter_products(request):
 #     category = request.GET.get("category") or None
 #     min_price = request.GET.get("min_price") or None
 #     max_price = request.GET.get("max_price") or None
-#     # breakpoint()
 #     # Apply filters
 #     if is_active is not None:
 #         products = products.filter(is_active=is_active.lower() == "true")
