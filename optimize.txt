@@ -1,0 +1,5 @@
+
+
+query cache on DB like vendor wise products whenever query made then save the data 
+
+data updated then remove the data  =  this is not redis this will DB side

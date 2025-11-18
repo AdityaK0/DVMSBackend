@@ -1,18 +1,23 @@
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions,status
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-from .models import Vendor
-from rest_framework import generics, status, permissions
-from .serializers import VendorSerializer, VendorListSerializer, VendorUpdate
+from .models import Vendor,Event,PosterTemplate
+from .serializers import VendorSerializer, VendorListSerializer, VendorUpdate,EventSerializer,PosterTemplateSerializer
 from shared.permissions import IsVendorOrReadOnly
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from apps.users.models import Address
-from apps.users.serializers import AddressSerializer
-from django.db.models import Prefetch
 from django.db import IntegrityError
-from django.core.exceptions import ObjectDoesNotExist
+from .permissions import IsVendor
+
+from django.shortcuts import get_object_or_404
+
+
+from .models import Event, PosterTemplate
+from .serializers import EventSerializer, PosterTemplateSerializer
+from .permissions import IsVendor
+
 import logging
 
 
@@ -350,6 +355,85 @@ def vendor_profile(request, pk=None):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAdminUser])
+def create_event(request):
+    """
+    Admin creates a festival event template.
+    """
+    serializer = EventSerializer(data=request.data)
+    if serializer.is_valid():
+        event = serializer.save()
+
+        # auto-update status on creation
+        event.auto_update_status()
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAdminUser])
+def create_poster(request, event_id):
+    """
+    Admin creates a poster template inside an event.
+    """
+    event = get_object_or_404(Event, id=event_id)
+
+    data = request.data.copy()
+    data["event"] = event.id
+
+    serializer = PosterTemplateSerializer(data=data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(["GET"])
+@permission_classes([IsVendor | permissions.IsAdminUser])
+def list_events(request):
+    """
+    Vendor sees ALL events (admin created).
+    Frontend can filter by status.
+    """
+    # Update statuses before returning
+    for event in Event.objects.all():
+        event.auto_update_status()
+
+    events = Event.objects.filter(is_active=True).order_by("start_date")
+    serializer = EventSerializer(events, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes([IsVendor | permissions.IsAdminUser])
+def list_event_posters(request, event_id):
+    """
+    Vendor gets list of posters for a given event.
+    """
+    event = get_object_or_404(Event, id=event_id, is_active=True)
+
+    posters = PosterTemplate.objects.filter(event=event, is_active=True)
+    serializer = PosterTemplateSerializer(posters, many=True)
+
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@permission_classes([IsVendor | permissions.IsAdminUser])
+def get_single_poster(request, poster_id):
+    """
+    Vendor fetches a single poster for editing/preview.
+    """
+    poster = get_object_or_404(PosterTemplate, id=poster_id, is_active=True)
+    serializer = PosterTemplateSerializer(poster)
+
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 
 

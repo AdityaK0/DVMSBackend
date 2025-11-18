@@ -13,6 +13,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         model = User
         fields = ['username', 'email', 'first_name', 'last_name', 'phone_number', 
                  'role', 'password', 'password_confirm']
+        
+    
+    
+    def validate_role(self, value):
+        # Prevent users from creating admin accounts
+        if value == "admin":
+            raise serializers.ValidationError("You cannot register as admin.")
+        return value
 
     def validate(self, attrs):
         password = attrs.get('password')

@@ -5,6 +5,8 @@ from django.utils.text import slugify
 from apps.portfolio.models import Portfolio
 from ..utils.update_things import update_portfolio_url
 import re
+from .models import Event, PosterTemplate
+
 
 class VendorSerializer(serializers.ModelSerializer):
     total_products = serializers.ReadOnlyField()
@@ -177,3 +179,17 @@ class VendorUpdate(serializers.ModelSerializer):
             raise serializers.ValidationError("Only letters, numbers and hyphens allowed.")
 
         return value
+    
+    
+
+
+class EventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Event
+        fields = "__all__"
+
+
+class PosterTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PosterTemplate
+        fields = "__all__"
