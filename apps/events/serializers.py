@@ -2,9 +2,8 @@
 Serializers for events app.
 """
 from rest_framework import serializers
-from apps.events.models import Event, CampaignLog, EventAnalytics
+from apps.events.models import Event
 from apps.products.models import Product
-from apps.vendors.models import Vendor
 
 
 class EventSerializer(serializers.ModelSerializer):
@@ -142,88 +141,10 @@ class EventUpdateSerializer(serializers.ModelSerializer):
         return value
 
 
-class FestivalTemplateSerializer(serializers.Serializer):
-    """Serializer for festival templates (static data)"""
-    id = serializers.CharField()
-    name = serializers.CharField()
-    preset_message = serializers.CharField()
-    preset_colors = serializers.DictField()
-    preset_date_range = serializers.DictField()
-    background = serializers.CharField()
-    hashtags = serializers.ListField(child=serializers.CharField())
-    recommended_products = serializers.IntegerField()
 
 
-class PosterGenerationSerializer(serializers.Serializer):
-    """Serializer for poster generation request"""
-    template_id = serializers.CharField(required=True)
-    selected_products = serializers.ListField(
-        child=serializers.IntegerField(),
-        required=True,
-        allow_empty=False
-    )
-    custom_message = serializers.CharField(required=False, allow_blank=True)
 
 
-class PosterResponseSerializer(serializers.Serializer):
-    """Serializer for poster generation response"""
-    poster_url = serializers.URLField()
 
 
-class ProductRecommendationSerializer(serializers.Serializer):
-    """Serializer for product recommendations"""
-    id = serializers.IntegerField()
-    name = serializers.CharField()
-    price = serializers.DecimalField(max_digits=10, decimal_places=2)
-    image = serializers.URLField(allow_null=True)
-    is_in_stock = serializers.BooleanField()
-    stock_quantity = serializers.IntegerField()
-    is_featured = serializers.BooleanField()
-
-
-class CampaignLogSerializer(serializers.ModelSerializer):
-    """Serializer for campaign logs"""
-    event_title = serializers.CharField(source='event.name', read_only=True)
-    
-    class Meta:
-        model = CampaignLog
-        fields = [
-            'id', 'event', 'event_title', 'message_text', 'poster_url',
-            'sent_to_phone', 'status', 'click_count', 'created_at'
-        ]
-        read_only_fields = ['created_at']
-
-
-class CampaignLogCreateSerializer(serializers.Serializer):
-    """Serializer for creating campaign logs"""
-    message_text = serializers.CharField(required=True)
-    poster_url = serializers.URLField(required=False, allow_blank=True)
-    sent_to_phone = serializers.CharField(required=True, max_length=20)
-    status = serializers.ChoiceField(
-        choices=['sent', 'failed'],
-        default='sent',
-        required=False
-    )
-
-
-class AnalyticsSerializer(serializers.ModelSerializer):
-    """Serializer for event analytics"""
-    event_title = serializers.CharField(source='event.name', read_only=True)
-    
-    class Meta:
-        model = EventAnalytics
-        fields = [
-            'id', 'event', 'event_title', 'date', 'views', 'clicks',
-            'shares', 'leads', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['created_at', 'updated_at']
-
-
-class AnalyticsUpdateSerializer(serializers.Serializer):
-    """Serializer for updating analytics"""
-    date = serializers.DateField(required=True)
-    views = serializers.IntegerField(required=False, min_value=0, default=0)
-    clicks = serializers.IntegerField(required=False, min_value=0, default=0)
-    shares = serializers.IntegerField(required=False, min_value=0, default=0)
-    leads = serializers.IntegerField(required=False, min_value=0, default=0)
 
