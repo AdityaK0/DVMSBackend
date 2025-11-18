@@ -192,7 +192,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'name', 'description', 'price', 'stock_quantity', 'vendor_name',
-            'category_name', 'meta_title', 'meta_description', 'images',
+            'category_name', 'meta_title', 'meta_description', 'images','sizes',
             'is_in_stock', 'is_featured', 'created_at', 'is_active','gender'
         ]
 
