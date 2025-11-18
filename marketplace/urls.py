@@ -27,8 +27,8 @@ urlpatterns = [
     path('api/vendors/', include('apps.vendors.urls')),
     path('api/events/', include('apps.events.urls')),  # Events API under /api/events/
     path('api/products/', include('apps.products.urls')),
-    path('api/orders/', include('apps.orders.urls')),
-    path('api/payments/', include('apps.payments.urls')),
+    # path('api/orders/', include('apps.orders.urls')),
+    # path('api/payments/', include('apps.payments.urls')),
     path('api/dashboard/', include('apps.dashboard.urls')),
     path('api/portfolio/', include('apps.portfolio.urls')),
     path('api/subscriptions/', include('apps.subscriptions.urls')),
@@ -39,3 +39,4 @@ urlpatterns = [
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+

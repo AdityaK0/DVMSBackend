@@ -98,8 +98,6 @@ LOCAL_APPS = [
     'apps.users',
     'apps.vendors',
     'apps.products',
-    'apps.orders',
-    'apps.payments',
     'apps.dashboard',
     'apps.portfolio',
     'apps.subscriptions',
