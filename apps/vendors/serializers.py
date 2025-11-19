@@ -179,6 +179,12 @@ class VendorUpdate(serializers.ModelSerializer):
             raise serializers.ValidationError("Only letters, numbers and hyphens allowed.")
 
         return value
+
+    def validate_business_phone(self, value):
+        # Basic validation: 10 to 15 digits, optional leading +
+        if value and not re.match(r'^\+?\d{10,15}$', value):
+            raise serializers.ValidationError("Enter a valid phone number (10-15 digits).")
+        return value
     
     
 
