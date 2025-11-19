@@ -37,17 +37,6 @@ class VendorSerializer(serializers.ModelSerializer):
         if address:
             return AddressSerializer(address).data
         return None
-    
-    # def get_logo_url(self, obj):
-    #     if obj.logo:
-    #         return obj.logo
-    #     return None
-    
-    # def get_telegram_link_valid(self, obj):
-    #     """
-    #     Returns True if vendor has valid Telegram link (chat_id exists & bot not blocked).
-    #     """
-    #     return is_telegram_chat_active(obj.telegram_chat_id)
 
 class VendorListSerializer(serializers.ModelSerializer):
     total_products = serializers.ReadOnlyField()
@@ -144,7 +133,6 @@ class VendorUpdate(serializers.ModelSerializer):
             update_portfolio_url(portfolio, new_slug)
         instance.save()
         
-
         
         # Update address only if address data is provided
         if address_data:
@@ -185,8 +173,12 @@ class VendorUpdate(serializers.ModelSerializer):
         if value and not re.match(r'^\+?\d{10,15}$', value):
             raise serializers.ValidationError("Enter a valid phone number (10-15 digits).")
         return value
-    
-    
+
+    def validate_zip_code(self, value):
+        # Basic validation: 5 to 10 alphanumeric characters
+        if value and not re.match(r'^[a-zA-Z0-9\s-]{5,10}$', value):
+             raise serializers.ValidationError("Enter a valid zip/postal code.")
+        return value
 
 
 class EventSerializer(serializers.ModelSerializer):
