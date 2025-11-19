@@ -170,6 +170,10 @@ class VendorUpdate(serializers.ModelSerializer):
 
     def validate_business_phone(self, value):
         # Basic validation: 10 to 15 digits, optional leading +
+
+        if value and Vendor.objects.exclude(id=self.instance.id).filter(business_phone=value).exists():
+            raise serializers.ValidationError("This business phone is already registered.")
+        
         if value and not re.match(r'^\+?\d{10,15}$', value):
             raise serializers.ValidationError("Enter a valid phone number (10-15 digits).")
         return value

@@ -16,6 +16,25 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         
     
     
+    # def validate_email(self, value):
+    #     if User.objects.filter(email=value).exists():
+    #         raise serializers.ValidationError("A user with this email already exists.")
+    #     return value
+
+    # def validate_phone_number(self, value):
+    #     if not value.isdigit():
+    #         raise serializers.ValidationError("Phone number must contain only digits.")
+    #     if len(value) < 10 or len(value) > 15:
+    #         raise serializers.ValidationError("Phone number must be between 10 and 15 digits.")
+    #     return value
+
+    # def validate_username(self, value):
+    #     if not value.isalnum():
+    #          raise serializers.ValidationError("Username must contain only alphanumeric characters.")
+    #     if User.objects.filter(username=value).exists():
+    #         raise serializers.ValidationError("A user with this username already exists.")
+    #     return value
+
     def validate_role(self, value):
         # Prevent users from creating admin accounts
         if value == "admin":
