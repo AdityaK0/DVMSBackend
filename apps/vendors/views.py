@@ -18,6 +18,7 @@ from .models import Event, PosterTemplate
 from .serializers import EventSerializer, PosterTemplateSerializer
 from .permissions import IsVendor
 
+import json
 import logging
 
 
@@ -258,7 +259,11 @@ def create_vendor(request):
         ]
         for field in update_fields:
             setattr(vendor, field, request.data.get(field, getattr(vendor, field)))
-
+            
+        if request.data.get("geo_location"):
+            vendor.geolocation  = json.loads(request.data.get("geo_location"))
+        
+ 
         vendor.logo = request.data.get("logo", vendor.logo)
         vendor.is_onboarded = True
         vendor.save()

@@ -63,7 +63,8 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     ".ngrok-free.app",  # allows any ngrok subdomain
-    "10.82.67.215"
+    "10.82.67.215",
+    "192.168.5.115"
 ]
 
 CSRF_TRUSTED_ORIGINS = [

@@ -39,6 +39,7 @@ class Vendor(models.Model):
     default=generate_secret
     )
     secret_expires_at = models.DateTimeField(null=True, blank=True)
+    geolocation = models.JSONField(null=True,blank=True)
 
     def __str__(self):
         return self.business_name
