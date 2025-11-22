@@ -13,14 +13,17 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, BASE_DIR)  #  ensures marketplace/apps becomes importable
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "marketplace.settings")
-django.setup()
+# os.environ.setdefault("DJANGO_SETTINGS_MODULE", "marketplace.settings")
+# django.setup()
 
-from apps.vendors.models import Vendor
-from apps.products.models import Product
-# from apps.portfolio.models import Portfolio, PortfolioCollection
-from apps.portfolio.service import PortfolioService
-from apps.products.service import get_vendor_products_combined
+try:
+    from apps.vendors.models import Vendor
+    from apps.products.models import Product
+    from apps.portfolio.service import PortfolioService
+    from apps.products.service import get_vendor_products_combined
+except ImportError:
+    # If running as script without django setup
+    pass
 
 
 
@@ -137,7 +140,7 @@ def serialize_product_listing(vendor):
 
 def serialize_portfolio(vendor_id):
     data = PortfolioService.get_public_vendor_portfolio(
-        business_name=Vendor.objects.get(id=vendor_id).business_name_slug
+     vendor_id
     )
 
     return {
@@ -170,6 +173,16 @@ def sync_vendor(vendor_id):
     print(f"🔄 Syncing vendor {vendor_id}...")
 
     vendor = Vendor.objects.get(id=vendor_id)
+    
+    # Check active subscription
+    from django.utils import timezone
+    sub = getattr(vendor, "subscription", None)
+    is_subscribed = sub and sub.is_active and (not sub.end_date or sub.end_date > timezone.now())
+    
+    if not is_subscribed:
+        print(f"⚠️ Vendor {vendor.business_name} has expired subscription. Removing from ES.")
+        remove_vendor_from_es(vendor_id)
+        return {"status": "removed", "reason": "subscription_expired"}
 
     plan = PortfolioService.create_vendor_sync_plan(vendor)
 
@@ -191,14 +204,103 @@ def sync_vendor(vendor_id):
 
     print(f"==  ES updated for vendor {vendor.business_name} ==")
 
+    print(f"==  ES updated for vendor {vendor.business_name} ==")
+
     return {
         "status": "success",
         "synced_docs": doc_count,
     }
 
+def remove_vendor_from_es(vendor_id):
+    """
+    Remove ALL data related to a vendor from Elasticsearch.
+    Used when subscription expires or vendor is deactivated.
+    """
+    print(f"🗑️ Removing vendor {vendor_id} from Elasticsearch...")
+    
+    # Delete by query for each index
+    indices = ["product_index", "portfolio_index", "portfoliocollection_index", "vendor_index"]
+    
+    for index in indices:
+        try:
+            # Delete documents where vendor_id matches
+            # Note: Different indices might have different field names for vendor
+            # product_index -> vendor_id
+            # portfolio_index -> id (this is portfolio id, not vendor id. We need to find portfolio by vendor)
+            # But wait, we can use delete_by_query with a term match if we indexed vendor_id
+            
+            # For simplicity and safety, we'll try to delete by vendor_id term if possible, 
+            # but portfolio_index uses portfolio ID as _id. 
+            # Let's rely on the fact that we can query by "vendor" or "vendor_id" field if it exists.
+            
+            query = {
+                "query": {
+                    "term": {
+                        "vendor_id": vendor_id 
+                    }
+                }
+            }
+            
+            # Special case for portfolio_index which might not have vendor_id as a top level field in some mappings,
+            # but let's assume our mapping has it or we added it. 
+            # Actually, looking at serialize_portfolio, it dumps the whole API response.
+            # The API response has "id" (portfolio id). 
+            # It does NOT explicitly have "vendor_id" at top level in `serialize_portfolio`.
+            # It has "business_name" etc.
+            
+            # Let's check serialize_product: has "vendor": product.vendor_id
+            # Let's check serialize_collections: has "portfolio" (ID).
+            
+            # To be safe, we might need to fetch the IDs to delete.
+            
+            if index == "portfolio_index":
+                 # Find portfolio ID for this vendor
+                 from apps.portfolio.models import Portfolio
+                 try:
+                     portfolio = Portfolio.objects.get(vendor_id=vendor_id)
+                     es.delete(index="portfolio_index", id=portfolio.id, ignore=[404])
+                 except Portfolio.DoesNotExist:
+                     pass
+            
+            elif index == "portfoliocollection_index":
+                 # Delete by query using vendor_id if mapped, or iterate?
+                 # The serialize_collections adds "business_name_slug".
+                 # It doesn't seem to add vendor_id explicitly?
+                 # Let's use delete_by_query on "portfolio.vendor" if possible?
+                 # Or better, just use the vendor_id if we can trust the mapping.
+                 
+                 # If we can't trust mapping, let's use the DB to find IDs.
+                 from apps.portfolio.models import PortfolioCollection
+                 collection_ids = list(PortfolioCollection.objects.filter(portfolio__vendor_id=vendor_id).values_list('id', flat=True))
+                 if collection_ids:
+                     # Bulk delete
+                     actions = [{"_op_type": "delete", "_index": "portfoliocollection_index", "_id": cid} for cid in collection_ids]
+                     bulk(es, actions)
+
+            elif index == "product_index":
+                # Products have "vendor" field (vendor_id)
+                es.delete_by_query(index="product_index", body={"query": {"term": {"vendor": vendor_id}}})
+                
+            elif index == "vendor_index":
+                es.delete(index="vendor_index", id=vendor_id, ignore=[404])
+                
+        except Exception as e:
+            print(f"⚠️ Error removing from {index}: {e}")
+
+    print(f"✅ Removed vendor {vendor_id} from ES")
+
 
 
 if __name__ == "__main__":
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "marketplace.settings")
+    django.setup()
+    
+    # Re-import after setup
+    from apps.vendors.models import Vendor
+    from apps.products.models import Product
+    from apps.portfolio.service import PortfolioService
+    from apps.products.service import get_vendor_products_combined
+    
     if len(sys.argv) < 2:
         raise Exception("❌ Please pass vendor ID. Example: python -m scripts.es.sync_vendor_to_es 5")
 

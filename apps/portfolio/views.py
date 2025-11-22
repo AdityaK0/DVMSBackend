@@ -132,6 +132,17 @@ def safe_get_list(data, key):
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
 def public_vendor_portfolio(request, business_name):
+    # Check subscription status first
+    vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
+    
+    # Check active subscription
+    sub = getattr(vendor, "subscription", None)
+    if not sub or not sub.is_active or (sub.end_date and sub.end_date < timezone.now()):
+        return Response(
+            {"detail": "This portfolio is currently unavailable due to subscription expiry.", "code": "SUBSCRIPTION_EXPIRED"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
     portfolio_data = PortfolioService.get_public_vendor_portfolio(business_name)
     return Response(portfolio_data, status=status.HTTP_200_OK)
 
@@ -141,6 +152,14 @@ def public_vendor_portfolio(request, business_name):
 def public_portfolio_products(request, business_name):
     # FIXED: Use 404 for not found and avoid broad except
     vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
+
+    # Check active subscription
+    sub = getattr(vendor, "subscription", None)
+    if not sub or not sub.is_active or (sub.end_date and sub.end_date < timezone.now()):
+        return Response(
+            {"detail": "This portfolio is currently unavailable due to subscription expiry.", "code": "SUBSCRIPTION_EXPIRED"},
+            status=status.HTTP_403_FORBIDDEN
+        )
     query = request.GET.get("search","").strip()
     page = int(request.GET.get('page', 1))
     page_size = int(request.GET.get('page_size', 10))
@@ -164,6 +183,14 @@ def public_portfolio_filter(request,business_name):
     # FIXED: 404 for not found, no broad except
     vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
 
+    # Check active subscription
+    sub = getattr(vendor, "subscription", None)
+    if not sub or not sub.is_active or (sub.end_date and sub.end_date < timezone.now()):
+        return Response(
+            {"detail": "This portfolio is currently unavailable due to subscription expiry.", "code": "SUBSCRIPTION_EXPIRED"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
     data = get_filtered_products(vendor, request.GET, request=request)
     return Response(data)
     
@@ -172,6 +199,14 @@ def public_portfolio_filter(request,business_name):
 def public_portfolio_products_detail(request, business_name,id):
     try:
         vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
+        
+        # Check active subscription
+        sub = getattr(vendor, "subscription", None)
+        if not sub or not sub.is_active or (sub.end_date and sub.end_date < timezone.now()):
+            return Response(
+                {"detail": "This portfolio is currently unavailable due to subscription expiry.", "code": "SUBSCRIPTION_EXPIRED"},
+                status=status.HTTP_403_FORBIDDEN
+            )
         product = get_product_details(vendor=vendor, id=id)
         return Response(product)
     except Exception as e:
@@ -189,6 +224,14 @@ def public_portfolio_products_detail(request, business_name,id):
 def public_portfolio_collections(request,business_name):
     try:
         vendor = get_object_or_404(Vendor, business_name_slug__iexact=business_name, is_active=True)
+        
+        # Check active subscription
+        sub = getattr(vendor, "subscription", None)
+        if not sub or not sub.is_active or (sub.end_date and sub.end_date < timezone.now()):
+            return Response(
+                {"detail": "This portfolio is currently unavailable due to subscription expiry.", "code": "SUBSCRIPTION_EXPIRED"},
+                status=status.HTTP_403_FORBIDDEN
+            )
         data = PortfolioService.get_vendor_collections(vendor)
         return Response(data, status=status.HTTP_200_OK)
     except Exception as e:

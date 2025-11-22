@@ -27,16 +27,16 @@ from apps.users.serializers import AddressSerializer
 class PortfolioService:
 
     @staticmethod
-    def get_public_vendor_portfolio(business_name: str):
+    def get_public_vendor_portfolio(vendor_id: int):
+
         """Fetch vendor, portfolio details, analytics, products, testimonials etc."""
         # Fetch vendor with related user & addresses
         vendor = (
             Vendor.objects
             .select_related('user')
             .prefetch_related('user__addresses')
-            .get(business_name_slug__iexact=business_name, is_active=True)
+            .get(id=vendor_id, is_active=True)
         )
-
         # Fetch public portfolio
         portfolio = get_object_or_404(Portfolio, vendor=vendor, is_public=True)
 

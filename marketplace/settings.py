@@ -350,3 +350,8 @@ LOGGING = {
         },
     },
 }
+
+BANNER_IMAGES = [
+    "https://vendor-products-media.s3.ap-south-1.amazonaws.com/defaults/73faa2222087589.67e00aed92f9f.gif",
+    
+    ]
