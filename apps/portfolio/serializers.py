@@ -267,7 +267,7 @@ class PortfolioSerializer(serializers.ModelSerializer):
             'is_public', 'custom_domain', 'custom_css', 'meta_title',
             'meta_description', 'meta_keywords', 'view_count',
             'created_at', 'updated_at', 'vendor', 'sections', 'portfolio_url',
-            'testimonials', 'featured_products', 'featured_product_ids', 
+            'testimonials', 'featured_products', 'featured_product_ids', 'is_featured',
             'is_carousel', 'total_testimonials', 'carousel_images',
         ]
         # read_only_fields = ['slug', 'view_count', 'vendor', 'carousel_images']

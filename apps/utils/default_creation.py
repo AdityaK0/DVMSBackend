@@ -1,7 +1,6 @@
 from apps.products.models import Category
 from apps.portfolio.models import Portfolio
 from django.conf import settings
-import random
 
 
 BUSINESS_TYPE_CATEGORIES = {
@@ -25,7 +24,6 @@ def create_default_categories_for_vendor(vendor):
 
 def create_default_portfolio_for_vendor(vendor):
     from apps.portfolio.models import Portfolio  # avoid circular import
-    banner_img = random.choice(getattr(settings, "BANNER_IMAGES", [])) if settings.BANNER_IMAGES else None
     # Check if already exists
     portfolio, created = Portfolio.objects.get_or_create(
         vendor=vendor,
@@ -41,7 +39,6 @@ def create_default_portfolio_for_vendor(vendor):
             "layout_style": "modern",
             "gallery_images": [],
             "carousel_images": [],
-            "banner_image": banner_img,
         }
     )
     print("Portfolio created:", created)  # <-- Debug
