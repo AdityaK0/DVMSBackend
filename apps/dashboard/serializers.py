@@ -76,3 +76,41 @@ class CustomerMessageSerializer(serializers.ModelSerializer):
         fields = ['id', 'subject', 'message', 'message_type', 
                   'recipient_count', 'sent_at']
         read_only_fields = ['sent_at']
+        
+        
+ 
+# dashboard/serializers.py
+
+from rest_framework import serializers
+from .models import Invoice, InvoiceChangeLog
+
+class InvoiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Invoice
+        fields = [
+            "id",
+            "customer_name",
+            "customer_phone",
+            "items",
+            "total_amount",
+            "paid_amount",
+            "pending_amount",
+            "is_udhaari",
+            "invoice_date",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class InvoiceChangeLogSerializer(serializers.ModelSerializer):
+    changed_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InvoiceChangeLog
+        fields = ["id", "change_type", "changes", "created_at", "changed_by"]
+
+    def get_changed_by(self, obj):
+        if obj.changed_by:
+            return obj.changed_by.get_full_name() or obj.changed_by.username
+        return None
+

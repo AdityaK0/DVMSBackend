@@ -28,6 +28,14 @@ phone number and many more if needed
   -- new feature instead on Analysis Stuff ok 
 
 
+1. Export invoices as CSV
+2. Invoice dashboard stats (total, pending, today, last 7 days)
+3. Link invoices automatically with customers using phone
+4. SMS reminder for pending invoices
+5. PDF invoice download
+
+
+
 -- BUG 
 -- CAN ONE USER UPDATE ANOTHER USER DATA OR ANOTHER USER PRODUCT
 

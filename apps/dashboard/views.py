@@ -17,127 +17,22 @@ from .serializers import (
 )
 from .service import *
 from apps.dashboard.service import get_customer_stats_cached
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .models import Invoice
+from .serializers import InvoiceSerializer
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 def calculate_percentage_change(current, previous):
     """Calculate percentage change between current and previous values"""
     if previous == 0:
         return 100.0 if current > 0 else 0.0
     return round(((current - previous) / previous) * 100, 1)
-
-
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def dashboard_stats(request):
-#     """
-#     Get dashboard statistics for vendor
-    
-#     Returns:
-#         - total_products: Current count of active products
-#         - products_change_percentage: % change from last month
-#         - active_customers: Current count of active customers
-#         - customers_change_percentage: % change from last month
-#         - events_this_month: Events created this month
-#         - events_change: Difference from last month
-#         - messages_sent: Total messages sent
-#         - messages_change_percentage: % change from last month
-#     """
-#     try:
-#         vendor = request.user.vendor
-#     except AttributeError:
-#         return Response(
-#             {'error': 'User is not associated with a vendor'},
-#             status=status.HTTP_403_FORBIDDEN
-#         )
-    
-#     now = timezone.now()
-#     last_month = now - relativedelta(months=1)
-#     current_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-#     # Total Products
-#     total_products = Product.objects.filter(
-#         vendor=vendor, 
-#         is_active=True,
-#         is_archived=False
-#     ).count()
-    
-#     products_last_month = Product.objects.filter(
-#         vendor=vendor,
-#         is_active=True,
-#         is_archived=False,
-#         created_at__lte=last_month
-#     ).count()
-    
-#     products_change = calculate_percentage_change(
-#         total_products, 
-#         products_last_month
-#     )
-
-#     # Active Customers
-#     active_customers = Customer.objects.filter(
-#         vendor=vendor,
-#         is_active=True
-#     ).count()
-    
-#     customers_last_month = Customer.objects.filter(
-#         vendor=vendor,
-#         is_active=True,
-#         registered_at__lte=last_month
-#     ).count()
-    
-#     customers_change = calculate_percentage_change(
-#         active_customers,
-#         customers_last_month
-#     )
-
-#     # Events This Month
-#     events_this_month = Event.objects.filter(
-#         vendor=vendor,
-#         created_at__gte=current_month_start,
-#         is_active=True
-#     ).count()
-    
-#     last_month_start = (now - relativedelta(months=1)).replace(
-#         day=1, hour=0, minute=0, second=0, microsecond=0
-#     )
-#     last_month_end = current_month_start - timedelta(seconds=1)
-    
-#     events_last_month = Event.objects.filter(
-#         vendor=vendor,
-#         created_at__gte=last_month_start,
-#         created_at__lte=last_month_end,
-#         is_active=True
-#     ).count()
-    
-#     events_change = events_this_month - events_last_month
-
-#     # Messages Sent
-#     messages_sent = CustomerMessage.objects.filter(
-#         vendor=vendor
-#     ).count()
-    
-#     messages_last_month = CustomerMessage.objects.filter(
-#         vendor=vendor,
-#         sent_at__lte=last_month
-#     ).count()
-    
-#     messages_change = calculate_percentage_change(
-#         messages_sent,
-#         messages_last_month
-#     )
-
-#     stats = {
-#         'total_products': total_products,
-#         'products_change_percentage': products_change,
-#         'active_customers': active_customers,
-#         'customers_change_percentage': customers_change,
-#         'events_this_month': events_this_month,
-#         'events_change': events_change,
-#         'messages_sent': messages_sent,
-#         'messages_change_percentage': messages_change,
-#     }
-
-#     serializer = DashboardStatsSerializer(stats)
-#     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -172,48 +67,6 @@ def recent_activity(request):
     
     serializer = ActivityLogSerializer(activities, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-# @api_view(['POST'])
-# @permission_classes([IsAuthenticated])
-# def create_event(request):
-#     """
-#     Create a new event
-    
-#     Required fields:
-#         - name: Event name
-#         - start_date: Event start datetime
-#         - end_date: Event end datetime
-    
-#     Optional fields:
-#         - description: Event description
-#         - event_type: Type of event
-#         - status: Event status (default: draft)
-#     """
-#     try:
-#         vendor = request.user.vendor
-#     except AttributeError:
-#         return Response(
-#             {'error': 'User is not associated with a vendor'},
-#             status=status.HTTP_403_FORBIDDEN
-#         )
-    
-#     serializer = EventSerializer(data=request.data)
-#     if serializer.is_valid():
-#         event = serializer.save(vendor=vendor)
-        
-#         # Log activity
-#         ActivityLog.objects.create(
-#             vendor=vendor,
-#             activity_type='event_created',
-#             description=f'Event "{event.name}" created',
-#             metadata={'event_id': event.id, 'event_name': event.name}
-#         )
-        
-#         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
-#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -392,42 +245,6 @@ def send_message(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def get_events(request):
-#     """
-#     Get all events for vendor
-    
-#     Query Parameters:
-#         - status: Filter by status (draft, scheduled, active, completed, cancelled)
-#         - limit: Number of events to return (default: all)
-#     """
-#     try:
-#         vendor = request.user.vendor
-#     except AttributeError:
-#         return Response(
-#             {'error': 'User is not associated with a vendor'},
-#             status=status.HTTP_403_FORBIDDEN
-#         )
-    
-#     events = Event.objects.filter(vendor=vendor)
-    
-#     # Filter by status if provided
-#     event_status = request.query_params.get('status')
-#     if event_status:
-#         events = events.filter(status=event_status)
-    
-#     # Limit results if specified
-#     limit = request.query_params.get('limit')
-#     if limit:
-#         try:
-#             events = events[:int(limit)]
-#         except ValueError:
-#             pass
-    
-#     serializer = EventSerializer(events, many=True)
-#     return Response(serializer.data, status=status.HTTP_200_OK)
-
 from django.core.paginator import Paginator
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -548,14 +365,14 @@ def customer_stats(request):
     return Response({'customer_stats': get_customer_stats_cached(vendor)})
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def recent_activities(request):
-    vendor = getattr(request.user, 'vendor', None)
-    if not vendor:
-        return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def recent_activities(request):
+#     vendor = getattr(request.user, 'vendor', None)
+#     if not vendor:
+#         return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
         
-    return Response(get_activity_data(vendor))
+#     return Response(get_activity_data(vendor))
 
 
 @api_view(['GET'])
@@ -569,3 +386,203 @@ def dashboard_summary(request):
 
 
 
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_invoices(request):
+
+    if not hasattr(request.user, "vendor"):
+        return Response(
+            {"error": "Only vendors can access invoices"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    vendor = request.user.vendor
+
+    page = int(request.GET.get("page", 1))
+    page_size = int(request.GET.get("page_size", 10))
+    search = request.GET.get("search", "").strip()
+    pending_only = request.GET.get("pending_only", "false") == "true"
+
+    start_date = request.GET.get("start_date")
+    end_date = request.GET.get("end_date")
+
+    data = get_vendor_invoices(
+        vendor=vendor,
+        page=page,
+        page_size=page_size,
+        search=search,
+        pending_only=pending_only,
+        start_date=start_date,
+        end_date=end_date
+    )
+
+    return Response(data)
+
+
+
+@api_view(['GET'])
+def get_invoice_by_id(request, invoice_id):
+    try:
+        invoice = Invoice.objects.get(id=invoice_id)
+    except Invoice.DoesNotExist:
+        return Response({"error": "Invoice not found"}, status=404)
+
+    serializer = InvoiceSerializer(invoice)
+    return Response(serializer.data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_invoice(request):
+
+    if not hasattr(request.user, "vendor"):
+        return Response(
+            {"error": "Only vendors can create invoices"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    vendor = request.user.vendor
+    data = request.data
+
+    serializer = InvoiceSerializer(data=data)
+
+    if serializer.is_valid():
+        serializer.save(vendor=vendor)
+        return Response(serializer.data, status=201)
+
+    return Response(serializer.errors, status=400)
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+
+from .models import Invoice, InvoiceChangeLog
+from .serializers import InvoiceSerializer, InvoiceChangeLogSerializer
+
+
+
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def update_invoice(request, invoice_id):
+    # Ensure vendor user
+    if not hasattr(request.user, "vendor"):
+        return Response(
+            {"error": "Only vendors can update invoices"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    vendor = request.user.vendor
+
+    # Vendor-scoped invoice
+    invoice = get_object_or_404(Invoice, id=invoice_id, vendor=vendor)
+
+    # Snapshot old data before update
+    old_data = InvoiceSerializer(invoice).data
+
+    serializer = InvoiceSerializer(invoice, data=request.data, partial=True)
+
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # Save invoice (mutates `invoice` instance)
+    serializer.save()
+
+    # Refresh new data
+    new_data = serializer.data
+
+    # Build changes diff
+    changes = build_invoice_changes(old_data, new_data)
+
+    # If something actually changed, create log
+    if changes:
+        InvoiceChangeLog.objects.create(
+            invoice=invoice,
+            vendor=vendor,
+            changed_by=request.user,
+            change_type="update",
+            changes=changes,
+        )
+
+    return Response(new_data, status=status.HTTP_200_OK)
+
+
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_invoice(request, invoice_id):
+
+    if not hasattr(request.user, "vendor"):
+        return Response(
+            {"error": "Unauthorized"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    vendor = request.user.vendor
+
+    try:
+        invoice = Invoice.objects.get(id=invoice_id, vendor=vendor)
+    except Invoice.DoesNotExist:
+        return Response({"error": "Invoice not found"}, status=404)
+
+    invoice.delete()
+    return Response({"success": "Invoice deleted successfully"})
+
+
+
+
+
+import csv
+from io import TextIOWrapper
+
+@api_view(['POST'])
+def upload_invoices_csv(request):
+    file = request.FILES.get('file')
+
+    if not file:
+        return Response({"error": "No file provided"}, status=400)
+
+    decoded_file = TextIOWrapper(file, encoding='utf-8')
+    reader = csv.DictReader(decoded_file)
+
+    created = 0
+
+    for row in reader:
+        Invoice.objects.create(
+            customer_name=row.get("customer_name"),
+            customer_phone=row.get("customer_phone"),
+            total_amount=float(row.get("total_amount", 0)),
+            paid_amount=float(row.get("paid_amount", 0)),
+            pending_amount=float(row.get("pending_amount", 0)),
+            is_udhaari=row.get("is_udhaari", "false") == "true",
+            invoice_date=row.get("invoice_date"),
+            items=[],
+        )
+        created += 1
+
+    return Response({"message": f"{created} invoices uploaded successfully"})
+
+
+
+# dashboard/views.py
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def invoice_history(request, invoice_id):
+    if not hasattr(request.user, "vendor"):
+        return Response(
+            {"error": "Only vendors can view invoice history"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    vendor = request.user.vendor
+
+    invoice = get_object_or_404(Invoice, id=invoice_id, vendor=vendor)
+
+    logs = invoice.change_logs.all().order_by("-created_at")
+
+    serializer = InvoiceChangeLogSerializer(logs, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import  CustomerMessage, Customer, ActivityLog
+from .models import  CustomerMessage, Customer, ActivityLog,Invoice
 
 
 # @admin.register(Event)
@@ -33,3 +33,8 @@ class ActivityLogAdmin(admin.ModelAdmin):
     search_fields = ['description', 'vendor__business_name']
     date_hierarchy = 'created_at'
     readonly_fields = ['created_at']
+    
+    
+@admin.register(Invoice)
+class InvoiceAdmin(admin.ModelAdmin):
+    list_display = ('id',)

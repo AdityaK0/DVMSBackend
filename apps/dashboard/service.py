@@ -2,10 +2,13 @@
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 from django.core.cache import cache
-from .models import  Customer, CustomerMessage, ActivityLog
-from .serializers import ActivityLogSerializer
+from .models import  Customer
 from  apps.utils.cache import cache_safe_get
 from apps.products.models import Product
+from django.core.paginator import Paginator
+from django.db.models import Q
+from .models import Invoice
+from .serializers import InvoiceSerializer
 
 
 def get_product_stats_cached(vendor):
@@ -45,18 +48,6 @@ def get_customer_stats(vendor):
         'total_inactive_customers': total_inactive_customers
     }
 
-# def get_activity_data(vendor):
-#     current_month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-#     events_count = Event.objects.filter(vendor=vendor, created_at__gte=current_month_start, is_active=True).count()
-#     messages_sent = CustomerMessage.objects.filter(vendor=vendor).count()
-#     logs = ActivityLog.objects.filter(vendor=vendor).order_by('-created_at')[:5]
-#     logs_data = ActivityLogSerializer(logs, many=True).data
-
-#     return {
-#         'events_this_month': events_count,
-#         'messages_sent': messages_sent,
-#         'recent_activities': logs_data
-#     }
 
 def get_dashboard_summary(vendor):
     """Return all cached dashboard data"""
@@ -70,3 +61,99 @@ def get_dashboard_summary(vendor):
         # }
     }
 
+
+
+def get_vendor_invoices(
+    vendor,
+    page=1,
+    page_size=10,
+    search="",
+    pending_only=False,
+    start_date=None,
+    end_date=None
+):
+    """
+    Unified invoice service for vendor:
+    - Search by phone / customer name
+    - Filter by pending only
+    - Filter by date range
+    - Pagination
+    """
+
+    queryset = Invoice.objects.filter(
+        vendor=vendor
+    ).order_by("-created_at")
+
+    # Search filter
+    if search:
+        queryset = queryset.filter(
+            Q(customer_phone__icontains=search) |
+            Q(customer_name__icontains=search)
+        )
+
+    # Pending only filter
+    if pending_only:
+        queryset = queryset.filter(pending_amount__gt=0)
+
+    # Date filters
+    if start_date:
+        queryset = queryset.filter(invoice_date__gte=start_date)
+
+    if end_date:
+        queryset = queryset.filter(invoice_date__lte=end_date)
+
+    # Pagination
+    paginator = Paginator(queryset, page_size)
+    page_obj = paginator.get_page(page)
+
+    serializer = InvoiceSerializer(page_obj.object_list, many=True)
+
+    return {
+        "results": serializer.data,
+        "count": paginator.count,
+        "total_pages": paginator.num_pages,
+        "current_page": page,
+        "has_next": page_obj.has_next(),
+        "has_previous": page_obj.has_previous(),
+    }
+    
+
+
+
+
+# dashboard/services/invoice_history.py (or inside views.py if you prefer)
+
+TRACKED_FIELDS = [
+    "items",
+    "total_amount",
+    "paid_amount",
+    "pending_amount",
+    "is_udhaari",
+    "invoice_date",
+]
+
+def build_invoice_changes(old_data, new_data, tracked_fields=None):
+    """
+    Compare old vs new invoice data and return a dict of changes:
+    {
+      "field_name": {"old": ..., "new": ...},
+      ...
+    }
+    """
+    if tracked_fields is None:
+        tracked_fields = TRACKED_FIELDS
+
+    changes = {}
+
+    for field in tracked_fields:
+        old_val = old_data.get(field)
+        new_val = new_data.get(field)
+
+        # DRF often returns nested objects / lists; equality works fine for JSON
+        if old_val != new_val:
+            changes[field] = {
+                "old": old_val,
+                "new": new_val,
+            }
+
+    return changes

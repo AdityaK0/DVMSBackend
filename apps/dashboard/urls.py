@@ -32,8 +32,19 @@ urlpatterns = [
     # Dashboard Stats 
     path('products-stats/', views.product_stats, name='dashboard-products-stats'),
     path('customers-stats/', views.customer_stats, name='dashboard-customers-stats'),
-    path('recent-activities/', views.recent_activities, name='dashboard-recent-activities'),
+    # path('recent-activities/', views.recent_activities, name='dashboard-recent-activities'),
     
     # Optional unified summary API
     path('summary/', views.dashboard_summary, name='dashboard-summary'),
+    
+    
+    path('invoices/', views.get_invoices, name='get-invoices'),
+    path('invoices/<int:invoice_id>/', views.get_invoice_by_id, name='get-invoice'),
+    path('invoices/create/', views.create_invoice, name='create-invoice'),
+    path("invoices/<int:invoice_id>/update/", views.update_invoice, name="update-invoice"),
+    path("invoices/<int:invoice_id>/history/", views.invoice_history, name="invoice-history"),
+    path('invoices/<int:invoice_id>/delete/', views.delete_invoice, name='delete-invoice'),
+
+    # File Upload
+    path('invoices/upload/', views.upload_invoices_csv, name='upload-invoices'),
 ]
