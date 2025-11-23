@@ -1,5 +1,33 @@
 
 
+-- Bill generator implementation like
+we will provide you the bill templates choose one add details and 
+save it will get 2 option download edit 
+and if edited then will have to mark that particular stuff as
+edited bill after Creation
+
+in this way i think vendor can manage his 
+cloth which he/she had sold via udhaari system so they can share that
+generated bill with customer too 
+like all detail what they have purchased and when purchased 
+how much paid , how much remained , take customer detail 
+like his phone number and save it into the customer table 
+or will get option from the bill it self like hey 
+add this customer in the customer table and if the customer already 
+exists as per the number check then just update the 
+pending amount in the customer table pending_amount field 
+while creating bill we have to give option like
+does the customer is taking the cloths on pending payments yes then 
+add customer phone number if does not exists in the customer table
+then automatically add if already exists then update the customer 
+table data with pending amounts and 
+
+need filters in the bill table like filter by month range
+phone number and many more if needed
+
+  -- new feature instead on Analysis Stuff ok 
+
+
 -- BUG 
 -- CAN ONE USER UPDATE ANOTHER USER DATA OR ANOTHER USER PRODUCT
 
