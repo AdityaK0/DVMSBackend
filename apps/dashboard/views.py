@@ -29,6 +29,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from apps.subscriptions.permissions import IsSubscribedOrReadOnly
 
 def calculate_percentage_change(current, previous):
     """Calculate percentage change between current and previous values"""
@@ -71,7 +72,7 @@ def recent_activity(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsSubscribedOrReadOnly])
 def create_customer(request):
     """
     Register a new customer for the vendor.
@@ -316,7 +317,7 @@ def get_customers(request):
 
 
 @api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsSubscribedOrReadOnly])
 def delete_activity(request, activity_id):
     """
     Delete a specific activity log
@@ -437,7 +438,7 @@ def get_invoice_by_id(request, invoice_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsSubscribedOrReadOnly])
 def create_invoice(request):
 
     if not hasattr(request.user, "vendor"):

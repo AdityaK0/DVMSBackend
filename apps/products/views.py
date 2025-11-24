@@ -14,6 +14,7 @@ from ..utils.upload_image import upload_product_images,delete_product_images
 from django.db import connection
 from .service import get_vendor_products_combined, get_filtered_products
 import cloudinary.uploader
+from apps.subscriptions.permissions import IsSubscribedOrReadOnly
 
 
 
@@ -128,7 +129,7 @@ from .models import Product, Category
 from .serializers import ProductSerializer
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsSubscribedOrReadOnly])
 def create_product(request):
     """Create a new product (text data only)."""
     if not hasattr(request.user, 'vendor'):
