@@ -408,8 +408,9 @@ def get_invoices(request):
     start_date = request.GET.get("start_date")
     end_date = request.GET.get("end_date")
 
-    data = get_vendor_invoices(
+    data = get_vendor_invoices_combined(
         vendor=vendor,
+        request=request,
         page=page,
         page_size=page_size,
         search=search,

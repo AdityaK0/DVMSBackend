@@ -100,6 +100,86 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+        read_only_fields = ["created_at", "updated_at"]
+
+    def validate(self, data):
+        """
+        Enforce consistency:
+        1. Recalculate total_amount from items.
+        2. Validate price/qty.
+        3. Compute pending_amount based on total, paid, and is_udhaari.
+        """
+        # Handle partial updates: fallback to instance data if field missing
+        items = data.get("items")
+        if items is None and self.instance:
+            items = self.instance.items
+        
+        # If items is still None (e.g. create without items), default to empty list
+        items = items or []
+
+        if not items:
+             # For create, we require items. For update, if we ended up with no items, that's an issue.
+             raise serializers.ValidationError({"items": "At least one item is required."})
+
+        calculated_total = 0.0
+        validated_items = []
+
+        for item in items:
+            # item might be a dict or OrderedDict
+            name = item.get("name", "").strip()
+            try:
+                price = float(item.get("price", 0))
+                qty = float(item.get("qty", 1))
+            except (ValueError, TypeError):
+                raise serializers.ValidationError({"items": "Price and Quantity must be valid numbers."})
+
+            if not name:
+                raise serializers.ValidationError({"items": "Item name is required."})
+            if price < 0:
+                raise serializers.ValidationError({"items": f"Price for '{name}' cannot be negative."})
+            if qty < 1:
+                raise serializers.ValidationError({"items": f"Quantity for '{name}' must be at least 1."})
+
+            total = price * qty
+            calculated_total += total
+            
+            validated_items.append({
+                "name": name,
+                "price": price,
+                "qty": qty,
+                "total": total
+            })
+
+        # Always override items and total_amount
+        data["items"] = validated_items
+        data["total_amount"] = calculated_total
+
+        # Paid Amount
+        paid_amount = data.get("paid_amount")
+        if paid_amount is None and self.instance:
+            paid_amount = self.instance.paid_amount
+        paid_amount = float(paid_amount or 0)
+
+        if paid_amount < 0:
+            raise serializers.ValidationError({"paid_amount": "Paid amount cannot be negative."})
+        data["paid_amount"] = paid_amount
+
+        # Udhaari Status
+        is_udhaari = data.get("is_udhaari")
+        if is_udhaari is None and self.instance:
+            is_udhaari = self.instance.is_udhaari
+        # Default to False if not found anywhere (e.g. create)
+        if is_udhaari is None:
+            is_udhaari = False
+
+        # Compute Pending Amount
+        if not is_udhaari:
+            data["pending_amount"] = 0.0
+        else:
+            pending = calculated_total - paid_amount
+            data["pending_amount"] = max(pending, 0.0)
+
+        return data
 
 
 class InvoiceChangeLogSerializer(serializers.ModelSerializer):

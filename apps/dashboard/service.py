@@ -63,8 +63,9 @@ def get_dashboard_summary(vendor):
 
 
 
-def get_vendor_invoices(
+def get_vendor_invoices_combined(
     vendor,
+    request=None,
     page=1,
     page_size=10,
     search="",
