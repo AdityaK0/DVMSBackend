@@ -8,12 +8,14 @@ from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.core.cache import cache
 from apps.products.models import Product
-from .models import  CustomerMessage, Customer, ActivityLog
+from .models import  CustomerMessage, Customer, ActivityLog, InvoicePayment, InvoiceChangeLog
 from .serializers import (
     DashboardStatsSerializer, 
     ActivityLogSerializer,
     CustomerSerializer,
-    CustomerMessageSerializer
+    InvoiceChangeLogSerializer
+    
+    # CustomerMessageSerializer
 )
 from .service import *
 from apps.dashboard.service import get_customer_stats_cached
@@ -202,47 +204,47 @@ def delete_customer(request, customer_id):
         status=status.HTTP_200_OK,
     )
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def send_message(request):
-    """
-    Send a message/campaign to customers
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def send_message(request):
+#     """
+#     Send a message/campaign to customers
     
-    Required fields:
-        - subject: Message subject
-        - message: Message content
-        - recipient_count: Number of recipients
+#     Required fields:
+#         - subject: Message subject
+#         - message: Message content
+#         - recipient_count: Number of recipients
     
-    Optional fields:
-        - message_type: Type of message (default: notification)
-    """
-    try:
-        vendor = request.user.vendor
-    except AttributeError:
-        return Response(
-            {'error': 'User is not associated with a vendor'},
-            status=status.HTTP_403_FORBIDDEN
-        )
+#     Optional fields:
+#         - message_type: Type of message (default: notification)
+#     """
+#     try:
+#         vendor = request.user.vendor
+#     except AttributeError:
+#         return Response(
+#             {'error': 'User is not associated with a vendor'},
+#             status=status.HTTP_403_FORBIDDEN
+#         )
     
-    serializer = CustomerMessageSerializer(data=request.data)
-    if serializer.is_valid():
-        message = serializer.save(vendor=vendor)
+#     serializer = CustomerMessageSerializer(data=request.data)
+#     if serializer.is_valid():
+#         message = serializer.save(vendor=vendor)
         
-        # Log activity
-        ActivityLog.objects.create(
-            vendor=vendor,
-            activity_type='message_sent',
-            description=f'Campaign message sent to {message.recipient_count} customers',
-            metadata={
-                'message_id': message.id,
-                'subject': message.subject,
-                'recipient_count': message.recipient_count
-            }
-        )
+#         # Log activity
+#         ActivityLog.objects.create(
+#             vendor=vendor,
+#             activity_type='message_sent',
+#             description=f'Campaign message sent to {message.recipient_count} customers',
+#             metadata={
+#                 'message_id': message.id,
+#                 'subject': message.subject,
+#                 'recipient_count': message.recipient_count
+#             }
+#         )
         
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 from django.core.paginator import Paginator
@@ -450,19 +452,23 @@ def create_invoice(request):
     serializer = InvoiceSerializer(data=data)
 
     if serializer.is_valid():
-        serializer.save(vendor=vendor)
+        # Lock invoice on creation
+        invoice = serializer.save(vendor=vendor, is_locked=True)
+        
+        # If there is an initial paid amount, we should probably record it as a payment?
+        # For now, we trust the serializer's handling of paid_amount for the initial record.
+        # But to be strictly consistent with "Payments must be tracked separately", 
+        # we should create a payment record if paid_amount > 0.
+        if invoice.paid_amount > 0:
+            InvoicePayment.objects.create(
+                invoice=invoice,
+                amount=invoice.paid_amount,
+                note="Initial payment at creation"
+            )
+
         return Response(serializer.data, status=201)
 
     return Response(serializer.errors, status=400)
-
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-from django.shortcuts import get_object_or_404
-
-from .models import Invoice, InvoiceChangeLog
-from .serializers import InvoiceSerializer, InvoiceChangeLogSerializer
-
 
 
 @api_view(["PUT"])
@@ -508,6 +514,54 @@ def update_invoice(request, invoice_id):
         )
 
     return Response(new_data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_payment(request, invoice_id):
+    if not hasattr(request.user, "vendor"):
+        return Response({"error": "Unauthorized"}, status=403)
+    
+    vendor = request.user.vendor
+    invoice = get_object_or_404(Invoice, id=invoice_id, vendor=vendor)
+    
+    amount = float(request.data.get("amount", 0))
+    note = request.data.get("note", "")
+    
+    if amount <= 0:
+        return Response({"error": "Amount must be positive"}, status=400)
+    
+    # Check overpayment
+    # Allow small buffer for float errors? No, strict.
+    if invoice.paid_amount + amount > invoice.total_amount:
+         return Response({"error": "Payment exceeds pending amount"}, status=400)
+
+    # Create Payment
+    payment = InvoicePayment.objects.create(
+        invoice=invoice,
+        amount=amount,
+        note=note
+    )
+    
+    # Update Invoice
+    invoice.paid_amount += amount
+    invoice.pending_amount = max(invoice.total_amount - invoice.paid_amount, 0)
+    invoice.save()
+    
+    # Log Change
+    InvoiceChangeLog.objects.create(
+        invoice=invoice,
+        vendor=vendor,
+        changed_by=request.user,
+        change_type="payment",
+        changes={"payment": f"Added payment of {amount}"}
+    )
+    
+    return Response({
+        "message": "Payment added successfully",
+        "paid_amount": invoice.paid_amount,
+        "pending_amount": invoice.pending_amount
+    })
 
 
 

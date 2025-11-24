@@ -26,7 +26,7 @@ urlpatterns = [
     
     
     # Messages
-    path('messages/send/', views.send_message, name='send-message'),
+    # path('messages/send/', views.send_message, name='send-message'),
     
     
     # Dashboard Stats 
@@ -42,6 +42,7 @@ urlpatterns = [
     path('invoices/<int:invoice_id>/', views.get_invoice_by_id, name='get-invoice'),
     path('invoices/create/', views.create_invoice, name='create-invoice'),
     path("invoices/<int:invoice_id>/update/", views.update_invoice, name="update-invoice"),
+    path("invoices/<int:invoice_id>/payments/", views.add_payment, name="add-payment"),
     path("invoices/<int:invoice_id>/history/", views.invoice_history, name="invoice-history"),
     path('invoices/<int:invoice_id>/delete/', views.delete_invoice, name='delete-invoice'),
 

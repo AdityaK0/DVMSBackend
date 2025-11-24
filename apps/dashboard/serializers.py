@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import  CustomerMessage, Customer, ActivityLog
+from .models import Invoice, InvoiceChangeLog, InvoicePayment, Customer, ActivityLog
 
 class DashboardStatsSerializer(serializers.Serializer):
     """Serializer for dashboard statistics"""
@@ -70,21 +70,28 @@ class CustomerSerializer(serializers.ModelSerializer):
         read_only_fields = ['registered_at']
 
 
-class CustomerMessageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomerMessage
-        fields = ['id', 'subject', 'message', 'message_type', 
-                  'recipient_count', 'sent_at']
-        read_only_fields = ['sent_at']
+# class CustomerMessageSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = CustomerMessage
+#         fields = ['id', 'subject', 'message', 'message_type', 
+#                   'recipient_count', 'sent_at']
+#         read_only_fields = ['sent_at']
         
         
  
 # dashboard/serializers.py
 
 from rest_framework import serializers
-from .models import Invoice, InvoiceChangeLog
+class InvoicePaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InvoicePayment
+        fields = ["id", "amount", "note", "created_at"]
+        read_only_fields = ["created_at"]
+
 
 class InvoiceSerializer(serializers.ModelSerializer):
+    payments = InvoicePaymentSerializer(many=True, read_only=True)
+
     class Meta:
         model = Invoice
         fields = [
@@ -97,10 +104,13 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "pending_amount",
             "is_udhaari",
             "invoice_date",
+            "is_locked",
+            "is_edited",
+            "payments",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at"]
+        read_only_fields = ["created_at", "updated_at", "is_locked", "paid_amount", "pending_amount"]
 
     def validate(self, data):
         """
@@ -116,6 +126,19 @@ class InvoiceSerializer(serializers.ModelSerializer):
         
         # If items is still None (e.g. create without items), default to empty list
         items = items or []
+
+        # If locked, prevent item changes
+        if self.instance and self.instance.is_locked:
+            # If items are being sent and they are different, raise error
+            # For simplicity, we just ignore the input items if locked and use instance items
+            # But strictly speaking we should probably raise an error if they try to change it.
+            # However, the requirement says "Do NOT allow changes to items". 
+            # We will enforce this by not allowing 'items' to be updated if locked.
+            if "items" in data:
+                 # If user tries to change items on locked invoice, ignore it or error.
+                 # Let's ignore it to be safe and just use existing items.
+                 items = self.instance.items
+                 data["items"] = items
 
         if not items:
              # For create, we require items. For update, if we ended up with no items, that's an issue.
@@ -154,14 +177,22 @@ class InvoiceSerializer(serializers.ModelSerializer):
         data["items"] = validated_items
         data["total_amount"] = calculated_total
 
-        # Paid Amount
-        paid_amount = data.get("paid_amount")
-        if paid_amount is None and self.instance:
+        # Paid Amount - managed via payments now, but for create we might accept initial paid
+        # For update, paid_amount is read-only (managed by payments)
+        if self.instance:
             paid_amount = self.instance.paid_amount
-        paid_amount = float(paid_amount or 0)
-
+        else:
+            paid_amount = float(data.get("paid_amount", 0))
+        
         if paid_amount < 0:
             raise serializers.ValidationError({"paid_amount": "Paid amount cannot be negative."})
+        
+        # Ensure paid doesn't exceed total (basic check, though payments API will enforce stricter)
+        if paid_amount > calculated_total:
+             # On create, clamp it? Or error? Requirement says "paid_amount cannot exceed total_amount"
+             # Let's error to be clear
+             raise serializers.ValidationError({"paid_amount": "Paid amount cannot exceed Total amount."})
+
         data["paid_amount"] = paid_amount
 
         # Udhaari Status

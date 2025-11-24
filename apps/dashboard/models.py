@@ -88,19 +88,32 @@ class Invoice(models.Model):
     invoice_date = models.DateField()
     is_edited = models.BooleanField(default=False)
 
+    is_locked = models.BooleanField(default=False)  # NEW: prevents item edits
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"Invoice #{self.id} - {self.customer_phone}"
-    
-    
+
+
+class InvoicePayment(models.Model):
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="payments")
+    amount = models.FloatField()
+    note = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Payment of {self.amount} for Invoice #{self.invoice_id}"
+
+
 # dashboard/models.py
 
 class InvoiceChangeLog(models.Model):
     CHANGE_TYPE_CHOICES = [
         ("update", "Update"),
         ("manual_adjust", "Manual Adjust"),
+        ("payment", "Payment"),
     ]
 
     invoice = models.ForeignKey(
