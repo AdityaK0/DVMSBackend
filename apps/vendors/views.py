@@ -381,6 +381,34 @@ def create_event(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(["PUT", "PATCH"])
+@permission_classes([permissions.IsAdminUser])
+def update_event(request, event_id):
+    """
+    Admin updates an existing event.
+    """
+    event = get_object_or_404(Event, id=event_id)
+    
+    serializer = EventSerializer(event, data=request.data, partial=True)
+    if serializer.is_valid():
+        updated_event = serializer.save()
+        updated_event.auto_update_status()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["DELETE"])
+@permission_classes([permissions.IsAdminUser])
+def delete_event(request, event_id):
+    """
+    Admin deletes an event (and all associated posters).
+    """
+    event = get_object_or_404(Event, id=event_id)
+    event.delete()
+    return Response({"detail": "Event deleted successfully"}, status=status.HTTP_200_OK)
+
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAdminUser])
 def create_poster(request, event_id):
@@ -398,6 +426,34 @@ def create_poster(request, event_id):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["PUT", "PATCH"])
+@permission_classes([permissions.IsAdminUser])
+def update_poster(request, poster_id):
+    """
+    Admin updates an existing poster template.
+    """
+    poster = get_object_or_404(PosterTemplate, id=poster_id)
+    
+    serializer = PosterTemplateSerializer(poster, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["DELETE"])
+@permission_classes([permissions.IsAdminUser])
+def delete_poster(request, poster_id):
+    """
+    Admin deletes a poster template.
+    """
+    poster = get_object_or_404(PosterTemplate, id=poster_id)
+    poster.delete()
+    return Response({"detail": "Poster template deleted successfully"}, status=status.HTTP_200_OK)
+
 
 @api_view(["GET"])
 @permission_classes([IsVendor | permissions.IsAdminUser])

@@ -109,8 +109,9 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 
-                 'phone_number', 'role', 'is_verified', 'created_at', 'vendor_profile', 'addresses']
-        read_only_fields = ['id', 'created_at', 'is_verified']
+                 'phone_number', 'role', 'is_verified', 'is_staff', 'is_superuser', 
+                 'created_at', 'vendor_profile', 'addresses']
+        read_only_fields = ['id', 'created_at', 'is_verified', 'is_staff', 'is_superuser']
 
 
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
