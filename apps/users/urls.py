@@ -2,7 +2,7 @@ from apps.core import views
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
-    UserRegistrationView, UserLoginView, UserProfileView,user_profile_update_fbv,logout,
+    UserRegistrationView, UserProfileView,user_profile_update_fbv,logout,
     AddressListCreateView, AddressDetailView,me_view
 )
 from . import telegram_views

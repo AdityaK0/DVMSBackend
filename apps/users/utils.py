@@ -9,10 +9,6 @@ import redis
 import secrets
 r = redis.from_url(settings.REDIS_URL)
 
-# def send_telegram_message(chat_id, text):
-#     url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
-#     data = {"chat_id": chat_id, "text": text}
-#     requests.post(url, json=data)
     
     
 

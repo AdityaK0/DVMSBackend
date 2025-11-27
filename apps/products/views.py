@@ -217,6 +217,18 @@ def vendor_products(request):
     page_size = int(request.GET.get('page_size', 10))
     query = request.GET.get('q',"").strip()
 
+    data = get_vendor_products_combined(
+        vendor,
+        request=None,
+        page=page,
+        page_size=page_size,
+        query=query,
+        include_private=False,
+    )
+        
+    return Response(data)
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def filter_products(request):

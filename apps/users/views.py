@@ -53,22 +53,18 @@ class UserProfileView(generics.RetrieveAPIView):
     def get_object(self):
         return self.request.user
     
-# myapp/views.py
 
-# URL suggests users can update other profiles via PK
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def user_profile_update_fbv(request,pk=None):
     """
     Updates the profile of the currently authenticated user.
     """
-    # Retrieve the user instance from the request
     user = request.user
-# Line 57: Replace print with logger
-# print(request.data)
+
     logger.debug(f"Profile update request for user {request.user.id}: {request.data}")
-    # Pass the instance to the serializer
-    # For PATCH requests, pass partial=True to allow partial updates
+
+
     serializer = UserProfileUpdateSerializer(
         user,
         data=request.data,
@@ -112,7 +108,7 @@ def logout(request):
             )
         
         token = RefreshToken(refresh_token)
-        token.blacklist()  # ✅ only works if blacklist app enabled
+        token.blacklist()  #  only works if blacklist app enabled
 
         return Response({"message": "Logout successful!"}, status=status.HTTP_200_OK) 
     except Exception as e:
@@ -126,20 +122,13 @@ def me_view(request):
     """
     Returns complete authenticated user context:
     - user info
-    - vendor info
     - addresses
     """
     user = request.user
 
-    # Try to fetch vendor
-    vendor = Vendor.objects.filter(user=user).first()
-
     data = {
         "user": UserSerializer(user).data,
-        "vendor": None
     }
 
-    if vendor:
-        data["vendor"] = VendorSerializer(vendor).data
 
     return Response(data, status=status.HTTP_200_OK)

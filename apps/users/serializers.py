@@ -1,7 +1,10 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import User, Address, CustomerProfile, VendorProfile
+from .models import (
+    User, Address,
+    # VendorProfile
+)
 from ..vendors.models import Vendor
 from apps.vendors.serializers import VendorSerializer
 
@@ -14,27 +17,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         fields = ['username', 'email', 'first_name', 'last_name', 'phone_number', 
                  'role', 'password', 'password_confirm']
         
-    
-    
-    # def validate_email(self, value):
-    #     if User.objects.filter(email=value).exists():
-    #         raise serializers.ValidationError("A user with this email already exists.")
-    #     return value
-
-    # def validate_phone_number(self, value):
-    #     if not value.isdigit():
-    #         raise serializers.ValidationError("Phone number must contain only digits.")
-    #     if len(value) < 10 or len(value) > 15:
-    #         raise serializers.ValidationError("Phone number must be between 10 and 15 digits.")
-    #     return value
-
-    # def validate_username(self, value):
-    #     if not value.isalnum():
-    #          raise serializers.ValidationError("Username must contain only alphanumeric characters.")
-    #     if User.objects.filter(username=value).exists():
-    #         raise serializers.ValidationError("A user with this username already exists.")
-    #     return value
-
     def validate_role(self, value):
         # Prevent users from creating admin accounts
         if value == "admin":
@@ -62,11 +44,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         
-        if user.role == 'customer':
-            CustomerProfile.objects.create(user=user)
-        elif user.role == 'vendor':
+        if user.role == 'vendor':
             vendor = Vendor.objects.create(user=user, business_name=f"{user.first_name}'s Business")
-            VendorProfile.objects.create(vendor=vendor)
+            # VendorProfile.objects.create(vendor=vendor)
         return user
 
 class UserLoginSerializer(serializers.Serializer):
@@ -95,11 +75,6 @@ class AddressSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['user']
 
-class CustomerProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomerProfile
-        fields = '__all__'
-        read_only_fields = ['user']
 
         
 class UserSerializer(serializers.ModelSerializer):
@@ -125,17 +100,6 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
             'last_name',
             'phone_number'
         ]
-        # def update(self, instance, validated_data):
-        #     # Example of a bug where first_name is not handled correctly
-        #     # This is just an illustration; your code may look different
-        #     instance.first_name = validated_data.get('first_name', instance.first_name)
-        #     instance.last_name = validated_data.get('last_name', instance.last_name)
-        #     instance.phone_number = validated_data.get('phone_number', instance.phone_number)
-            
-        #     # If first_name handling is missing or buggy
-        #     # validated_data.get('first_name', instance.first_name) might resolve to an empty string incorrectly
-        #     instance.save()
-        #     return instance
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):

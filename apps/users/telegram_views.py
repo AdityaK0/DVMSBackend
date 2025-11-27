@@ -31,28 +31,6 @@ def generate_telegram_link(request):
 
 
 
-# @api_view(["POST"])
-# @permission_classes([AllowAny])
-# def telegram_webhook(request):
-
-#     # ✅ verify bot secret
-#     header_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
-#     if header_secret != settings.TELEGRAM_WEBHOOK_SECRET:
-#         return Response({"error": "forbidden"}, status=403)
-
-#     data = request.data
-
-#     try:
-#         # ✅ Send to Celery
-#         process_telegram_celery.delay(data)
-#     except Exception:
-#         # ✅ Celery down? Fallback to direct execution
-#         process_telegram_update(data)
-
-#     return Response({"ok": True}) 
-
-
-
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -65,23 +43,6 @@ def telegram_webhook(request):
     
     process_telegram_update(data)
     
-
-    # ✅ store event as background task
-    # task = BackgroundTask.objects.create(
-    #     task_type="TELEGRAM_LINK",
-    #     status=BackgroundTask.Status.PENDING, not using celery here cause telegram bot should reply within 1 seconds
-    #     result_data=data,
-    # )
-    
-    # try:
-    #     celery_id = process_telegram_celery.delay(task.id, data)
-    #     task.celery_task_id = celery_id
-    #     task.save()
-    # except:
-    #     # fallback if celery unavailable
-    #     process_telegram_update(data)
-    #     task.status = BackgroundTask.Status.COMPLETED
-    #     task.save()
 
     return Response({"ok": True})
 
@@ -103,6 +64,7 @@ def request_otp(request):
 
     otp = generate_otp()
     # Reuse existing HMAC-based OTP storage helper, keyed by vendor.id
+    
     store_otp(vendor.id, otp)
     send_telegram_message(
         vendor.telegram_chat_id,

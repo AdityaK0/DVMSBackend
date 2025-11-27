@@ -8,8 +8,6 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 import redis
-import random
-import requests
 from datetime import datetime
 from .serializers import *
 from .utils import send_telegram_message,generate_otp
@@ -32,33 +30,7 @@ User = get_user_model()
 r = redis.from_url(settings.REDIS_URL)
 
 
-import requests
 from django.conf import settings
-
-
-
-# def send_telegram_message(telegram_chat_id, text):
-#     """Send message via Telegram Bot"""
-#     url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
-#     data = {"telegram_chat_id": telegram_chat_id, "text": text}
-#     try:
-#         response = requests.post(url, json=data)
-#         return response.json()
-#     except Exception as e:
-#         print(f"Telegram error: {e}")
-#         return None
-
-# def send_telegram_message(chat_id, text):
-#     """Send message via Telegram Bot"""
-#     url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"
-#     data = {"chat_id": chat_id, "text": text}
-#     try:
-#         response = requests.post(url, json=data)
-#         return response.json()
-#     except Exception as e:
-#         print(f"Telegram error: {e}")
-#         return None
-
 
 
 @csrf_exempt
@@ -327,41 +299,3 @@ def resend_final_otp(request):
     send_telegram_message(vendor.telegram_chat_id, f"Your final verification OTP is: {otp}")
 
     return Response({"success": True, "message": "Final OTP sent"}, status=200)
-
-
-
-# api_view(['POST'])
-# @permission_classes([IsAuthenticated])
-# def verify_final_otp_login_view(request):
-#     phone_number = request.data.get('phone')
-#     otp = request.data.get('otp')
-
-#     if not phone_number or not otp:
-#         return Response({'error': 'Phone and OTP required'}, status=400)
-
-#     redis_key = f"otp:{phone_number}:final"
-#     stored_otp = cache.get(redis_key)
-
-#     if not stored_otp:
-#         return Response({'error': 'OTP expired or not found'}, status=400)
-
-#     if stored_otp != otp:
-#         return Response({'error': 'Invalid OTP'}, status=401)
-
-#     # Get vendor
-#     try:
-#         vendor = Vendor.objects.get(business_phone=phone_number)
-#     except Vendor.DoesNotExist:
-#         return Response({'error': 'Vendor not found'}, status=404)
-
-#     vendor.is_verified = True
-#     vendor.save()
-
-#     # Delete OTP
-#     cache.delete(redis_key)
-
-#     return Response({
-#         "success": True,
-#         "message": "Vendor linked successfully",
-#         "vendor_id": vendor.id
-#     }, status=200)
