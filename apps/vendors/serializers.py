@@ -9,8 +9,8 @@ from .models import Event, PosterTemplate
 
 
 class VendorSerializer(serializers.ModelSerializer):
-    total_products = serializers.ReadOnlyField()
-    average_rating = serializers.ReadOnlyField()
+    # total_products = serializers.ReadOnlyField()
+    # average_rating = serializers.ReadOnlyField()
     address_details = serializers.SerializerMethodField()  # Custom method to get user's address
     # logo_url = serializers.SerializerMethodField()
     # telegram_link_valid = serializers.SerializerMethodField()
@@ -21,8 +21,7 @@ class VendorSerializer(serializers.ModelSerializer):
             "id", "business_name", "business_description",
             "business_email", "business_type", "business_phone","business_name_slug",
             "gstin", "website", "logo",
-            "is_active", "is_verified", 
-            "total_products", "average_rating","whatsapp_number",
+            "is_active", "is_verified","whatsapp_number",
             "created_at", "updated_at", "is_onboarded", "address_details","secret","telegram_chat_id"
         ]
         read_only_fields = ["user", "is_verified", "created_at", "updated_at","logo_url","telegram_chat_id","secret"]
