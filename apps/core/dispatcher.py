@@ -7,7 +7,6 @@ from .events import (
     ActivityCacheUpdateEvent,
 )
 
-
 def handle_event_sync(event):
     """Process cache updates synchronously."""
 

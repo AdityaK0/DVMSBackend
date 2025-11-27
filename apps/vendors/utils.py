@@ -1,4 +1,4 @@
-from core.services.uploads import UploadService
+services.uploads import UploadService
 
 def upload_vendor_logo(vendor, file):
     service = UploadService()

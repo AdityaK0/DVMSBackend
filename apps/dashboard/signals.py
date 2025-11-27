@@ -3,8 +3,8 @@ from django.dispatch import receiver
 from django.core.cache import cache
 from apps.products.models import Product
 from .models import Customer
-from apps.core.events import CustomerCacheUpdateEvent
-from apps.core.dispatcher import handle_event_sync
+# from apps.core.events import CustomerCacheUpdateEvent
+# from apps.core.dispatcher import handle_event_sync
 
 
 # --- Pre-save: track old is_active state for updates ---
@@ -41,8 +41,8 @@ def customer_saved(sender, instance, created, **kwargs):
         "action": action
     }
 
-    event = CustomerCacheUpdateEvent(event_payload)
-    handle_event_sync(event)
+    # event = CustomerCacheUpdateEvent(event_payload)
+    # handle_event_sync(event)
 
 
 # --- Post-delete: handle DELETE ---
@@ -57,5 +57,5 @@ def customer_deleted(sender, instance, **kwargs):
         "action": "DELETED"
     }
 
-    event = CustomerCacheUpdateEvent(event_payload)
-    handle_event_sync(event)
+    # event = CustomerCacheUpdateEvent(event_payload)
+    # handle_event_sync(event)

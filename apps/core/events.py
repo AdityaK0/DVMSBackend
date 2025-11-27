@@ -1,19 +1,26 @@
 # core/events.py
 
 class BaseEvent:
-    """Base event wrapper to hold payloads dynamically."""
-    def __init__(self, event_payload: dict):
-        # Extract all fields directly as attributes for easy access
-        self.event_payload = event_payload
-        for key, value in event_payload.items():
-            setattr(self, key, value)
+    event_name = None
+
+    def __init__(self, payload: dict):
+        self.payload = payload
+        for key, val in payload.items():
+            setattr(self, key, val)
+
+    def publish(self, bg=False):
+        from apps.core.event_bus import EventBus
+        return EventBus.dispatch(self, bg=bg)
 
 
-class ProductCacheUpdateEvent(BaseEvent): 
-    pass
+class ProductUpdated(BaseEvent):
+    event_name = "product.updated"
 
-class CustomerCacheUpdateEvent(BaseEvent): 
-    pass
 
-class ActivityCacheUpdateEvent(BaseEvent): 
-    pass
+class VendorUpdated(BaseEvent):
+    event_name = "vendor.updated"
+
+
+class ProductDeleted(BaseEvent):
+    event_name = "product.deleted"
+    

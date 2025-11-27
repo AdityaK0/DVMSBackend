@@ -6,4 +6,3 @@ class ProductsConfig(AppConfig):
     name = 'apps.products'
     def ready(self):
         import apps.products.signals  # Import signals to register them
-
