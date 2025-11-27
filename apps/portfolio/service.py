@@ -1,26 +1,17 @@
-# apps/portfolio/services.py
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.response import Response
 from apps.portfolio.models import Portfolio, PortfolioCollection,PortfolioSyncPlan
 from apps.portfolio.serializers import PortfolioCollectionSerializer
 from apps.utils.upload_image import upload_collection_image
 from django.conf import settings
-
-
-# apps/portfolio/services.py
-
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from apps.vendors.models import Vendor
 from apps.portfolio.models import (
     Portfolio, PortfolioCollection,
-    # PortfolioTestimonial,PortfolioAnalytics
 )
 from apps.portfolio.serializers import (
      ProductListSerializer,
-    # PortfolioProductSerializer
 )
 from apps.users.serializers import AddressSerializer
 
@@ -38,36 +29,15 @@ class PortfolioService:
             .prefetch_related('user__addresses')
             .get(id=vendor_id, is_active=True)
         )
-        # Fetch public portfolio
         portfolio = get_object_or_404(Portfolio, vendor=vendor, is_public=True)
 
-        # Track page views & last viewed
-        # portfolio.view_count = (portfolio.view_count or 0) + 1
         portfolio.last_viewed = timezone.now()   # last updated can be used here i think
         portfolio.save(update_fields=["view_count", "last_viewed"])
 
-        # Analytics tracking
-        today = timezone.now().date()
-        # analytics, created = PortfolioAnalytics.objects.get_or_create(
-        #     portfolio=portfolio,
-        #     date=today,
-        #     defaults={"page_views": 1, "unique_visitors": 1},
-        # )
-
-        # if not created:
-        #     analytics.page_views = (analytics.page_views or 0) + 1
-        #     analytics.save(update_fields=["page_views"])
-
-        # Other computed values
         total_collections = PortfolioCollection.objects.filter(
             portfolio=portfolio, is_active=True
         ).count()
 
-        # total_testimonials = PortfolioTestimonial.objects.filter(
-        #     portfolio=portfolio, is_approved=True
-        # ).count()
-
-        # featured products
         featured_products = portfolio.get_featured_products()[:8]  
 
         # Prepare response data
@@ -137,7 +107,6 @@ class PortfolioService:
             },
         )
 
-        # We don’t assign remaining_syncs — it's computed dynamically
         if created:
             plan.last_sync_at = None
             plan.save()
