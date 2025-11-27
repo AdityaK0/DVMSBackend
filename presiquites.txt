@@ -1,2 +1,3 @@
 need to create deafult plans like 9 rupees 49 with name and all
+need to create deafult 5 categories
 

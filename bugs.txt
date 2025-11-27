@@ -1,1 +1,0 @@
-first time load in portfolio after vendor creation shows error then again at refresh it works may get_or_create  django stuff or i dont know
