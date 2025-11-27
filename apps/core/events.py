@@ -23,4 +23,4 @@ class VendorUpdated(BaseEvent):
 
 class ProductDeleted(BaseEvent):
     event_name = "product.deleted"
-    
+

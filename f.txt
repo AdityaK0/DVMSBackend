@@ -1,5 +1,8 @@
 
 
+-- need to add validation or permission at each vendor api like
+currently fetching vendor extra by query and all 
+
 -- Bill generator implementation like
 we will provide you the bill templates choose one add details and 
 save it will get 2 option download edit 

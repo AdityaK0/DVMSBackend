@@ -107,20 +107,6 @@ LOCAL_APPS = [
 ]
 INSTALLED_APPS = INSTALLED_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
-# MIDDLEWARE = [
-#     'django.middleware.security.SecurityMiddleware',
-#     'corsheaders.middleware.CorsMiddleware',
-#     'django.middleware.common.CommonMiddleware',
-#     'django.contrib.sessions.middleware.SessionMiddleware',
-#     'django.middleware.csrf.CsrfViewMiddleware',
-#     'django.contrib.auth.middleware.AuthenticationMiddleware',
-#     'django.contrib.messages.middleware.MessageMiddleware',
-#     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    
-#     'debug_toolbar.middleware.DebugToolbarMiddleware',  # <- must be separate
-#     'corsheaders.middleware.CorsMiddleware',  
-# ]
-
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -170,6 +156,24 @@ DATABASES = {
         "PORT": os.getenv("POSTGRES_PORT", "5432"),
     }
 }
+
+ECS_ROOT = Path(__file__).resolve().parents[3]
+SQLITE_CACHE_DIR = ECS_ROOT / "cache_hub"
+
+SQLITE_CACHE_FILES = {
+    "product": os.path.join(SQLITE_CACHE_DIR, "products_cache.sqlite3"),
+    "vendor": os.path.join(SQLITE_CACHE_DIR, "vendors_cache.sqlite3"),
+    "user": os.path.join(SQLITE_CACHE_DIR, "users_cache.sqlite3"),
+    
+}
+# how long (seconds) before we consider local cache stale (optional)
+SQLITE_CACHE_DEFAULT_TTL = int(os.getenv("SQLITE_CACHE_DEFAULT_TTL", "0"))  # 0 = no TTL
+
+
+print(ECS_ROOT)
+print(SQLITE_CACHE_DIR)
+print(SQLITE_CACHE_FILES)
+print(SQLITE_CACHE_DEFAULT_TTL)
 
 
 AWS_ACCESS_KEY_ID=os.getenv("AWS_ACCESS_KEY_ID")

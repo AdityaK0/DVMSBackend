@@ -12,10 +12,11 @@ class EventBus:
         if bg:
             for handler_cls in handlers:
                 celery_app.send_task(
-                    "core.event_tasks.handle_static",
+                    "apps.core.tasks.handle_static",
                     args=(handler_cls.__name__, event.event_name, event.payload),
                     queue=getattr(handler_cls, "queue", "default")
                 )
+
             return True
 
         # SYNC MODE

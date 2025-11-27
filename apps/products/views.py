@@ -27,10 +27,13 @@ logger = logging.getLogger(__name__)
 def product_detail(request, pk):
 
     try:
-        product = ProductService.get_product(pk)
+        product = ProductService.get_product(pk,context={"request":request})
     except Product.DoesNotExist:
         return Response({"detail": "Product not found"}, status=404)
-
+    
+    if isinstance(product, dict):
+        return Response(product)
+    
     serializer = ProductSerializer(product, context={"request": request})
     return Response(serializer.data)
 
@@ -194,8 +197,14 @@ def update_product(request, pk):
     except ProductValidationError as e:
         return Response(e.errors,status=status.HTTP_400_BAD_REQUEST)    
     
+    if isinstance(product, dict):
+        return Response(product)
+    
     sync_featured_product(product)
-    return Response(ProductUpdateSerializer(product).data)
+    
+    serializer = ProductSerializer(product, context={"request": request})
+    return Response(serializer.data)
+    
 
 
 @api_view(['PUT', 'PATCH'])

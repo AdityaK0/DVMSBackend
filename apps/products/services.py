@@ -13,22 +13,26 @@ from django.http import Http404
 from .exceptions import ProductValidationError
 from .serializers import ProductSerializer,ProductUpdateSerializer
 from django.db import transaction
+from apps.core.cache_decorators import sqlite_cached
+from apps.core.events import ProductUpdated
 
 
 
 class ProductService:
 
     @staticmethod
-    def get_product(pk):
+    # @sqlite_cached("product", key_column="product_id", ttl=0)
+    def get_product(pk,*,context=None):
         """
         Returns a Product object or raises DoesNotExist.
         Business logic stays here; HTTP logic stays in the view.
         """
-        return (
+        product =  (
             Product.objects
             .select_related("vendor", "category")
             .get(pk=pk, is_active=True, is_archived=False)
         )
+        return ProductSerializer(product, context=context).data
     
     @staticmethod
     def create_product(data, vendor, *, context=None):
@@ -129,7 +133,17 @@ class ProductService:
         updated_product.image_urls = final_urls
         updated_product.primary_image = final_urls[0] if final_urls else None
         updated_product.save()
-        return updated_product
+        serialized = ProductSerializer(updated_product, context=context).data
+        
+        
+        transaction.on_commit(lambda: ProductUpdated({
+            "product_id": updated_product.id,
+            "vendor_id": updated_product.vendor_id,
+            "action": "UPDATED",
+            "data": serialized                   # 🔥 FULL SERIALIZED DATA
+        }).publish(bg=True))
+        
+        return serialized
     
     
     @staticmethod

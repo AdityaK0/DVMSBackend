@@ -23,6 +23,21 @@ from django.shortcuts import get_object_or_404
 class VendorService:
     
     @staticmethod
-    def updated_vendor(vendor,data,*,context=None):
-        pass
+    def update_vendor(vendor, data, *, context=None):
+        """
+        Update vendor profile using VendorUpdate serializer.
+        Returns the updated vendor instance.
+        Raises DRF ValidationError if invalid.
+        """
+        serializer = VendorUpdate(
+            vendor,
+            data=data,
+            partial=True,
+            context=context
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        updated_vendor = serializer.save()
+        return updated_vendor
     

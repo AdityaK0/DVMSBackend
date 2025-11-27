@@ -22,6 +22,7 @@ from django.shortcuts import get_object_or_404
 from .models import Event, PosterTemplate
 from .serializers import EventSerializer, PosterTemplateSerializer
 from .permissions import IsVendor
+from .services import VendorService
 
 import json
 import logging
@@ -156,47 +157,84 @@ def create_vendor(request):
 
 
         
+# @api_view(['GET', 'PUT', 'PATCH'])
+# @permission_classes([IsAuthenticated, IsVendorOrReadOnly])
+# def vendor_profile(request, pk=None):
+#     """
+#     Single endpoint to retrieve or update vendor profile and address.
+#     - GET: Returns full vendor profile with address
+#     - PUT/PATCH: Updates any provided fields (all fields optional)
+#     """
+#     try:
+#         if pk is not None:
+#             vendor = Vendor.objects.select_related('user').prefetch_related('user__addresses').get(id=pk)
+#         else:
+#             vendor = Vendor.objects.select_related('user').prefetch_related('user__addresses').get(user=request.user)
+#     except Vendor.DoesNotExist:
+#         return Response(
+#             {"detail": "Vendor profile not found."},
+#             status=status.HTTP_404_NOT_FOUND
+#         )
+
+#     if request.method == 'GET':
+#         # Use full VendorSerializer for GET requests
+#         serializer = VendorSerializer(vendor)
+#         return Response(serializer.data)
+
+#     elif request.method in ['PUT', 'PATCH']:
+#         # Both PUT and PATCH work the same way - update only provided fields
+#         serializer = VendorUpdate(
+#             vendor, 
+#             data=request.data, 
+#             partial=True,  # Always allow partial updates
+#             context={'request': request}
+#         )
+        
+#         if serializer.is_valid():
+#             updated_vendor = serializer.save()
+            
+#             # Return updated vendor data using full VendorSerializer
+#             response_serializer = VendorSerializer(updated_vendor)
+#             return Response(response_serializer.data)
+        
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
 @api_view(['GET', 'PUT', 'PATCH'])
 @permission_classes([IsAuthenticated, IsVendorOrReadOnly])
 def vendor_profile(request, pk=None):
     """
-    Single endpoint to retrieve or update vendor profile and address.
-    - GET: Returns full vendor profile with address
-    - PUT/PATCH: Updates any provided fields (all fields optional)
+    GET   -> return vendor profile
+    PUT/PATCH -> update vendor profile
     """
+
     try:
-        if pk is not None:
-            vendor = Vendor.objects.select_related('user').prefetch_related('user__addresses').get(id=pk)
+        if pk:
+            vendor = Vendor.objects.select_related('user').prefetch_related('user__addresses').get(pk=pk)
         else:
             vendor = Vendor.objects.select_related('user').prefetch_related('user__addresses').get(user=request.user)
     except Vendor.DoesNotExist:
-        return Response(
-            {"detail": "Vendor profile not found."},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({"detail": "Vendor profile not found."}, status=404)
 
-    if request.method == 'GET':
-        # Use full VendorSerializer for GET requests
+    # --------- GET ---------
+    if request.method == "GET":
         serializer = VendorSerializer(vendor)
         return Response(serializer.data)
 
-    elif request.method in ['PUT', 'PATCH']:
-        # Both PUT and PATCH work the same way - update only provided fields
-        serializer = VendorUpdate(
-            vendor, 
-            data=request.data, 
-            partial=True,  # Always allow partial updates
-            context={'request': request}
+    # --------- UPDATE (PUT/PATCH) ---------
+    try:
+        updated_vendor = VendorService.update_vendor(
+            vendor,
+            request.data,
+            context={"request": request},
         )
-        
-        if serializer.is_valid():
-            updated_vendor = serializer.save()
-            
-            # Return updated vendor data using full VendorSerializer
-            response_serializer = VendorSerializer(updated_vendor)
-            return Response(response_serializer.data)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except ValidationError as e:
+        return Response(e.detail, status=400)
+
+    serializer = VendorSerializer(updated_vendor)
+    return Response(serializer.data)
+
     
 
 
@@ -300,7 +338,6 @@ def list_events(request):
     Vendor sees ALL events (admin created).
     Frontend can filter by status.
     """
-    # Update statuses before returning
     for event in Event.objects.all():
         event.auto_update_status()
 
