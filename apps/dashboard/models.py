@@ -3,28 +3,6 @@ from apps.vendors.models import Vendor
 from django.conf import settings 
 
 
-class CustomerMessage(models.Model):
-    """Track messages sent to customers"""
-    MESSAGE_TYPE = [
-        ('campaign', 'Campaign'),
-        ('notification', 'Notification'),
-        ('promotion', 'Promotion'),
-    ]
-    
-    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='messages')
-    subject = models.CharField(max_length=200)
-    message = models.TextField()
-    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPE, default='notification')
-    recipient_count = models.IntegerField(default=0)
-    sent_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-sent_at']
-
-    def __str__(self):
-        return f"{self.subject} - {self.vendor.business_name}"
-
-
 class Customer(models.Model):
     """Basic customer tracking for vendors"""
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='customers')
@@ -41,31 +19,6 @@ class Customer(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.vendor.business_name}"
-
-
-class ActivityLog(models.Model):
-    """Track vendor activities for Recent Activity feed"""
-    ACTIVITY_TYPES = [
-        ('product_added', 'Product Added'),
-        ('product_updated', 'Product Updated'),
-        ('customer_registered', 'Customer Registered'),
-        ('event_created', 'Event Created'),
-        ('message_sent', 'Message Sent'),
-        ('report_generated', 'Report Generated'),
-    ]
-    
-    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='activities')
-    activity_type = models.CharField(max_length=30, choices=ACTIVITY_TYPES)
-    description = models.TextField()
-    metadata = models.JSONField(default=dict, blank=True)  # Store additional info
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-created_at']
-
-    def __str__(self):
-        return f"{self.activity_type} - {self.vendor.business_name}"
-    
 
 
 

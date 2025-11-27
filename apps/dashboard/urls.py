@@ -4,17 +4,6 @@ from . import views
 app_name = 'dashboard'
 
 urlpatterns = [
-    # Dashboard Stats
-    # path('stats/', views.dashboard_stats, name='dashboard-stats'),
-    path('summary/', views.dashboard_summary, name='dashboard-summary'),
-    
-    # Activity
-    path('activity/', views.recent_activity, name='recent-activity'),
-    path('activity/<int:activity_id>/', views.delete_activity, name='delete-activity'),
-    
-    # Events
-    # path('events/', views.get_events, name='get-events'),
-    # path('events/create/', views.create_event, name='create-event'),
     
     # Customers
     path('customers/', views.get_customers, name='get-customers'),
@@ -24,17 +13,11 @@ urlpatterns = [
     
 
     
-    
-    # Messages
-    # path('messages/send/', views.send_message, name='send-message'),
-    
-    
     # Dashboard Stats 
     path('products-stats/', views.product_stats, name='dashboard-products-stats'),
     path('customers-stats/', views.customer_stats, name='dashboard-customers-stats'),
-    # path('recent-activities/', views.recent_activities, name='dashboard-recent-activities'),
     
-    # Optional unified summary API
+    # global summary API
     path('summary/', views.dashboard_summary, name='dashboard-summary'),
     
     

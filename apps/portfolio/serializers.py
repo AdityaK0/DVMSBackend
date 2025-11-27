@@ -3,8 +3,9 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
-    Portfolio, PortfolioSection, PortfolioCollection, 
-    PortfolioTestimonial, PortfolioContactInquiry, PortfolioTheme
+    Portfolio, PortfolioCollection, 
+    # PortfolioTestimonial, PortfolioContactInquiry,
+    PortfolioTheme
 )
 from apps.vendors.models import Vendor
 from apps.products.models import Product, ProductImage
@@ -45,13 +46,13 @@ class VendorBasicSerializer(serializers.ModelSerializer):
         ]
 
 
-class PortfolioSectionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PortfolioSection
-        fields = [
-            'id', 'title', 'content', 'section_type', 
-            'order', 'is_active'
-        ]
+# class PortfolioSectionSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = PortfolioSection
+#         fields = [
+#             'id', 'title', 'content', 'section_type', 
+#             'order', 'is_active'
+#         ]
 
 
     
@@ -123,26 +124,26 @@ class PortfolioCollectionSerializer(serializers.ModelSerializer):
         return collection
         
 
-class PortfolioTestimonialSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PortfolioTestimonial
-        fields = [
-            'id', 'customer_name', 'customer_image', 'customer_designation',
-            'company', 'testimonial_text', 'rating', 'is_featured',
-            'created_at'
-        ]
+# class PortfolioTestimonialSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = PortfolioTestimonial
+#         fields = [
+#             'id', 'customer_name', 'customer_image', 'customer_designation',
+#             'company', 'testimonial_text', 'rating', 'is_featured',
+#             'created_at'
+#         ]
 
 
-class PortfolioContactInquirySerializer(serializers.ModelSerializer):
-    product_name = serializers.CharField(source='product.name', read_only=True)
+# class PortfolioContactInquirySerializer(serializers.ModelSerializer):
+#     product_name = serializers.CharField(source='product.name', read_only=True)
     
-    class Meta:
-        model = PortfolioContactInquiry
-        fields = [
-            'id', 'name', 'email', 'phone', 'subject', 'message',
-            'product', 'product_name', 'status', 'created_at'
-        ]
-        read_only_fields = ['status']
+#     class Meta:
+#         model = PortfolioContactInquiry
+#         fields = [
+#             'id', 'name', 'email', 'phone', 'subject', 'message',
+#             'product', 'product_name', 'status', 'created_at'
+#         ]
+#         read_only_fields = ['status']
 
 
 class PortfolioThemeSerializer(serializers.ModelSerializer):
@@ -239,8 +240,8 @@ from apps.vendors.serializers import VendorSerializer
 class PortfolioSerializer(serializers.ModelSerializer):
     """Full portfolio serializer for management"""
     vendor = VendorBasicSerializer(read_only=True)
-    sections = PortfolioSectionSerializer(many=True, read_only=True)
-    testimonials = PortfolioTestimonialSerializer(many=True, read_only=True)
+    # sections = PortfolioSectionSerializer(many=True, read_only=True)
+    # testimonials = PortfolioTestimonialSerializer(many=True, read_only=True)
     featured_products = ProductListSerializer(many=True, read_only=True)
     
     # Write-only field to update featured products
@@ -251,7 +252,7 @@ class PortfolioSerializer(serializers.ModelSerializer):
     )
 
     # Stats
-    total_testimonials = serializers.SerializerMethodField()
+    # total_testimonials = serializers.SerializerMethodField()
     banner_image = serializers.SerializerMethodField()
     
     class Meta:
@@ -266,9 +267,9 @@ class PortfolioSerializer(serializers.ModelSerializer):
             'show_social_links', 'show_testimonials', 'show_gallery',
             'is_public', 'custom_domain', 'custom_css', 'meta_title',
             'meta_description', 'meta_keywords', 'view_count',
-            'created_at', 'updated_at', 'vendor', 'sections', 'portfolio_url',
-            'testimonials', 'featured_products', 'featured_product_ids', 'is_featured',
-            'is_carousel', 'total_testimonials', 'carousel_images',
+            'created_at', 'updated_at', 'vendor', 'portfolio_url', 'featured_products', 'featured_product_ids', 'is_featured',
+            'is_carousel', 'carousel_images',
+            # 'sections','testimonials','total_testimonials'
         ]
         # read_only_fields = ['slug', 'view_count', 'vendor', 'carousel_images']
         read_only_fields = ['slug', 'view_count', 'vendor']
@@ -280,8 +281,8 @@ class PortfolioSerializer(serializers.ModelSerializer):
     def get_banner_image(self, obj):
         return obj.banner_image or None
     
-    def get_total_testimonials(self, obj):
-        return obj.testimonials.filter(is_approved=True).count()
+    # def get_total_testimonials(self, obj):
+    #     return obj.testimonials.filter(is_approved=True).count()
     
     
     def validate_featured_product_ids(self, value):

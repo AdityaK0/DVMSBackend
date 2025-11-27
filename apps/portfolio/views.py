@@ -4,19 +4,20 @@ from django.http import QueryDict
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.core.mail import send_mail
+# from django.core.mail import send_mail
 from django.conf import settings
 from django.db.models import Q, Prefetch
 from rest_framework.parsers import MultiPartParser, FormParser
 from apps.vendors.models import Vendor
-from apps.products.models import Product, ProductImage
+from apps.products.models import Product
 from .models import (
-    Portfolio, PortfolioCollection, PortfolioTestimonial,
-    PortfolioAnalytics
+    Portfolio, PortfolioCollection,
+    # PortfolioTestimonial,
+    # PortfolioAnalytics
 )
 from .serializers import (
     PortfolioSerializer, PortfolioCollectionSerializer,
-    PortfolioTestimonialSerializer, PortfolioContactInquirySerializer
+    # PortfolioTestimonialSerializer, PortfolioContactInquirySerializer
 )
 from apps.utils.upload_image import upload_collection_image
 from scripts.es.sync_vendor_to_es import sync_vendor
@@ -257,45 +258,45 @@ def public_portfolio_collections(request,business_name):
 
 
 # ---------- Public: contact / inquiry ----------
-@api_view(['POST'])
-@permission_classes([permissions.AllowAny])
-def portfolio_contact(request, business_name):
-    vendor = get_object_or_404(Vendor, business_name__iexact=business_name, is_active=True)
-    portfolio = get_object_or_404(Portfolio, vendor=vendor, is_public=True)
+# @api_view(['POST'])
+# @permission_classes([permissions.AllowAny])
+# def portfolio_contact(request, business_name):
+#     vendor = get_object_or_404(Vendor, business_name__iexact=business_name, is_active=True)
+#     portfolio = get_object_or_404(Portfolio, vendor=vendor, is_public=True)
 
-    data = request.data.copy()
-    data['portfolio'] = portfolio.id
+#     data = request.data.copy()
+#     data['portfolio'] = portfolio.id
 
-    product_id = data.get('product_id') or data.get('product')
-    if product_id:
-        try:
-            product = Product.objects.get(id=product_id, vendor=vendor, is_active=True)
-            data['product'] = product.id
-        except Product.DoesNotExist:
-            data['product'] = None
+#     product_id = data.get('product_id') or data.get('product')
+#     if product_id:
+#         try:
+#             product = Product.objects.get(id=product_id, vendor=vendor, is_active=True)
+#             data['product'] = product.id
+#         except Product.DoesNotExist:
+#             data['product'] = None
 
-    serializer = PortfolioContactInquirySerializer(data=data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#     serializer = PortfolioContactInquirySerializer(data=data)
+#     if not serializer.is_valid():
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    inquiry = serializer.save(
-        ip_address=request.META.get('REMOTE_ADDR'),
-        user_agent=request.META.get('HTTP_USER_AGENT', '')
-    )
+#     inquiry = serializer.save(
+#         ip_address=request.META.get('REMOTE_ADDR'),
+#         user_agent=request.META.get('HTTP_USER_AGENT', '')
+#     )
 
-    try:
-        if portfolio.contact_email:
-            subject = f"New inquiry for {portfolio.display_name}: {inquiry.subject}"
-            message = (
-                f"Name: {inquiry.name}\nEmail: {inquiry.email}\nPhone: {inquiry.phone}\n\n"
-                f"Message:\n{inquiry.message}\n\n"
-                f"Product: {inquiry.product.id if inquiry.product else 'N/A'}"
-            )
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [portfolio.contact_email], fail_silently=True)
-    except Exception:
-        pass
+#     try:
+#         if portfolio.contact_email:
+#             subject = f"New inquiry for {portfolio.display_name}: {inquiry.subject}"
+#             message = (
+#                 f"Name: {inquiry.name}\nEmail: {inquiry.email}\nPhone: {inquiry.phone}\n\n"
+#                 f"Message:\n{inquiry.message}\n\n"
+#                 f"Product: {inquiry.product.id if inquiry.product else 'N/A'}"
+#             )
+#             send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [portfolio.contact_email], fail_silently=True)
+#     except Exception:
+#         pass
 
-    return Response(PortfolioContactInquirySerializer(inquiry).data, status=status.HTTP_201_CREATED)
+#     return Response(PortfolioContactInquirySerializer(inquiry).data, status=status.HTTP_201_CREATED)
 
 
 # ---------- Vendor: manage portfolio ----------
@@ -649,53 +650,53 @@ def sync_status(request):
 
 
 # ---------- Vendor: testimonials ----------
-@api_view(['GET', 'POST'])
-@permission_classes([permissions.IsAuthenticated])
-def portfolio_testimonials(request):
-    vendor = getattr(request.user, "vendor", None)
-    if not vendor:
-        return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+# @api_view(['GET', 'POST'])
+# @permission_classes([permissions.IsAuthenticated])
+# def portfolio_testimonials(request):
+#     vendor = getattr(request.user, "vendor", None)
+#     if not vendor:
+#         return Response({"detail": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    if request.method == 'GET':
-        testimonials = PortfolioTestimonial.objects.filter(portfolio__vendor=vendor).order_by('order', '-created_at')
-        serializer = PortfolioTestimonialSerializer(testimonials, many=True)
-        return Response(serializer.data)
+#     if request.method == 'GET':
+#         testimonials = PortfolioTestimonial.objects.filter(portfolio__vendor=vendor).order_by('order', '-created_at')
+#         serializer = PortfolioTestimonialSerializer(testimonials, many=True)
+#         return Response(serializer.data)
 
-    portfolio = get_object_or_404(Portfolio, vendor=vendor)
-    serializer = PortfolioTestimonialSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save(portfolio=portfolio)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#     portfolio = get_object_or_404(Portfolio, vendor=vendor)
+#     serializer = PortfolioTestimonialSerializer(data=request.data)
+#     if serializer.is_valid():
+#         serializer.save(portfolio=portfolio)
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# ---------- Vendor: analytics ----------
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def portfolio_analytics(request):
-    vendor = getattr(request.user, "vendor", None)
-    if not vendor:
-        return Response({"detail": "Vendor account required."}, status=status.HTTP_403_FORBIDDEN)
+# # ---------- Vendor: analytics ----------
+# @api_view(['GET'])
+# @permission_classes([permissions.IsAuthenticated])
+# def portfolio_analytics(request):
+#     vendor = getattr(request.user, "vendor", None)
+#     if not vendor:
+#         return Response({"detail": "Vendor account required."}, status=status.HTTP_403_FORBIDDEN)
 
-    portfolio = get_object_or_404(Portfolio, vendor=vendor)
+#     portfolio = get_object_or_404(Portfolio, vendor=vendor)
 
-    today = timezone.now().date()
-    seven_days = [today - timezone.timedelta(days=i) for i in range(0, 7)]
-    analytics_qs = PortfolioAnalytics.objects.filter(portfolio=portfolio, date__in=seven_days).order_by('date')
+#     today = timezone.now().date()
+#     seven_days = [today - timezone.timedelta(days=i) for i in range(0, 7)]
+#     analytics_qs = PortfolioAnalytics.objects.filter(portfolio=portfolio, date__in=seven_days).order_by('date')
 
-    daily = [
-        {"date": a.date, "page_views": a.page_views, "unique_visitors": a.unique_visitors}
-        for a in analytics_qs
-    ]
+#     daily = [
+#         {"date": a.date, "page_views": a.page_views, "unique_visitors": a.unique_visitors}
+#         for a in analytics_qs
+#     ]
 
-    total_views = sum(a.page_views for a in analytics_qs)
-    total_unique = sum(a.unique_visitors for a in analytics_qs)
+#     total_views = sum(a.page_views for a in analytics_qs)
+#     total_unique = sum(a.unique_visitors for a in analytics_qs)
 
-    resp = {
-        "portfolio_id": portfolio.id,
-        "display_name": portfolio.display_name,
-        "daily": daily,
-        "total_views_last_7_days": total_views,
-        "total_unique_last_7_days": total_unique,
-    }
-    return Response(resp, status=status.HTTP_200_OK)
+#     resp = {
+#         "portfolio_id": portfolio.id,
+#         "display_name": portfolio.display_name,
+#         "daily": daily,
+#         "total_views_last_7_days": total_views,
+#         "total_unique_last_7_days": total_unique,
+#     }
+#     return Response(resp, status=status.HTTP_200_OK)

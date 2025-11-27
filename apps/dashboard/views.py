@@ -2,20 +2,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from django.db.models import Count
-from django.utils import timezone
-from datetime import timedelta
-from dateutil.relativedelta import relativedelta
-from django.core.cache import cache
-from apps.products.models import Product
-from .models import  CustomerMessage, Customer, ActivityLog, InvoicePayment, InvoiceChangeLog
+from .models import  Customer, InvoicePayment, InvoiceChangeLog
 from .serializers import (
-    DashboardStatsSerializer, 
-    ActivityLogSerializer,
     CustomerSerializer,
     InvoiceChangeLogSerializer
-    
-    # CustomerMessageSerializer
 )
 from .service import *
 from apps.dashboard.service import get_customer_stats_cached
@@ -37,39 +27,6 @@ def calculate_percentage_change(current, previous):
         return 100.0 if current > 0 else 0.0
     return round(((current - previous) / previous) * 100, 1)
 
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def recent_activity(request):
-    """
-    Get recent activities for vendor
-    
-    Query Parameters:
-        - limit (int): Number of activities to return (default: 10)
-    
-    Returns:
-        List of recent activity logs with icon and time_ago
-    """
-    try:
-        vendor = request.user.vendor
-    except AttributeError:
-        return Response(
-            {'error': 'User is not associated with a vendor'},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    limit = int(request.query_params.get('limit', 10))
-    
-    # Validate limit
-    if limit < 1 or limit > 100:
-        limit = 10
-    
-    activities = ActivityLog.objects.filter(
-        vendor=vendor
-    ).select_related('vendor')[:limit]
-    
-    serializer = ActivityLogSerializer(activities, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsSubscribedOrReadOnly])
@@ -97,14 +54,6 @@ def create_customer(request):
             )
 
         customer = serializer.save(vendor=vendor)
-
-        # Log activity
-        ActivityLog.objects.create(
-            vendor=vendor,
-            activity_type="customer_registered",
-            description=f'Customer "{customer.name}" registered',
-            metadata={"customer_id": customer.id, "customer_email": customer.email},
-        )
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -151,17 +100,8 @@ def update_customer(request, customer_id):
                     {"error": f"Customer with email '{new_email}' already exists."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
-        updated_customer = serializer.save()
-
-        # Log activity
-        ActivityLog.objects.create(
-            vendor=vendor,
-            activity_type="customer_updated",
-            description=f'Customer "{updated_customer.name}" updated',
-            metadata={"customer_id": updated_customer.id, "customer_email": updated_customer.email},
-        )
-
+        
+        serializer.save()        
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -191,62 +131,11 @@ def delete_customer(request, customer_id):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    # Optional: log before deletion
-    ActivityLog.objects.create(
-        vendor=vendor,
-        activity_type="customer_deleted",
-        description=f'Customer "{customer.name}" deleted',
-        metadata={"customer_id": customer.id, "customer_email": customer.email},
-    )
-
-    customer.delete()  # Hard delete
+    customer.delete() 
     return Response(
         {"message": f"Customer '{customer.name}' has been deleted."},
         status=status.HTTP_200_OK,
     )
-
-# @api_view(['POST'])
-# @permission_classes([IsAuthenticated])
-# def send_message(request):
-#     """
-#     Send a message/campaign to customers
-    
-#     Required fields:
-#         - subject: Message subject
-#         - message: Message content
-#         - recipient_count: Number of recipients
-    
-#     Optional fields:
-#         - message_type: Type of message (default: notification)
-#     """
-#     try:
-#         vendor = request.user.vendor
-#     except AttributeError:
-#         return Response(
-#             {'error': 'User is not associated with a vendor'},
-#             status=status.HTTP_403_FORBIDDEN
-#         )
-    
-#     serializer = CustomerMessageSerializer(data=request.data)
-#     if serializer.is_valid():
-#         message = serializer.save(vendor=vendor)
-        
-#         # Log activity
-#         ActivityLog.objects.create(
-#             vendor=vendor,
-#             activity_type='message_sent',
-#             description=f'Campaign message sent to {message.recipient_count} customers',
-#             metadata={
-#                 'message_id': message.id,
-#                 'subject': message.subject,
-#                 'recipient_count': message.recipient_count
-#             }
-#         )
-        
-#         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
-#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 from django.core.paginator import Paginator
 from rest_framework.decorators import api_view, permission_classes
@@ -315,38 +204,6 @@ def get_customers(request):
         'has_previous': page_obj.has_previous(),
     }, status=status.HTTP_200_OK)
 
-
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated, IsSubscribedOrReadOnly])
-def delete_activity(request, activity_id):
-    """
-    Delete a specific activity log
-    
-    Path Parameters:
-        - activity_id: ID of the activity to delete
-    """
-    try:
-        vendor = request.user.vendor
-    except AttributeError:
-        return Response(
-            {'error': 'User is not associated with a vendor'},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    try:
-        activity = ActivityLog.objects.get(id=activity_id, vendor=vendor)
-        activity.delete()
-        return Response(
-            {'message': 'Activity deleted successfully'},
-            status=status.HTTP_204_NO_CONTENT
-        )
-    except ActivityLog.DoesNotExist:
-        return Response(
-            {'error': 'Activity not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-        
-        
  
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -367,15 +224,6 @@ def customer_stats(request):
         
     return Response({'customer_stats': get_customer_stats_cached(vendor)})
 
-
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def recent_activities(request):
-#     vendor = getattr(request.user, 'vendor', None)
-#     if not vendor:
-#         return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
-        
-#     return Response(get_activity_data(vendor))
 
 
 @api_view(['GET'])
@@ -621,9 +469,6 @@ def upload_invoices_csv(request):
 
     return Response({"message": f"{created} invoices uploaded successfully"})
 
-
-
-# dashboard/views.py
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])

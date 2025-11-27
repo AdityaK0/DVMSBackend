@@ -15,11 +15,12 @@ from django.utils import timezone
 
 from apps.vendors.models import Vendor
 from apps.portfolio.models import (
-    Portfolio, PortfolioAnalytics, PortfolioCollection,
-    PortfolioTestimonial
+    Portfolio, PortfolioCollection,
+    # PortfolioTestimonial,PortfolioAnalytics
 )
 from apps.portfolio.serializers import (
-    PortfolioProductSerializer, ProductListSerializer
+     ProductListSerializer,
+    # PortfolioProductSerializer
 )
 from apps.users.serializers import AddressSerializer
 
@@ -47,24 +48,24 @@ class PortfolioService:
 
         # Analytics tracking
         today = timezone.now().date()
-        analytics, created = PortfolioAnalytics.objects.get_or_create(
-            portfolio=portfolio,
-            date=today,
-            defaults={"page_views": 1, "unique_visitors": 1},
-        )
+        # analytics, created = PortfolioAnalytics.objects.get_or_create(
+        #     portfolio=portfolio,
+        #     date=today,
+        #     defaults={"page_views": 1, "unique_visitors": 1},
+        # )
 
-        if not created:
-            analytics.page_views = (analytics.page_views or 0) + 1
-            analytics.save(update_fields=["page_views"])
+        # if not created:
+        #     analytics.page_views = (analytics.page_views or 0) + 1
+        #     analytics.save(update_fields=["page_views"])
 
         # Other computed values
         total_collections = PortfolioCollection.objects.filter(
             portfolio=portfolio, is_active=True
         ).count()
 
-        total_testimonials = PortfolioTestimonial.objects.filter(
-            portfolio=portfolio, is_approved=True
-        ).count()
+        # total_testimonials = PortfolioTestimonial.objects.filter(
+        #     portfolio=portfolio, is_approved=True
+        # ).count()
 
         # featured products
         featured_products = portfolio.get_featured_products()[:8]  
@@ -89,7 +90,7 @@ class PortfolioService:
             "is_public": portfolio.is_public,
             "view_count": portfolio.view_count,
             "total_collections": total_collections,
-            "total_testimonials": total_testimonials,
+            # "total_testimonials": total_testimonials,
             "featured_products": ProductListSerializer(
                 portfolio.featured_products.all(), many=True
             ).data,

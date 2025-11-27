@@ -137,32 +137,32 @@ class Portfolio(models.Model):
         return f"{self.display_name or self.vendor.business_name} Portfolio"
 
 
-class PortfolioSection(models.Model):
-    """Custom sections for portfolio (About, Services, etc.)"""
-    portfolio = models.ForeignKey(
-        Portfolio, 
-        on_delete=models.CASCADE, 
-        related_name='sections'
-    )
-    title = models.CharField(max_length=100)
-    content = models.TextField()
-    section_type = models.CharField(
-        max_length=20,
-        choices=[
-            ('text', 'Text Content'),
-            ('gallery', 'Image Gallery'),
-            ('video', 'Video Embed'),
-            ('testimonials', 'Testimonials'),
-            ('contact', 'Contact Form'),
-        ],
-        default='text'
-    )
-    order = models.PositiveIntegerField(default=0)
-    is_active = models.BooleanField(default=True)
+# class PortfolioSection(models.Model):
+#     """Custom sections for portfolio (About, Services, etc.)"""
+#     portfolio = models.ForeignKey(
+#         Portfolio, 
+#         on_delete=models.CASCADE, 
+#         related_name='sections'
+#     )
+#     title = models.CharField(max_length=100)
+#     content = models.TextField()
+#     section_type = models.CharField(
+#         max_length=20,
+#         choices=[
+#             ('text', 'Text Content'),
+#             ('gallery', 'Image Gallery'),
+#             ('video', 'Video Embed'),
+#             ('testimonials', 'Testimonials'),
+#             ('contact', 'Contact Form'),
+#         ],
+#         default='text'
+#     )
+#     order = models.PositiveIntegerField(default=0)
+#     is_active = models.BooleanField(default=True)
     
-    class Meta:
-        ordering = ['order']
-        unique_together = ['portfolio', 'title']
+#     class Meta:
+#         ordering = ['order']
+#         unique_together = ['portfolio', 'title']
 
 
 class PortfolioCollection(models.Model):
@@ -201,113 +201,113 @@ class PortfolioCollection(models.Model):
         return f"{self.portfolio.display_name} - {self.name}"                       
 
 
-class PortfolioTestimonial(models.Model):
-    """Customer testimonials for portfolio"""
-    portfolio = models.ForeignKey(
-        Portfolio, 
-        on_delete=models.CASCADE, 
-        related_name='testimonials'
-    )
-    customer_name = models.CharField(max_length=100)
-    customer_email = models.EmailField(blank=True)
-    customer_image = CloudinaryField('image', folder='portfolio/testimonials', blank=True, null=True)
-    customer_designation = models.CharField(max_length=100, blank=True)
-    company = models.CharField(max_length=100, blank=True)
+# class PortfolioTestimonial(models.Model):
+#     """Customer testimonials for portfolio"""
+#     portfolio = models.ForeignKey(
+#         Portfolio, 
+#         on_delete=models.CASCADE, 
+#         related_name='testimonials'
+#     )
+#     customer_name = models.CharField(max_length=100)
+#     customer_email = models.EmailField(blank=True)
+#     customer_image = CloudinaryField('image', folder='portfolio/testimonials', blank=True, null=True)
+#     customer_designation = models.CharField(max_length=100, blank=True)
+#     company = models.CharField(max_length=100, blank=True)
     
-    testimonial_text = models.TextField()
-    rating = models.PositiveIntegerField(
-        choices=[(i, i) for i in range(1, 6)],
-        default=5
-    )
+#     testimonial_text = models.TextField()
+#     rating = models.PositiveIntegerField(
+#         choices=[(i, i) for i in range(1, 6)],
+#         default=5
+#     )
     
-    # Display settings
-    is_featured = models.BooleanField(default=False)
-    is_approved = models.BooleanField(default=True)
-    order = models.PositiveIntegerField(default=0)
+#     # Display settings
+#     is_featured = models.BooleanField(default=False)
+#     is_approved = models.BooleanField(default=True)
+#     order = models.PositiveIntegerField(default=0)
     
-    created_at = models.DateTimeField(auto_now_add=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
     
-    class Meta:
-        ordering = ['order', '-created_at']
+#     class Meta:
+#         ordering = ['order', '-created_at']
     
-    def __str__(self):
-        return f"Testimonial by {self.customer_name} for {self.portfolio.display_name}"
+#     def __str__(self):
+#         return f"Testimonial by {self.customer_name} for {self.portfolio.display_name}"
 
 
-class PortfolioAnalytics(models.Model):
-    """Analytics tracking for portfolio"""
-    portfolio = models.ForeignKey(
-        Portfolio, 
-        on_delete=models.CASCADE, 
-        related_name='analytics'
-    )
+# class PortfolioAnalytics(models.Model):
+#     """Analytics tracking for portfolio"""
+#     portfolio = models.ForeignKey(
+#         Portfolio, 
+#         on_delete=models.CASCADE, 
+#         related_name='analytics'
+#     )
     
-    # Metrics
-    date = models.DateField()
-    page_views = models.PositiveIntegerField(default=0)
-    unique_visitors = models.PositiveIntegerField(default=0)
-    product_views = models.PositiveIntegerField(default=0)
-    contact_form_submissions = models.PositiveIntegerField(default=0)
-    social_link_clicks = models.PositiveIntegerField(default=0)
+#     # Metrics
+#     date = models.DateField()
+#     page_views = models.PositiveIntegerField(default=0)
+#     unique_visitors = models.PositiveIntegerField(default=0)
+#     product_views = models.PositiveIntegerField(default=0)
+#     contact_form_submissions = models.PositiveIntegerField(default=0)
+#     social_link_clicks = models.PositiveIntegerField(default=0)
     
-    # Traffic sources
-    direct_traffic = models.PositiveIntegerField(default=0)
-    social_traffic = models.PositiveIntegerField(default=0)
-    search_traffic = models.PositiveIntegerField(default=0)
-    referral_traffic = models.PositiveIntegerField(default=0)
+#     # Traffic sources
+#     direct_traffic = models.PositiveIntegerField(default=0)
+#     social_traffic = models.PositiveIntegerField(default=0)
+#     search_traffic = models.PositiveIntegerField(default=0)
+#     referral_traffic = models.PositiveIntegerField(default=0)
     
-    created_at = models.DateTimeField(auto_now_add=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
     
-    class Meta:
-        unique_together = ['portfolio', 'date']
-        ordering = ['-date']
+#     class Meta:
+#         unique_together = ['portfolio', 'date']
+#         ordering = ['-date']
 
 
-class PortfolioContactInquiry(models.Model):
-    """Contact form submissions"""
-    portfolio = models.ForeignKey(
-        Portfolio, 
-        on_delete=models.CASCADE, 
-        related_name='inquiries'
-    )
+# class PortfolioContactInquiry(models.Model):
+#     """Contact form submissions"""
+#     portfolio = models.ForeignKey(
+#         Portfolio, 
+#         on_delete=models.CASCADE, 
+#         related_name='inquiries'
+#     )
     
-    # Contact details
-    name = models.CharField(max_length=100)
-    email = models.EmailField()
-    phone = models.CharField(max_length=20, blank=True)
-    subject = models.CharField(max_length=200)
-    message = models.TextField()
+#     # Contact details
+#     name = models.CharField(max_length=100)
+#     email = models.EmailField()
+#     phone = models.CharField(max_length=20, blank=True)
+#     subject = models.CharField(max_length=200)
+#     message = models.TextField()
     
-    # Product inquiry (optional)
-    product = models.ForeignKey(
-        Product, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True,
-        related_name='portfolio_inquiries'
-    )
+#     # Product inquiry (optional)
+#     product = models.ForeignKey(
+#         Product, 
+#         on_delete=models.SET_NULL, 
+#         null=True, 
+#         blank=True,
+#         related_name='portfolio_inquiries'
+#     )
     
-    # Status
-    STATUS_CHOICES = [
-        ('new', 'New'),
-        ('read', 'Read'),
-        ('replied', 'Replied'),
-        ('closed', 'Closed'),
-    ]
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='new')
+#     # Status
+#     STATUS_CHOICES = [
+#         ('new', 'New'),
+#         ('read', 'Read'),
+#         ('replied', 'Replied'),
+#         ('closed', 'Closed'),
+#     ]
+#     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='new')
     
-    # Metadata
-    ip_address = models.GenericIPAddressField(blank=True, null=True)
-    user_agent = models.TextField(blank=True)
+#     # Metadata
+#     ip_address = models.GenericIPAddressField(blank=True, null=True)
+#     user_agent = models.TextField(blank=True)
     
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
     
-    class Meta:
-        ordering = ['-created_at']
+#     class Meta:
+#         ordering = ['-created_at']
     
-    def __str__(self):
-        return f"Inquiry from {self.name} for {self.portfolio.display_name}"
+#     def __str__(self):
+#         return f"Inquiry from {self.name} for {self.portfolio.display_name}"
 
 
 class PortfolioTheme(models.Model):

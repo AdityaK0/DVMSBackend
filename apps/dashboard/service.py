@@ -1,6 +1,4 @@
-# service.py
-from django.utils import timezone
-from dateutil.relativedelta import relativedelta
+
 from django.core.cache import cache
 from .models import  Customer
 from  apps.utils.cache import cache_safe_get
@@ -18,10 +16,6 @@ def get_product_stats_cached(vendor):
 def get_customer_stats_cached(vendor):
     key = f"vendor:{vendor.id}:customers"
     return cache_safe_get(key, lambda: get_customer_stats(vendor))
-
-def get_activity_data_cached(vendor):
-    key = f"vendor:{vendor.id}:activity"
-    return cache_safe_get(key, lambda: get_activity_data(vendor))
 
 
 
@@ -54,11 +48,6 @@ def get_dashboard_summary(vendor):
     return {
         "products": cache.get_or_set(f"vendor:{vendor.id}:products", lambda: get_product_stats(vendor), 300),
         "customers": cache.get_or_set(f"vendor:{vendor.id}:customers", lambda: get_customer_stats(vendor), 300),
-        # "activity": cache.get_or_set(f"vendor:{vendor.id}:activity", lambda: get_activity_data(vendor), 300),
-        # "vendor_info": {
-        #     "business_name": vendor.business_name,
-        #     "is_verified": vendor.is_verified,
-        # }
     }
 
 

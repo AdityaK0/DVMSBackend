@@ -12,7 +12,7 @@ urlpatterns = [
     
     path('public/<str:business_name>/collections/', views.public_portfolio_collections, name='portfolio-products'),
     
-    path('portfolio/<str:business_name>/contact/', views.portfolio_contact, name='portfolio-contact'),
+    # path('portfolio/<str:business_name>/contact/', views.portfolio_contact, name='portfolio-contact'),
 
     # ---------- Vendor management ----------
     path('manage/', views.vendor_portfolio_manage, name='manage-portfolio'),
@@ -23,8 +23,8 @@ urlpatterns = [
     
     
     
-    path('manage/portfolio/testimonials/', views.portfolio_testimonials, name='manage-testimonials'),
-    path('manage/portfolio/analytics/', views.portfolio_analytics, name='portfolio-analytics'),
+    # path('manage/portfolio/testimonials/', views.portfolio_testimonials, name='manage-testimonials'),
+    # path('manage/portfolio/analytics/', views.portfolio_analytics, name='portfolio-analytics'),
 ]
 
 # # Custom middleware for subdomain/custom domain handling (optional)
