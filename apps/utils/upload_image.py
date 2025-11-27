@@ -1,6 +1,6 @@
 # apps/products/utils.py
 
-from apps.products.models import ProductImage
+# from apps.products.models import ProductImage
 from apps.vendors.models import Vendor
 from apps.portfolio.models import PortfolioCollection  # adjust import if needed
 import logging
@@ -31,7 +31,7 @@ import cloudinary.uploader
 #   -- ADDING SECURE = TRUE CAN UPLOAD IN HTTPS  image=result["secure_url"],
 
 from cloudinary.uploader import upload,destroy
-from apps.products.models import ProductImage
+# from apps.products.models import ProductImage
 
 def upload_product_images(product, files):
     images = []
@@ -43,14 +43,14 @@ def upload_product_images(product, files):
             resource_type="image",
             secure=True
         )
-        img = ProductImage.objects.create(
-            product=product,
-            # image=result['public_id'],  # store public_id in CloudinaryField
-            image=result['secure_url'],  # store secure_url in CloudinaryField
-            is_primary=(i == 0),
-            alt_text=f"{product.name} image {i+1}"
-        )
-        images.append(img)
+        # img = ProductImage.objects.create(
+        #     product=product,
+        #     # image=result['public_id'],  # store public_id in CloudinaryField
+        #     image=result['secure_url'],  # store secure_url in CloudinaryField
+        #     is_primary=(i == 0),
+        #     alt_text=f"{product.name} image {i+1}"
+        # )
+        # images.append(img)
     return images
 
 

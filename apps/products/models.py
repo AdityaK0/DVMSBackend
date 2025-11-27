@@ -72,29 +72,3 @@ class Product(models.Model):
     @property
     def is_low_stock(self):
         return self.stock_quantity <= self.min_stock_level
-
-class ProductImage(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
-    # image = CloudinaryField('image', folder='products')  # handled by Cloudinary
-    image = CloudinaryField('image')
-    image_url = models.URLField(max_length=500, blank=True) 
-    image_b64 = models.TextField(null=True)
-    alt_text = models.CharField(max_length=200, blank=True)
-    is_primary = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    github_image_url = models.URLField(max_length=500, blank=True, null=True)
-
-    def __str__(self):
-        return f"Image for {self.product.name}"
-    
-    
-    @property
-    def display_url(self):
-        """Return the best available image URL"""
-        if self.image and hasattr(self.image, 'url') and self.image.url:
-            return self.image.url  # Cloudinary image (works only if config is valid)
-        elif self.image_url:
-            return self.image_url  # fallback for manually uploaded images
-        elif self.github_image_url:
-            return self.github_image_url  # permanent backup URL
-        return "https://via.placeholder.com/300x300?text=No+Image"  # final fallback

@@ -7,31 +7,31 @@ from .models import (
     PortfolioTheme
 )
 from apps.vendors.models import Vendor
-from apps.products.models import Product, ProductImage
+from apps.products.models import Product
 from apps.products.serializers import ProductListSerializer
 
 # from cloudinary.utils import cloudinary_url
 User = get_user_model()
 
 
-class ProductImageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductImage
-        fields = ['id', 'image_url', 'alt_text', 'is_primary']
+# class ProductImageSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = ProductImage
+#         fields = ['id', 'image_url', 'alt_text', 'is_primary']
 
 
-class PortfolioProductSerializer(serializers.ModelSerializer):
-    """Serializer for products in portfolio context"""
-    images = ProductImageSerializer(many=True, read_only=True)
-    category_name = serializers.CharField(source='category.name', read_only=True)
+# class PortfolioProductSerializer(serializers.ModelSerializer):
+#     """Serializer for products in portfolio context"""
+#     images = ProductImageSerializer(many=True, read_only=True)
+#     category_name = serializers.CharField(source='category.name', read_only=True)
     
-    class Meta:
-        model = Product
-        fields = [
-            'id', 'name', 'description', 'price', 'stock_quantity',
-            'is_in_stock', 'is_low_stock', 'is_featured', 'sku',
-            'images', 'category_name', 'created_at'
-        ]
+#     class Meta:
+#         model = Product
+#         fields = [
+#             'id', 'name', 'description', 'price', 'stock_quantity',
+#             'is_in_stock', 'is_low_stock', 'is_featured', 'sku',
+#             'images', 'category_name', 'created_at'
+#         ]
 
 
 class VendorBasicSerializer(serializers.ModelSerializer):

@@ -5,7 +5,6 @@ from apps.products.models import Product
 from apps.core.events import ProductCacheUpdateEvent
 from apps.core.dispatcher import handle_event_sync
 
-# --- Capture old active state before saving (for comparison) ---
 @receiver(pre_save, sender=Product)
 def product_pre_save(sender, instance, **kwargs):
     if not instance.pk:
@@ -16,7 +15,6 @@ def product_pre_save(sender, instance, **kwargs):
         instance._old_is_active = instance.is_active
 
 
-# --- Handle create/update ---
 @receiver(post_save, sender=Product)
 def product_saved(sender, instance, created, **kwargs):
     if not instance.vendor_id:
@@ -56,10 +54,3 @@ def product_deleted(sender, instance, **kwargs):
     event = ProductCacheUpdateEvent(event_payload)
     handle_event_sync(event)
 
-
-# @receiver([post_save, post_delete], sender=Product)
-# def update_product_cache(sender, instance, **kwargs):
-#     if instance.vendor:
-        # event = ProductCacheUpdateEvent(vendor_id=instance.vendor_id)
-        # handle_event_async(event)
-        # handle_event_task.delay(ProductCacheUpdateEvent, instance.vendor_id)
