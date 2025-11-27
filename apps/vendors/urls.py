@@ -4,11 +4,9 @@ from . import views
 # from apps.products.views import VendorCatalogView
 
 urlpatterns = [
-    # path('', VendorListView.as_view(), name='vendor-list'),
     path('create/', views.create_vendor, name='vendor-create'),  
     path('profile/',views.vendor_profile, name='vendor-profile'),
     path('profile/<int:pk>/', views.vendor_profile, name='vendor-detail'),
-    # path('<int:vendor_id>/catalog/', VendorCatalogView.as_view(), name='vendor-catalog'),
     
     # Admin - Event Management
     path("events/create/", views.create_event),
