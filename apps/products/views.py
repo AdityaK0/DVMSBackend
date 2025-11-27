@@ -5,7 +5,6 @@ from rest_framework import status
 from django.db import transaction
 from .models import Product, Category
 from .serializers import ProductSerializer
-from .service import get_vendor_products_combined, get_filtered_products
 from apps.subscriptions.permissions import IsSubscribedOrReadOnly
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -15,35 +14,81 @@ from django.db import transaction
 from .models import Product, Category
 from .serializers import ProductSerializer
 from .serializers import ProductUpdateSerializer
-from .service import sync_featured_product
-
+from .services import *
+from .exceptions import ProductValidationError
 
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def product_detail(request, pk):
-    """Get product details"""
+
     try:
-        # FIXED: Restrict to active, non-archived and optimize relations
-        product = (
-            Product.objects.select_related('vendor', 'category')
-            .get(pk=pk, is_active=True, is_archived=False)
-        )
-        
+        product = ProductService.get_product(pk)
     except Product.DoesNotExist:
-        return Response(
-            {"detail": "Product not found"}, 
-            status=status.HTTP_404_NOT_FOUND
-        )
-    
-    serializer = ProductSerializer(product, context={'request': request})
+        return Response({"detail": "Product not found"}, status=404)
+
+    serializer = ProductSerializer(product, context={"request": request})
     return Response(serializer.data)
 
+
+
+
+
+
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated, IsSubscribedOrReadOnly])
+# def create_product(request):
+#     """Create a new product (text data only)."""
+#     if not hasattr(request.user, 'vendor'):
+#         return Response(
+#             {"error": "Only vendors can create products"},
+#             status=status.HTTP_403_FORBIDDEN
+#         )
+
+#     vendor = request.user.vendor
+#     data = request.data
+#     category_id = data.get('category')
+#     if not category_id:
+#         return Response({"category": "This field is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+#     try:
+#         category = Category.objects.get(id=category_id, is_active=True)
+#     except Category.DoesNotExist:
+#         return Response({"category": "Invalid category selected."}, status=status.HTTP_400_BAD_REQUEST)
+
+#     serializer = ProductSerializer(data=data, context={'request': request})
+#     if serializer.is_valid():
+#         with transaction.atomic():
+#             image_urls = data.get('image_urls') or data.getlist('image_urls[]') or []
+#             sizes = data.get('sizes') or data.getlist('sizes[]') or []
+            
+
+#             # Normalize the data to a clean list
+#             if isinstance(image_urls, str):
+#                 import json
+#                 try:
+#                     image_urls = json.loads(image_urls)
+#                 except Exception:
+#                     image_urls = [image_urls]
+#             elif not isinstance(image_urls, (list, tuple)):
+#                 image_urls = [image_urls]
+
+#             product = serializer.save(
+#                 vendor=vendor,
+#                 category=category,
+#                 image_urls=image_urls,
+#                 primary_image=image_urls[0] if image_urls else None,
+#                 sizes=sizes
+#             )
+
+#         response_serializer = ProductSerializer(product, context={'request': request})
+#         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -57,47 +102,79 @@ def create_product(request):
             {"error": "Only vendors can create products"},
             status=status.HTTP_403_FORBIDDEN
         )
-
-    vendor = request.user.vendor
-    data = request.data
-    category_id = data.get('category')
-    if not category_id:
-        return Response({"category": "This field is required."}, status=status.HTTP_400_BAD_REQUEST)
-
+    
     try:
-        category = Category.objects.get(id=category_id, is_active=True)
-    except Category.DoesNotExist:
-        return Response({"category": "Invalid category selected."}, status=status.HTTP_400_BAD_REQUEST)
-
-    serializer = ProductSerializer(data=data, context={'request': request})
-    if serializer.is_valid():
-        with transaction.atomic():
-            image_urls = data.get('image_urls') or data.getlist('image_urls[]') or []
-            sizes = data.get('sizes') or data.getlist('sizes[]') or []
+        product = ProductService.create_product(
+            data = request.data,
+            vendor = request.user.vendor,
+            context= {'request': request},
+        ) 
+    except ProductValidationError as e:
+        raise Response(e.errors,status=status.HTTP_400_BAD_REQUEST)
+    
+    
+    serializer = ProductSerializer(product, context={'request': request})
+    return Response(serializer.data,status=status.HTTP_201_CREATED)
+               
             
 
-            # Normalize the data to a clean list
-            if isinstance(image_urls, str):
-                import json
-                try:
-                    image_urls = json.loads(image_urls)
-                except Exception:
-                    image_urls = [image_urls]
-            elif not isinstance(image_urls, (list, tuple)):
-                image_urls = [image_urls]
 
-            product = serializer.save(
-                vendor=vendor,
-                category=category,
-                image_urls=image_urls,
-                primary_image=image_urls[0] if image_urls else None,
-                sizes=sizes
-            )
 
-        response_serializer = ProductSerializer(product, context={'request': request})
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+# @api_view(['PUT', 'PATCH'])
+# @permission_classes([IsAuthenticated])
+# def update_product(request, pk):
+#     """Update product; image updates handled manually."""
+    
+#     try:
+#         product = Product.objects.get(pk=pk, vendor__user=request.user)
+#     except Product.DoesNotExist:
+#         return Response({"detail": "Product not found"}, status=404)
+
+#     # Update normal fields (no image updates here)
+#     serializer = ProductUpdateSerializer(
+#         product,
+#         data=request.data,
+#         partial=True
+#     )
+#     serializer.is_valid(raise_exception=True)
+#     updated_product = serializer.save()
+
+#     # -----------------------
+#     # IMAGE HANDLING
+#     # -----------------------
+    
+#     existing = updated_product.image_urls or []
+    
+#     # Safely get lists even if sent as single values
+#     images_to_delete = request.data.get("images_to_delete", [])
+#     if isinstance(images_to_delete, str):
+#         images_to_delete = [images_to_delete]
+        
+#     new_urls = request.data.get("image_urls", [])
+#     if isinstance(new_urls, str):
+#         new_urls = [new_urls]
+
+#     # Use sets for O(1) lookups and deduplication
+#     delete_set = set(images_to_delete)
+#     existing_set = set(existing)
+    
+#     # Remove deleted images
+#     final_urls = [url for url in existing if url not in delete_set]
+
+#     # Add new S3 URLs (avoid duplicates)
+#     current_final_set = set(final_urls)
+#     for url in new_urls:
+#         if url and url not in current_final_set:
+#             final_urls.append(url)
+#             current_final_set.add(url)
+
+#     updated_product.image_urls = final_urls
+#     updated_product.primary_image = final_urls[0] if final_urls else None
+#     updated_product.save()
+#     sync_featured_product(updated_product)
+#     return Response(ProductUpdateSerializer(updated_product).data)
+
 
 
 
@@ -108,58 +185,21 @@ def update_product(request, pk):
     """Update product; image updates handled manually."""
     
     try:
-        product = Product.objects.get(pk=pk, vendor__user=request.user)
-    except Product.DoesNotExist:
-        return Response({"detail": "Product not found"}, status=404)
-
-    # Update normal fields (no image updates here)
-    serializer = ProductUpdateSerializer(
-        product,
-        data=request.data,
-        partial=True
-    )
-    serializer.is_valid(raise_exception=True)
-    updated_product = serializer.save()
-
-    # -----------------------
-    # IMAGE HANDLING
-    # -----------------------
+        product = ProductService.update_product(
+            pk,
+            request.data,
+            request.user,
+            context={'request': request}
+        )
+    except ProductValidationError as e:
+        return Response(e.errors,status=status.HTTP_400_BAD_REQUEST)    
     
-    existing = updated_product.image_urls or []
-    
-    # Safely get lists even if sent as single values
-    images_to_delete = request.data.get("images_to_delete", [])
-    if isinstance(images_to_delete, str):
-        images_to_delete = [images_to_delete]
-        
-    new_urls = request.data.get("image_urls", [])
-    if isinstance(new_urls, str):
-        new_urls = [new_urls]
-
-    # Use sets for O(1) lookups and deduplication
-    delete_set = set(images_to_delete)
-    existing_set = set(existing)
-    
-    # Remove deleted images
-    final_urls = [url for url in existing if url not in delete_set]
-
-    # Add new S3 URLs (avoid duplicates)
-    current_final_set = set(final_urls)
-    for url in new_urls:
-        if url and url not in current_final_set:
-            final_urls.append(url)
-            current_final_set.add(url)
-
-    updated_product.image_urls = final_urls
-    updated_product.primary_image = final_urls[0] if final_urls else None
-    updated_product.save()
-    sync_featured_product(updated_product)
-    return Response(ProductUpdateSerializer(updated_product).data)
+    sync_featured_product(product)
+    return Response(ProductUpdateSerializer(product).data)
 
 
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
-# @parser_classes([MultiPartParser, FormParser])
 def activate_product(request, pk):
     """Update a product"""
     
@@ -180,24 +220,44 @@ def activate_product(request, pk):
         )
 
 
+# @api_view(['DELETE'])
+# @permission_classes([IsAuthenticated])
+# def delete_product(request, pk):
+#     """Soft delete a product"""
+    
+#     try:
+#         product = Product.objects.get(pk=pk, vendor__user=request.user)
+#     except Product.DoesNotExist:
+#         return Response(
+#             {"detail": "Product not found or you don't have permission"}, 
+#             status=status.HTTP_404_NOT_FOUND
+#         )
+    
+#     # Soft delete
+#     product.is_archived = True
+#     product.save(update_fields=["is_archived"])
+    
+#     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_product(request, pk):
     """Soft delete a product"""
-    
     try:
-        product = Product.objects.get(pk=pk, vendor__user=request.user)
-    except Product.DoesNotExist:
-        return Response(
-            {"detail": "Product not found or you don't have permission"}, 
-            status=status.HTTP_404_NOT_FOUND
+        ProductService.delete_product(
+            pk,
+            request.data,
+            request.user,
+            context={'request': request}
         )
-    
-    # Soft delete
-    product.is_archived = True
-    product.save(update_fields=["is_archived"])
+    except ProductValidationError as e:
+        return Response(e.errors,status=status.HTTP_400_BAD_REQUEST)
     
     return Response(status=status.HTTP_204_NO_CONTENT)
+   
+    
 
 
 

@@ -20,7 +20,7 @@ try:
     from apps.vendors.models import Vendor
     from apps.products.models import Product
     from apps.portfolio.service import PortfolioService
-    from apps.products.service import get_vendor_products_combined
+    from apps.products.services import get_vendor_products_combined
 except ImportError:
     # If running as script without django setup
     pass
@@ -299,7 +299,7 @@ if __name__ == "__main__":
     from apps.vendors.models import Vendor
     from apps.products.models import Product
     from apps.portfolio.service import PortfolioService
-    from apps.products.service import get_vendor_products_combined
+    from apps.products.services import get_vendor_products_combined
     
     if len(sys.argv) < 2:
         raise Exception("❌ Please pass vendor ID. Example: python -m scripts.es.sync_vendor_to_es 5")
