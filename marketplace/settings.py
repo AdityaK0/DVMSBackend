@@ -47,25 +47,26 @@ if not SECRET_KEY:
         print("⚠️  WARNING: Using auto-generated SECRET_KEY for development")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+DEBUG = os.getenv('DEBUG')
 
-if not DEBUG:
+
+
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+
+if ENVIRONMENT == "production":
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
+else:
+    SECURE_SSL_REDIRECT = False
 
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    ".ngrok-free.app",  # allows any ngrok subdomain
-    "10.82.67.215",
-    "192.168.5.115"
-]
+
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+
+
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
@@ -157,23 +158,7 @@ DATABASES = {
     }
 }
 
-ECS_ROOT = Path(__file__).resolve().parents[3]
-SQLITE_CACHE_DIR = ECS_ROOT / "cache_hub"
 
-SQLITE_CACHE_FILES = {
-    "product": os.path.join(SQLITE_CACHE_DIR, "products_cache.sqlite3"),
-    "vendor": os.path.join(SQLITE_CACHE_DIR, "vendors_cache.sqlite3"),
-    "user": os.path.join(SQLITE_CACHE_DIR, "users_cache.sqlite3"),
-    
-}
-# how long (seconds) before we consider local cache stale (optional)
-SQLITE_CACHE_DEFAULT_TTL = int(os.getenv("SQLITE_CACHE_DEFAULT_TTL", "0"))  # 0 = no TTL
-
-
-print(ECS_ROOT)
-print(SQLITE_CACHE_DIR)
-print(SQLITE_CACHE_FILES)
-print(SQLITE_CACHE_DEFAULT_TTL)
 
 
 AWS_ACCESS_KEY_ID=os.getenv("AWS_ACCESS_KEY_ID")
@@ -259,17 +244,17 @@ SIMPLE_JWT = {
     'TOKEN_OBTAIN_SERIALIZER': 'apps.users.serializers.CustomTokenObtainPairSerializer',
 }
     
-# CORS Configuration
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3001",
-]
+
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN")
+
+
+frontend_origins = os.getenv("FRONTEND_ORIGINS", "")
+CORS_ALLOWED_ORIGINS = frontend_origins.split(",") if frontend_origins else []
+CSRF_TRUSTED_ORIGINS = frontend_origins.split(",") if frontend_origins else []
+
 
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = ENVIRONMENT != "production"
 
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http?:\/\/([a-zA-Z0-9-]+)\.localhost:3000$",  # For local development
@@ -282,7 +267,6 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20MB
 
 
 DEFAULT_SYNC_COUNT = os.getenv("DEFAUTL_SYNC_COUNT")
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")  # default = dev
 FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL")
 FRONTEND_PORT = os.getenv("FRONTEND_PORT",3000) 
 
@@ -312,6 +296,19 @@ CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
+REDIS_CACHE_DEFAULT_TTL = 60 * 60 * 5  # 5 hours
+
 
 
 # Add proper logging configuration:

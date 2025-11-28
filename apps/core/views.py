@@ -1,27 +1,3 @@
-# # views.py
-# import time
-# import cloudinary
-# import cloudinary.uploader
-# import cloudinary.utils
-# from rest_framework.decorators import api_view
-# from rest_framework.response import Response
-# from django.conf import settings
-# @api_view(['POST'])
-# def get_presigned_url(request):
-#     folder = request.data.get('folder', 'misc')
-#     timestamp = int(time.time())
-#     params_to_sign = {
-#         "timestamp": timestamp,
-#         "folder": folder
-#     }
-#     signature = cloudinary.utils.api_sign_request(params_to_sign, settings.CLOUDINARY_STORAGE['CLOUDINARY_API_SECRET'])
-
-#     return Response({
-#         "cloud_name": settings.CLOUDINARY_STORAGE['CLOUDINARY_CLOUD_NAME'],
-#         "api_key": settings.CLOUDINARY_STORAGE['CLOUDINARY_API_KEY'],
-#         "timestamp": timestamp,
-#         "signature": signature
-#     })
 
 
 import boto3

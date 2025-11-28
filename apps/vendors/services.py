@@ -5,18 +5,11 @@ from .models import Vendor,Event,PosterTemplate
 from .serializers import VendorSerializer, VendorListSerializer, VendorUpdate,EventSerializer,PosterTemplateSerializer
 from shared.permissions import IsVendorOrReadOnly
 from rest_framework.exceptions import ValidationError
-from rest_framework.response import Response
+
 from apps.users.models import Address
 from django.db import IntegrityError
-from .permissions import IsVendor
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
-from apps.utils.default_creation import create_default_categories_for_vendor,create_default_portfolio_for_vendor
-from django.utils.text import slugify
-from django.shortcuts import get_object_or_404
+from apps.core.events import VendorUpdated
 
 
 
@@ -39,5 +32,17 @@ class VendorService:
         serializer.is_valid(raise_exception=True)
 
         updated_vendor = serializer.save()
-        return updated_vendor
+        
+        serializer = VendorSerializer(updated_vendor).data
+        
+        # Publish event with standardized payload after transaction commits
+        from django.db import transaction
+        transaction.on_commit(lambda: VendorUpdated({
+            "id": vendor.id,
+            "action": "updated",
+            "data": serializer,
+            "metadata": {}
+        }).publish(bg=True))
+        
+        return serializer
     

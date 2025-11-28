@@ -13,26 +13,29 @@ from django.http import Http404
 from .exceptions import ProductValidationError
 from .serializers import ProductSerializer,ProductUpdateSerializer
 from django.db import transaction
-from apps.core.cache_decorators import sqlite_cached
-from apps.core.events import ProductUpdated
+from apps.core.cache_decorators import redis_cached
+from apps.core.events import ProductCreated, ProductUpdated, ProductDeleted
 
 
 
 class ProductService:
 
     @staticmethod
-    # @sqlite_cached("product", key_column="product_id", ttl=0)
+    @redis_cached("product", "product_id", ttl=60 * 60 * 5)
     def get_product(pk,*,context=None):
         """
         Returns a Product object or raises DoesNotExist.
         Business logic stays here; HTTP logic stays in the view.
         """
+        print("Really Not hitting the DB :) ::::: ")
         product =  (
             Product.objects
             .select_related("vendor", "category")
             .get(pk=pk, is_active=True, is_archived=False)
         )
         return ProductSerializer(product, context=context).data
+    
+    
     
     @staticmethod
     def create_product(data, vendor, *, context=None):
@@ -77,6 +80,19 @@ class ProductService:
                     sizes=sizes
                 )
                 
+            # Serialize for event payload
+            product_data = ProductSerializer(product, context=context).data
+            
+            # Publish event after transaction commits
+            transaction.on_commit(lambda: ProductCreated({
+                "id": product.id,
+                "action": "created",
+                "data": product_data,
+                "metadata": {
+                    "vendor_id": vendor.id,
+                }
+            }).publish(bg=True))
+            
             return product
             
     @staticmethod
@@ -135,28 +151,43 @@ class ProductService:
         updated_product.save()
         serialized = ProductSerializer(updated_product, context=context).data
         
-        
+        # Publish event with standardized payload
         transaction.on_commit(lambda: ProductUpdated({
-            "product_id": updated_product.id,
-            "vendor_id": updated_product.vendor_id,
-            "action": "UPDATED",
-            "data": serialized                   # 🔥 FULL SERIALIZED DATA
+            "id": updated_product.id,
+            "action": "updated",
+            "data": serialized,
+            "metadata": {
+                "vendor_id": updated_product.vendor_id,
+            }
         }).publish(bg=True))
         
         return serialized
     
     
     @staticmethod
-    def delete_product(pk,data,user,*,context=None):
+    def delete_product(pk, data, user, *, context=None):
         
         try:
            product = Product.objects.get(pk=pk, vendor__user=user)
         except Product.DoesNotExist:
             raise ProductValidationError({"detail": "Product not found or you don't have permission"})
         
+        vendor_id = product.vendor_id
+        product_id = product.id
+        
         # Soft delete
         product.is_archived = True
         product.save(update_fields=["is_archived"])
+        
+        # Publish event after transaction commits
+        transaction.on_commit(lambda: ProductDeleted({
+            "id": product_id,
+            "action": "deleted",
+            "data": None,  # No data needed for deleted products
+            "metadata": {
+                "vendor_id": vendor_id,
+            }
+        }).publish(bg=True))
         
         return True
 

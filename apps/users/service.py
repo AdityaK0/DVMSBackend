@@ -6,6 +6,9 @@ from .utils import send_telegram_message
 from django.conf import settings
 import random
 import redis
+from .serializers import UserSerializer
+from apps.core.cache_decorators import redis_cached
+
 
 r = redis.from_url(settings.REDIS_URL)
 
@@ -96,3 +99,20 @@ def process_telegram_update(data):
     )
     send_telegram_message(chat_id, message)
 
+
+
+class UserService:
+    
+    @staticmethod
+    @redis_cached("user", "user_id", ttl=60 * 60 * 5)
+    def get_user(user):
+        """
+        Returns complete authenticated user context:
+        - user info
+        - addresses
+        """
+
+        data = {
+            "user": UserSerializer(user).data,
+        }
+        return data

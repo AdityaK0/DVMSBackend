@@ -17,6 +17,8 @@ from rest_framework.exceptions import ValidationError
 from apps.utils.default_creation import create_default_categories_for_vendor,create_default_portfolio_for_vendor
 from django.utils.text import slugify
 from django.shortcuts import get_object_or_404
+from apps.core.events import VendorUpdated
+
 
 
 from .models import Event, PosterTemplate
@@ -231,7 +233,10 @@ def vendor_profile(request, pk=None):
         )
     except ValidationError as e:
         return Response(e.detail, status=400)
-
+    
+    if isinstance(updated_vendor,dict):
+        return Response(updated_vendor)
+    
     serializer = VendorSerializer(updated_vendor)
     return Response(serializer.data)
 

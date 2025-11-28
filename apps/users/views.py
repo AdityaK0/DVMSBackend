@@ -14,7 +14,7 @@ from rest_framework.decorators import api_view, permission_classes
 from .throttles import LoginRateThrottle
 from apps.vendors.serializers import VendorSerializer
 from apps.vendors.models import Vendor
-
+from .service import UserService
 
 import logging
 logger = logging.getLogger(__name__)
@@ -125,10 +125,5 @@ def me_view(request):
     - addresses
     """
     user = request.user
-
-    data = {
-        "user": UserSerializer(user).data,
-    }
-
-
+    data = UserService.get_user(user)
     return Response(data, status=status.HTTP_200_OK)

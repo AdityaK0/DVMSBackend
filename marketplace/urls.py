@@ -18,16 +18,12 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-import debug_toolbar
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('__debug__/', include(debug_toolbar.urls)),
     path('api/auth/', include('apps.users.urls')),
     path('api/vendors/', include('apps.vendors.urls')),
     path('api/products/', include('apps.products.urls')),
-    # path('api/orders/', include('apps.orders.urls')),
-    # path('api/payments/', include('apps.payments.urls')),
     path('api/dashboard/', include('apps.dashboard.urls')),
     path('api/portfolio/', include('apps.portfolio.urls')),
     path('api/subscriptions/', include('apps.subscriptions.urls')),
@@ -37,5 +33,10 @@ urlpatterns = [
 
 ]
 if settings.DEBUG:
+    import debug_toolbar
+    
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += [
+        path('__debug__/', include(debug_toolbar.urls)),
+    ]
 
