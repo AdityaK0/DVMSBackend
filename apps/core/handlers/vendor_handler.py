@@ -7,33 +7,27 @@ logger = logging.getLogger(__name__)
 
 
 class VendorUpdatedSubscriber:
-    """
-    Handles vendor.updated events.
     
-    Responsibilities:
-    - Update Redis cache with latest vendor data
-    - Invalidate related caches (portfolio, products, etc.)
-    """
-    queue = "default"
-
     def __call__(self, event):
         logger.info(f"▶ VendorUpdatedSubscriber called for vendor {event.id}")
+        
+        user_id = event.metadata.get("user_id")
+        vendor_id = event.id
 
-        try:
-            vendor_id = event.id
-            vendor_data = event.data
+        logger.info(f"📋 Invalidating caches - user_id: {user_id}, vendor_id: {vendor_id}")
 
-            # 1. Update vendor cache
-            vendor_cache_key = f"vendor:{vendor_id}"
-            cache.delete(vendor_cache_key)  # Delete first to ensure consistency
-            cache.set(vendor_cache_key, vendor_data, timeout=60 * 60 * 5)
-            logger.info(f"✅ Vendor cache updated: {vendor_cache_key}")
+        # Delete all related caches
+        cache.delete(f"user:{user_id}")
+        logger.info(f"🗑️  Deleted cache: user:{user_id}")
+        
+        cache.delete(f"portfolio:{vendor_id}")
+        logger.info(f"🗑️  Deleted cache: portfolio:{vendor_id}")
+        
+        cache.delete(f"vendor:{vendor_id}")
+        logger.info(f"🗑️  Deleted cache: vendor:{vendor_id}")
+        
+        print(f"✅ User + vendor + portfolio cache invalidated for user:{user_id}, vendor:{vendor_id}")
 
-            # 2. Optionally invalidate related caches
-            # Example: If vendor name changed, invalidate portfolio cache
-            portfolio_cache_key = f"portfolio:{vendor_id}"
-            cache.delete(portfolio_cache_key)
-            logger.info(f"🗑️  Invalidated portfolio cache: {portfolio_cache_key}")
 
-        except Exception as e:
-            logger.error(f"❌ VendorUpdatedSubscriber failed: {e}", exc_info=True)
+
+

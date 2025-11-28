@@ -14,7 +14,6 @@ class ProductCreatedSubscriber:
     - Warm Redis cache with new product data
     - Update vendor product count cache
     """
-    queue = "default"
 
     def __call__(self, event):
         logger.info(f"▶ ProductCreatedSubscriber called for product {event.id}")
@@ -47,7 +46,6 @@ class ProductUpdatedSubscriber:
     - Update Redis cache with latest product data
     - Invalidate related caches
     """
-    queue = "default"
 
     def __call__(self, event):
         logger.info(f"▶ ProductUpdatedSubscriber called for product {event.id}")
@@ -81,7 +79,6 @@ class ProductDeletedSubscriber:
     - Remove product from Redis cache
     - Update vendor product count cache
     """
-    queue = "default"
 
     def __call__(self, event):
         logger.info(f"▶ ProductDeletedSubscriber called for product {event.id}")

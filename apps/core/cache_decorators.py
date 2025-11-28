@@ -18,6 +18,9 @@ def redis_cached(model_name: str, key_column: str = None, ttl: int = None):
     Example usage:
         @redis_cached("vendor", "vendor_id", ttl=5*60*60)
         def get_vendor_profile(pk): ...
+        
+        @redis_cached("user", "user_id", ttl=5*60*60)
+        def get_user(user): ...  # Works with objects too!
     """
 
     key_column = key_column or f"{model_name}_id"
@@ -27,10 +30,15 @@ def redis_cached(model_name: str, key_column: str = None, ttl: int = None):
         @wraps(fn)
         def wrapper(*args, **kwargs):
 
-            # Get primary key
+            # Get primary key - handle both integers and objects
             pk = kwargs.get("pk")
             if pk is None and len(args) >= 1:
-                pk = args[0]
+                first_arg = args[0]
+                # If it's an object with .id attribute, extract it
+                if hasattr(first_arg, 'id'):
+                    pk = first_arg.id
+                else:
+                    pk = first_arg
 
             if pk is None:
                 return fn(*args, **kwargs)

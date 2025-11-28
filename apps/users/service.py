@@ -6,8 +6,11 @@ from .utils import send_telegram_message
 from django.conf import settings
 import random
 import redis
+import logging
 from .serializers import UserSerializer
 from apps.core.cache_decorators import redis_cached
+
+logger = logging.getLogger(__name__)
 
 
 r = redis.from_url(settings.REDIS_URL)
@@ -110,7 +113,7 @@ class UserService:
         Returns complete authenticated user context:
         - user info
         - addresses
-        """
+        """ 
 
         data = {
             "user": UserSerializer(user).data,

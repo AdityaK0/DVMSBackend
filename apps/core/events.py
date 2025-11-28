@@ -78,3 +78,4 @@ class ProductDeleted(BaseEvent):
 class VendorUpdated(BaseEvent):
     """Published after a vendor profile is successfully updated."""
     event_name = "vendor.updated"
+

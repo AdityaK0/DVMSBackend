@@ -43,7 +43,6 @@ class EventBus:
                     celery_app.send_task(
                         "apps.core.tasks.handle_event",
                         args=(handler_cls.__name__, event.event_name, event.payload),
-                        queue=getattr(handler_cls, "queue", "default")
                     )
                 except Exception as e:
                     logger.error(f"❌ Failed to dispatch event to Celery: {e}")

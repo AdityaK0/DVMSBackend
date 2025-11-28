@@ -41,7 +41,9 @@ class VendorService:
             "id": vendor.id,
             "action": "updated",
             "data": serializer,
-            "metadata": {}
+            "metadata": {
+                "user_id": vendor.user_id  # Include user_id for cache invalidation
+            }
         }).publish(bg=True))
         
         return serializer
