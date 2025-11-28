@@ -36,6 +36,16 @@ services:
       - CELERY_RESULT_BACKEND=redis://host.docker.internal:6380/0
 
 
+  redis_insight:
+    image: redis/redisinsight:latest
+    container_name: redis_insight
+    restart: always
+    ports:
+      - "5540:5540"
+    depends_on:
+      - redis    
+
+
 
 volumes:
   postgres_data:

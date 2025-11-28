@@ -107,7 +107,7 @@ def process_telegram_update(data):
 class UserService:
     
     @staticmethod
-    @redis_cached("user", "user_id", ttl=60 * 60 * 5)
+    @redis_cached("user") 
     def get_user(user):
         """
         Returns complete authenticated user context:

@@ -1,4 +1,4 @@
-from rest_framework import generics, status, permissions
+from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny,IsAuthenticated
@@ -6,14 +6,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer, UserProfileUpdateSerializer,
-    UserSerializer, AddressSerializer
+    UserSerializer
 )
-from .models import Address
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from .throttles import LoginRateThrottle
-from apps.vendors.serializers import VendorSerializer
-from apps.vendors.models import Vendor
 from .service import UserService
 
 import logging
@@ -45,13 +42,7 @@ class UserLoginView(generics.GenericAPIView):
             'user': UserSerializer(user).data
         })
 
-class UserProfileView(generics.RetrieveAPIView):
-    # FIXED: Ensure only authenticated users can hit this endpoint
-    permission_classes = [IsAuthenticated]
-    serializer_class = UserSerializer
-    
-    def get_object(self):
-        return self.request.user
+
     
 
 @api_view(['PUT', 'PATCH'])
@@ -80,20 +71,7 @@ def user_profile_update_fbv(request,pk=None):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class AddressListCreateView(generics.ListCreateAPIView):
-    serializer_class = AddressSerializer
-    
-    def get_queryset(self):
-        return Address.objects.filter(user=self.request.user)
-    
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
 
-class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = AddressSerializer
-    
-    def get_queryset(self):
-        return Address.objects.filter(user=self.request.user)
     
 
 @api_view(["POST"])
@@ -127,3 +105,30 @@ def me_view(request):
     user = request.user
     data = UserService.get_user(user)
     return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+# class AddressListCreateView(generics.ListCreateAPIView):
+#     serializer_class = AddressSerializer
+    
+#     def get_queryset(self):
+#         return Address.objects.filter(user=self.request.user)
+    
+#     def perform_create(self, serializer):
+#         serializer.save(user=self.request.user)
+
+# class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
+#     serializer_class = AddressSerializer
+    
+#     def get_queryset(self):
+#         return Address.objects.filter(user=self.request.user)
+
+
+# class UserProfileView(generics.RetrieveAPIView):
+#     # FIXED: Ensure only authenticated users can hit this endpoint
+#     permission_classes = [IsAuthenticated]
+#     serializer_class = UserSerializer
+    
+#     def get_object(self):
+#         return self.request.user

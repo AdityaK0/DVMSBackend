@@ -14,6 +14,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from .models import Subscription, SubscriptionPlan, PaymentTransaction
 from .serializers import SubscriptionSerializer, SubscriptionPlanSerializer, PaymentTransactionSerializer
+from .services import SubscriptionService
 
 logger = logging.getLogger(__name__)
 
@@ -422,6 +423,29 @@ def subscription_plans(request):
     return Response({"plans": serializer.data}, status=status.HTTP_200_OK)
 
 
+# @api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+# def subscription_status(request):
+#     """
+#     Returns current vendor subscription. Deactivates if expired.
+#     """
+#     vendor, err = get_request_vendor_or_404(request)
+#     if err:
+#         return err
+
+#     sub = getattr(vendor, "subscription", None)
+#     if not sub:
+#         return Response({"subscription": None}, status=status.HTTP_200_OK)
+
+#     # Auto deactivate expired subs
+#     if sub.end_date and sub.end_date < timezone.now() and sub.is_active:
+#         # FIXED: Use minimal write and update_fields for efficiency
+#         sub.is_active = False
+#         sub.save(update_fields=["is_active"])
+
+#     return Response({"subscription": SubscriptionSerializer(sub).data}, status=status.HTTP_200_OK)
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def subscription_status(request):
@@ -432,17 +456,14 @@ def subscription_status(request):
     if err:
         return err
 
-    sub = getattr(vendor, "subscription", None)
+    sub = SubscriptionService.get_vendor_subscription(vendor)
+
     if not sub:
         return Response({"subscription": None}, status=status.HTTP_200_OK)
+    
+    return Response({"subscription": sub}, status=status.HTTP_200_OK)
 
-    # Auto deactivate expired subs
-    if sub.end_date and sub.end_date < timezone.now() and sub.is_active:
-        # FIXED: Use minimal write and update_fields for efficiency
-        sub.is_active = False
-        sub.save(update_fields=["is_active"])
 
-    return Response({"subscription": SubscriptionSerializer(sub).data}, status=status.HTTP_200_OK)
 
 
 @csrf_exempt

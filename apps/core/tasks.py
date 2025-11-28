@@ -4,6 +4,13 @@ import logging
 from celery import shared_task
 from apps.core.router import EVENT_ROUTES
 
+
+from celery import shared_task
+from django.core.cache import cache
+from apps.vendors.models import Vendor
+from apps.products.models import Product
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,3 +64,35 @@ def handle_event(self, handler_name, event_name, payload):
 
     logger.warning(f"⚠️  Handler not found: {handler_name}")
     return False
+
+
+
+
+@shared_task(name="apps.core.tasks.celery_warmup")
+def celery_warmup():
+    """
+    Run once on worker startup to warm everything:
+    - Import Django models
+    - Open DB connections
+    - Touch Redis
+    - Load serializers/subscribers
+    """
+
+    print("🔥 Celery warmup started...")
+
+    # Touch cache
+    cache.set("celery:warmup", "ok", timeout=60)
+
+    # Touch DB
+    Vendor.objects.first()
+    Product.objects.first()
+
+    # Import event handlers (forces load)
+    from apps.core.handlers.vendor_handler import VendorUpdatedSubscriber
+    from apps.core.handlers.product_handler import ProductUpdatedSubscriber
+
+    VendorUpdatedSubscriber()
+    ProductUpdatedSubscriber()
+
+    print("✅ Celery warmup complete")
+    return "warmed"

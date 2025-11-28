@@ -2,8 +2,7 @@ from apps.core import views
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
-    UserRegistrationView, UserProfileView,user_profile_update_fbv,logout,
-    AddressListCreateView, AddressDetailView,me_view
+    UserRegistrationView,logout,me_view
 )
 from . import telegram_views
 from . import auth_views
@@ -17,14 +16,20 @@ urlpatterns = [
     path('otp/verify_final_otp/', auth_views.verify_final_otp_login_view, name='verify-final-otp'),
     path('logout/', logout, name='user-logout'),
     path('refresh/', TokenRefreshView.as_view(), name='token-refresh'),
-    path('profile/', UserProfileView.as_view(), name='user-profile'),
-    path('profile/<int:pk>/',user_profile_update_fbv, name='user-profile-update'),
-    path('addresses/', AddressListCreateView.as_view(), name='address-list-create'),
-    path('addresses/<int:pk>/', AddressDetailView.as_view(), name='address-detail'),
+
     path("telegram/link/", telegram_views.generate_telegram_link),
     path("telegram/webhook/", telegram_views.telegram_webhook),
     path("request_otp/", telegram_views.request_otp),
     path("verify_otp/", telegram_views.verify_otp),
     path("me/", me_view, name='me'),
+    
+    
+    
+    # ==== i dont think this is in use but we will if needed === #
+    
+    # path('profile/', UserProfileView.as_view(), name='user-profile'),
+    # path('profile/<int:pk>/',user_profile_update_fbv, name='user-profile-update'), 
+    # path('addresses/', AddressListCreateView.as_view(), name='address-list-create'),
+    # path('addresses/<int:pk>/', AddressDetailView.as_view(), name='address-detail'),
     
 ]

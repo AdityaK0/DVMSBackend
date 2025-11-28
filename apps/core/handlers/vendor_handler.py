@@ -2,6 +2,7 @@
 
 import logging
 from django.core.cache import cache
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -14,19 +15,18 @@ class VendorUpdatedSubscriber:
         user_id = event.metadata.get("user_id")
         vendor_id = event.id
 
-        logger.info(f"📋 Invalidating caches - user_id: {user_id}, vendor_id: {vendor_id}")
-
-        # Delete all related caches
+        
+        
+        # Delete the data related to the vendors so that vendor wont get invalid data 
         cache.delete(f"user:{user_id}")
-        logger.info(f"🗑️  Deleted cache: user:{user_id}")
-        
         cache.delete(f"portfolio:{vendor_id}")
-        logger.info(f"🗑️  Deleted cache: portfolio:{vendor_id}")
         
-        cache.delete(f"vendor:{vendor_id}")
-        logger.info(f"🗑️  Deleted cache: vendor:{vendor_id}")
+        # thought to revalidate data (after cache delete add again by calling their service method ) will do if needed 
         
-        print(f"✅ User + vendor + portfolio cache invalidated for user:{user_id}, vendor:{vendor_id}")
+        
+        print("vendor data and portfolio data cleaned",datetime.now())
+        
+        
 
 
 

@@ -30,33 +30,6 @@ import logging
 
 
 logger = logging.getLogger(__name__)
-
-
-
-
-
-
-class VendorListView(generics.ListAPIView):
-    queryset = (
-        Vendor.objects.filter(is_active=True)
-        .select_related('user')
-        .prefetch_related('user__addresses')
-    )
-    serializer_class = VendorListSerializer
-    permission_classes = [permissions.AllowAny]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    search_fields = ['business_name', 'business_description']
-    ordering_fields = ['business_name', 'created_at']
-    filterset_fields = ['is_verified']
-
-class VendorDetailView(generics.RetrieveAPIView):
-    queryset = (
-        Vendor.objects.filter(is_active=True)
-        .select_related('user')
-        .prefetch_related('user__addresses')
-    )
-    serializer_class = VendorSerializer
-    permission_classes = [permissions.AllowAny]
   
 
 @api_view(["POST"])
@@ -157,51 +130,6 @@ def create_vendor(request):
         )
 
 
-        
-# @api_view(['GET', 'PUT', 'PATCH'])
-# @permission_classes([IsAuthenticated, IsVendorOrReadOnly])
-# def vendor_profile(request, pk=None):
-#     """
-#     Single endpoint to retrieve or update vendor profile and address.
-#     - GET: Returns full vendor profile with address
-#     - PUT/PATCH: Updates any provided fields (all fields optional)
-#     """
-#     try:
-#         if pk is not None:
-#             vendor = Vendor.objects.select_related('user').prefetch_related('user__addresses').get(id=pk)
-#         else:
-#             vendor = Vendor.objects.select_related('user').prefetch_related('user__addresses').get(user=request.user)
-#     except Vendor.DoesNotExist:
-#         return Response(
-#             {"detail": "Vendor profile not found."},
-#             status=status.HTTP_404_NOT_FOUND
-#         )
-
-#     if request.method == 'GET':
-#         # Use full VendorSerializer for GET requests
-#         serializer = VendorSerializer(vendor)
-#         return Response(serializer.data)
-
-#     elif request.method in ['PUT', 'PATCH']:
-#         # Both PUT and PATCH work the same way - update only provided fields
-#         serializer = VendorUpdate(
-#             vendor, 
-#             data=request.data, 
-#             partial=True,  # Always allow partial updates
-#             context={'request': request}
-#         )
-        
-#         if serializer.is_valid():
-#             updated_vendor = serializer.save()
-            
-#             # Return updated vendor data using full VendorSerializer
-#             response_serializer = VendorSerializer(updated_vendor)
-#             return Response(response_serializer.data)
-        
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-
 @api_view(['GET', 'PUT', 'PATCH'])
 @permission_classes([IsAuthenticated, IsVendorOrReadOnly])
 def vendor_profile(request, pk=None):
@@ -223,9 +151,8 @@ def vendor_profile(request, pk=None):
         serializer = VendorSerializer(vendor)
         return Response(serializer.data)
 
-    # --------- UPDATE (PUT/PATCH) ---------
     try:
-        updated_vendor = VendorService.update_vendor(
+        updated_vendor = VendorService.update_vendor( 
             vendor,
             request.data,
             context={"request": request},
@@ -241,6 +168,9 @@ def vendor_profile(request, pk=None):
 
     
 
+
+
+# vendor implenentation for posters this will be always vendor side so kind of static data non-violate data
 
 
 @api_view(["POST"])

@@ -1,14 +1,7 @@
-from rest_framework import generics, permissions,status
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter, OrderingFilter
-from .models import Vendor,Event,PosterTemplate
-from .serializers import VendorSerializer, VendorListSerializer, VendorUpdate,EventSerializer,PosterTemplateSerializer
-from shared.permissions import IsVendorOrReadOnly
-from rest_framework.exceptions import ValidationError
 
-from apps.users.models import Address
-from django.db import IntegrityError
-from rest_framework import status
+from .models import Vendor,Event,PosterTemplate
+from .serializers import VendorSerializer, VendorUpdate
+from django.db import transaction
 from apps.core.events import VendorUpdated
 
 
@@ -35,16 +28,15 @@ class VendorService:
         
         serializer = VendorSerializer(updated_vendor).data
         
-        # Publish event with standardized payload after transaction commits
-        from django.db import transaction
-        transaction.on_commit(lambda: VendorUpdated({
+        
+        VendorUpdated({ # event launch to update the cache data 
             "id": vendor.id,
             "action": "updated",
             "data": serializer,
             "metadata": {
                 "user_id": vendor.user_id  # Include user_id for cache invalidation
             }
-        }).publish(bg=True))
+        }).publish(bg=True)
         
         return serializer
     
