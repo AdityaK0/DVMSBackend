@@ -1,5 +1,4 @@
 from apps.products.models import Category
-from apps.portfolio.models import Portfolio
 from django.conf import settings
 
 
@@ -23,7 +22,7 @@ def create_default_categories_for_vendor(vendor):
 
 
 def create_default_portfolio_for_vendor(vendor):
-    from apps.portfolio.models import Portfolio  # avoid circular import
+    from apps.portfolio.models import Portfolio,PortfolioSyncPlan
     # Check if already exists
     portfolio, created = Portfolio.objects.get_or_create(
         vendor=vendor,
@@ -50,5 +49,10 @@ def create_default_portfolio_for_vendor(vendor):
         portfolio_url = f"{settings.FRONTEND_BASE_URL}/{vendor.business_name_slug}"
     portfolio.portfolio_url = portfolio_url
     portfolio.save()
+    
+    PortfolioSyncPlan.objects.get_or_create(
+        portfolio=portfolio,
+        defaults={"allowed_syncs_per_day": 5}
+    )
     
     return portfolio

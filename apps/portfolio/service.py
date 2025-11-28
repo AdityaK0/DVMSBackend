@@ -97,22 +97,14 @@ class PortfolioService:
         return serializer.data    
     
     @staticmethod
-    def create_vendor_sync_plan(vendor):
-        plan, created = PortfolioSyncPlan.objects.get_or_create(
-            vendor=vendor,
-            defaults={
-                "allowed_syncs_per_day": settings.DEFAULT_SYNC_COUNT,
-                "used_syncs_today": 0,
-                "extra_syncs_available": 0,
-            },
-        )
+    def get_vendor_sync_plan(vendor):
+        portfolio = Portfolio.objects.get(vendor=vendor)
 
-        if created:
-            plan.last_sync_at = None
-            plan.save()
+        try:
+            return portfolio.sync_plan
+        except PortfolioSyncPlan.DoesNotExist:
+            return PortfolioSyncPlan.objects.create(portfolio=portfolio)
 
-        plan.refresh_from_db()
-        return plan
 
           
 

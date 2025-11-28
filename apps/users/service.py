@@ -102,18 +102,27 @@ def process_telegram_update(data):
     )
     send_telegram_message(chat_id, message)
 
-
+from apps.users.models import User
 
 class UserService:
     
     @staticmethod
-    @redis_cached("user") 
-    def get_user(user):
+    @redis_cached("user","user_id",ttl=60 * 60) # explicitly telling the decorator the user id is user_id 
+    def get_user(user_id):
         """
         Returns complete authenticated user context:
         - user info
         - addresses
         """ 
+        user = (
+            User.objects
+            .select_related("vendor")
+            .prefetch_related(
+                "addresses",
+                "vendor__user__addresses"
+            )
+            .get(id=user_id)
+        )
 
         data = {
             "user": UserSerializer(user).data,

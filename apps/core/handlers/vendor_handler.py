@@ -20,7 +20,7 @@ class VendorUpdatedSubscriber:
         # Delete the data related to the vendors so that vendor wont get invalid data 
         cache.delete(f"user:{user_id}")
         cache.delete(f"portfolio:{vendor_id}")
-        
+        cache.delete(f"auth_user:{user_id}")
         # thought to revalidate data (after cache delete add again by calling their service method ) will do if needed 
         
         

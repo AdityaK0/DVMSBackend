@@ -203,9 +203,11 @@ class PortfolioTheme(models.Model):
     
 # apps/portfolio/models.py
 
+# apps/portfolio/models.py
+
 class PortfolioSyncPlan(models.Model):
-    vendor = models.OneToOneField(
-        Vendor,
+    portfolio = models.OneToOneField(
+        "Portfolio",
         on_delete=models.CASCADE,
         related_name="sync_plan",
     )
@@ -213,52 +215,42 @@ class PortfolioSyncPlan(models.Model):
     allowed_syncs_per_day = models.PositiveIntegerField(default=5)
     used_syncs_today = models.PositiveIntegerField(default=0)
     extra_syncs_available = models.PositiveIntegerField(default=0)
-
     last_sync_at = models.DateTimeField(null=True, blank=True)
-    
+
+
     def _is_new_day(self) -> bool:
         return not self.last_sync_at or self.last_sync_at.date() != now().date()
-    
+
     def _reset_today_usage(self):
-        """Reset daily counter if needed"""
         if self._is_new_day():
             self.used_syncs_today = 0
             self.save(update_fields=["used_syncs_today"])
-            
-    def reset_if_new_day(self):
-        """Reset counter automatically every new day"""
-        if self.last_sync_at and self.last_sync_at.date() != now().date():
-            self.used_syncs_today = 0
-            self.save()
-    
-    
+
     def can_sync(self) -> bool:
-        """Whether sync can happen right now"""
         self._reset_today_usage()
-        return (self.used_syncs_today < self.allowed_syncs_per_day) or (
-            self.extra_syncs_available > 0
+        return (
+            self.used_syncs_today < self.allowed_syncs_per_day 
+            or self.extra_syncs_available > 0
         )
-        
+
     def consume_sync(self):
-            """Consume sync — handles daily quota + extra syncs"""
-            self._reset_today_usage()
+        self._reset_today_usage()
 
-            if self.used_syncs_today < self.allowed_syncs_per_day:
-                self.used_syncs_today += 1
-            else:
-                self.extra_syncs_available -= 1  # paid/bonus syncs
+        if self.used_syncs_today < self.allowed_syncs_per_day:
+            self.used_syncs_today += 1
+        else:
+            self.extra_syncs_available -= 1
 
-            self.last_sync_at = now()
-            self.save(update_fields=["used_syncs_today", "extra_syncs_available", "last_sync_at"])
-    
+        self.last_sync_at = now()
+        self.save(update_fields=["used_syncs_today", "extra_syncs_available", "last_sync_at"])
+
     @property
-    def remaining_syncs(self) -> int:
-        """Remaining syncs for today (including extra purchased syncs)"""
+    def remaining_syncs(self):
         self._reset_today_usage()
         today_remaining = max(self.allowed_syncs_per_day - self.used_syncs_today, 0)
         return today_remaining + self.extra_syncs_available
 
-
     def __str__(self):
-        return f"SyncPlan({self.vendor.business_name})"
+        return f"SyncPlan({self.portfolio.display_name})"
+
 

@@ -16,6 +16,8 @@ from scripts.es.sync_vendor_to_es import sync_vendor
 from .service import PortfolioService
 import logging
 from django.conf import settings
+from django.db.models import Prefetch
+from apps.products.models import Product
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +54,19 @@ def safe_get_list(data, key):
 @api_view(['GET', 'PUT', 'PATCH'])
 @permission_classes([permissions.IsAuthenticated])
 def vendor_portfolio_manage(request):
-    vendor = request.user.vendor
-    portfolio = Portfolio.objects.get(vendor=vendor)
+    vendor = getattr(request, "cached_vendor", None) or request.user.vendor
+    
+    portfolio = Portfolio.objects.select_related(
+        "vendor", "vendor__user"
+    ).prefetch_related(
+        Prefetch(
+            "featured_products",
+            queryset=Product.objects.select_related("category", "vendor")
+        )
+    ).get(vendor=vendor)
+
+
+
 
     if request.method == "GET":
         return Response(PortfolioSerializer(portfolio).data)
@@ -177,7 +190,7 @@ def trigger_sync(request):
     if not vendor:
         return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    plan = PortfolioService.create_vendor_sync_plan(vendor)
+    plan = PortfolioService.get_vendor_sync_plan(vendor)
 
     if not plan.can_sync():
         return Response(
@@ -236,7 +249,7 @@ def sync_status(request):
     }
 
     try:
-        plan = PortfolioService.create_vendor_sync_plan(vendor)
+        plan = PortfolioService.get_vendor_sync_plan(vendor)
         sync_data.update({
             "remaining_syncs": plan.remaining_syncs or 0,
             "used_syncs_today": plan.used_syncs_today or 0,

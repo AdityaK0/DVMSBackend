@@ -1,20 +1,22 @@
 from django.utils import timezone
 from .serializers import SubscriptionSerializer
 from apps.core.cache_decorators import redis_cached
+from .models import Subscription
 
 class SubscriptionService:
 
     @staticmethod
-    @redis_cached("subscription",ttl=60*60*10)
-    def get_vendor_subscription(vendor):
+    @redis_cached("subscription", "vendor_id", ttl=60*60*10)
+    def get_vendor_subscription(vendor_id):
         """
         Fetch vendor subscription. If expired, deactivate automatically.
         Returns subscription or None.
         """
-        print("this will be printed again after 10 hours only ")
+        sub = Subscription.objects.filter(
+            vendor_id=vendor_id
+        ).select_related("plan").first()
     
         
-        sub = getattr(vendor, "subscription", None)
         if not sub:
             return None
 

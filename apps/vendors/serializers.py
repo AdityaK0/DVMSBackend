@@ -25,17 +25,21 @@ class VendorSerializer(serializers.ModelSerializer):
             "created_at", "updated_at", "is_onboarded", "address_details","secret","telegram_chat_id"
         ]
         read_only_fields = ["user", "is_verified", "created_at", "updated_at","logo_url","telegram_chat_id","secret"]
-    
+
     def get_address_details(self, obj):
-        # Get user's default address or first address
         from apps.users.serializers import AddressSerializer
-        address = obj.user.addresses.filter(is_default=True).first()
-        if not address:
-            address = obj.user.addresses.first()
-        
-        if address:
-            return AddressSerializer(address).data
+        addresses = getattr(obj.user, "addresses", []).all()
+
+        default_address = next((addr for addr in addresses if addr.is_default), None)
+
+        if not default_address and addresses:
+            default_address = addresses[0]
+
+        if default_address:
+            return AddressSerializer(default_address).data
+
         return None
+
 
 class VendorListSerializer(serializers.ModelSerializer):
     total_products = serializers.ReadOnlyField()

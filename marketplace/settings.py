@@ -218,8 +218,12 @@ AUTH_USER_MODEL = 'users.User'
 
 # REST Framework Configuration
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    # 'DEFAULT_AUTHENTICATION_CLASSES': ( this class by default make request to db at each call to verify user 
+    #     'rest_framework_simplejwt.authentication.JWTAuthentication',
+    # ),
+    
+    'DEFAULT_AUTHENTICATION_CLASSES': ( # added this cause it caches the data of user and wont make request at every request
+        'apps.core.authentication.CachedJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -233,6 +237,8 @@ REST_FRAMEWORK = {
     ],
     'EXCEPTION_HANDLER': 'apps.core.exceptions_.exceptions.custom_exception_handler'
 }
+
+
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),  # Reduced from 10 hours for security

@@ -184,7 +184,7 @@ def sync_vendor(vendor_id):
         remove_vendor_from_es(vendor_id)
         return {"status": "removed", "reason": "subscription_expired"}
 
-    plan = PortfolioService.create_vendor_sync_plan(vendor)
+    plan = PortfolioService.get_vendor_sync_plan(vendor)
 
     if not plan.can_sync():
         return {"status": "blocked", "reason": "sync_limit_reached"}

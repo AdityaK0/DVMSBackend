@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from .models import Subscription, SubscriptionPlan, PaymentTransaction
 from .serializers import SubscriptionSerializer, SubscriptionPlanSerializer, PaymentTransactionSerializer
 from .services import SubscriptionService
-
+from apps.core.authentication import get_request_vendor
 logger = logging.getLogger(__name__)
 
 
@@ -452,11 +452,14 @@ def subscription_status(request):
     """
     Returns current vendor subscription. Deactivates if expired.
     """
-    vendor, err = get_request_vendor_or_404(request)
-    if err:
-        return err
+    vendor_id = get_request_vendor(request)
 
-    sub = SubscriptionService.get_vendor_subscription(vendor)
+    if not vendor_id:
+        return Response({"subscription": None}, status=200)
+
+
+
+    sub = SubscriptionService.get_vendor_subscription(vendor_id)
 
     if not sub:
         return Response({"subscription": None}, status=status.HTTP_200_OK)

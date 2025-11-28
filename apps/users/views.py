@@ -72,7 +72,7 @@ def user_profile_update_fbv(request,pk=None):
 
 
 
-    
+from django.core.cache import cache
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -87,6 +87,12 @@ def logout(request):
         
         token = RefreshToken(refresh_token)
         token.blacklist()  #  only works if blacklist app enabled
+        
+        cache.delete(f"auth_user:{request.user.id}")
+        cache.delete(f"user:{request.user.id}")
+        
+        print("cache deleted on logout")
+        
 
         return Response({"message": "Logout successful!"}, status=status.HTTP_200_OK) 
     except Exception as e:
@@ -102,8 +108,8 @@ def me_view(request):
     - user info
     - addresses
     """
-    user = request.user
-    data = UserService.get_user(user)
+    user_id = request.user.id
+    data = UserService.get_user(user_id)
     return Response(data, status=status.HTTP_200_OK)
 
 
