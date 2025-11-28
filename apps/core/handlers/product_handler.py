@@ -58,8 +58,8 @@ class ProductUpdatedSubscriber:
             # 1. Update product cache
             product_cache_key = f"product:{product_id}"
             cache.delete(product_cache_key)  # Delete first to ensure consistency
-            cache.set(product_cache_key, product_data, timeout=60 * 60 * 5)
-            logger.info(f"✅ Product cache updated: {product_cache_key}")
+            # cache.set(product_cache_key, product_data, timeout=60 * 60 * 5)
+            # logger.info(f"✅ Product cache updated: {product_cache_key}")
 
             # 2. Invalidate vendor product list cache
             if vendor_id:
