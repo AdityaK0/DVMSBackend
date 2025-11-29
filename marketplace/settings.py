@@ -73,8 +73,13 @@ USE_CELERY = os.getenv("USE_CELERY", "false").lower() == "true"
 BIG_MACHINE = os.getenv("DO_WE_HAVE_BIG_MACHINE", "false").lower() == "true"    
 
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+# ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
+ALLOWED_HOSTS = [
+    "3.108.234.224",
+    "localhost",
+    "127.0.0.1",
+]
 
 
 CSRF_TRUSTED_ORIGINS = [
