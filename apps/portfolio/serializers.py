@@ -4,13 +4,34 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
     Portfolio, PortfolioCollection, 
-    PortfolioTheme
+    PortfolioTheme,PortfolioSyncPlan
 )
 from apps.vendors.models import Vendor
 from apps.products.models import Product
 from apps.products.serializers import ProductListSerializer
 
 User = get_user_model()
+
+class PortfolioSyncPlanSerializer(serializers.ModelSerializer):
+    remaining_syncs = serializers.SerializerMethodField()
+    last_sync_at = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PortfolioSyncPlan
+        fields = [
+            "allowed_syncs_per_day",
+            "remaining_syncs",
+            "used_syncs_today",
+            "extra_syncs_available",
+            "last_sync_at",
+        ]
+
+    def get_remaining_syncs(self, obj):
+        return obj.remaining_syncs or 0
+
+    def get_last_sync_at(self, obj):
+        return obj.last_sync_at.isoformat() if obj.last_sync_at else None
+
 
 
 class VendorBasicSerializer(serializers.ModelSerializer):
@@ -109,6 +130,8 @@ class PortfolioSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False
     )
+    sync_plan = PortfolioSyncPlanSerializer(read_only=True)
+
 
     banner_image = serializers.SerializerMethodField()
     
@@ -125,7 +148,7 @@ class PortfolioSerializer(serializers.ModelSerializer):
             'is_public', 'custom_domain', 'custom_css', 'meta_title',
             'meta_description', 'meta_keywords', 'view_count',
             'created_at', 'updated_at', 'vendor', 'portfolio_url', 'featured_products', 'featured_product_ids', 'is_featured',
-            'is_carousel', 'carousel_images',
+            'is_carousel', 'carousel_images','sync_plan'
         ]
         read_only_fields = ['slug', 'view_count', 'vendor']
 

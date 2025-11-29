@@ -17,7 +17,8 @@ from rest_framework.exceptions import ValidationError
 from apps.utils.default_creation import create_default_categories_for_vendor,create_default_portfolio_for_vendor
 from django.utils.text import slugify
 from django.shortcuts import get_object_or_404
-
+from django.db import transaction
+from apps.core.utils import invalidate_user_cache
 
 
 from .models import Event, PosterTemplate
@@ -50,71 +51,72 @@ def create_vendor(request):
         )
 
     try:
-        vendor = getattr(user, "vendor", None)
-        if vendor is None:
-            return Response(
-                {"detail": "Vendor profile not found for this user."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        incoming_phone = request.data.get("business_phone")
-        if incoming_phone and Vendor.objects.exclude(id=vendor.id).filter(business_phone=incoming_phone).exists():
-            raise ValidationError({"business_phone": "This business phone is already registered."})
-
-        incoming_email = request.data.get("business_email")
-        if incoming_email and Vendor.objects.exclude(id=vendor.id).filter(business_email=incoming_email).exists():
-            raise ValidationError({"business_email": "This business email is already registered."})
-
-        #  Vendor update
-        update_fields = [
-            "business_name", "business_type", "business_email",
-            "business_description", "business_phone", "website", "gstin"
-        ]
-        for field in update_fields:
-            setattr(vendor, field, request.data.get(field, getattr(vendor, field)))
+        with transaction.atomic():
+            vendor = getattr(user, "vendor", None)
+            if vendor is None:
+                return Response(
+                    {"detail": "Vendor profile not found for this user."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
             
-        if request.data.get("geo_location"):
-            vendor.geolocation  = json.loads(request.data.get("geo_location"))
-        
- 
-        vendor.logo = request.data.get("logo", vendor.logo)
-        vendor.is_onboarded = True
-        vendor.save()
+            incoming_phone = request.data.get("business_phone")
+            if incoming_phone and Vendor.objects.exclude(id=vendor.id).filter(business_phone=incoming_phone).exists():
+                raise ValidationError({"business_phone": "This business phone is already registered."})
 
-        # Auto-generate slug
-        # vendor.business_name_slug = slugify(f"{vendor.business_name}-{vendor.id}")
-        vendor.business_name_slug = slugify(f"{vendor.business_name}-{vendor.id}")
-        vendor.is_active = True
-        
-        vendor.save()
+            incoming_email = request.data.get("business_email")
+            if incoming_email and Vendor.objects.exclude(id=vendor.id).filter(business_email=incoming_email).exists():
+                raise ValidationError({"business_email": "This business email is already registered."})
 
-        # Create/update Address
-        address, created = Address.objects.get_or_create(
-            user=user,
-            defaults={
-                "street_address": request.data.get("street_address", ""),
-                "city": request.data.get("city", ""),
-                "state": request.data.get("state", ""),
-                "postal_code": request.data.get("zip_code", ""),
-                "zip_code": request.data.get("zip_code", ""),
-                "country": request.data.get("country", ""),
-                "is_default": True,
-                "address_type": "both",
-            }
-        )
+            #  Vendor update
+            update_fields = [
+                "business_name", "business_type", "business_email",
+                "business_description", "business_phone", "website", "gstin"
+            ]
+            for field in update_fields:
+                setattr(vendor, field, request.data.get(field, getattr(vendor, field)))
+                
+            if request.data.get("geo_location"):
+                vendor.geolocation  = json.loads(request.data.get("geo_location"))
+            
+    
+            vendor.logo = request.data.get("logo", vendor.logo)
+            vendor.is_onboarded = True
+            vendor.save()
 
-        if not created:
-            for field in ["street_address", "city", "state", "zip_code", "country"]:
-                setattr(address, field, request.data.get(field, getattr(address, field)))
-            address.save()
+            # Auto-generate slug
+            # vendor.business_name_slug = slugify(f"{vendor.business_name}-{vendor.id}")
+            vendor.business_name_slug = slugify(f"{vendor.business_name}-{vendor.id}")
+            vendor.is_active = True
+            
+            vendor.save()
 
-        # Auto-create default vendor data
-        create_default_categories_for_vendor(vendor)
-        create_default_portfolio_for_vendor(vendor)
+            # Create/update Address
+            address, created = Address.objects.get_or_create(
+                user=user,
+                defaults={
+                    "street_address": request.data.get("street_address", ""),
+                    "city": request.data.get("city", ""),
+                    "state": request.data.get("state", ""),
+                    "postal_code": request.data.get("zip_code", ""),
+                    "zip_code": request.data.get("zip_code", ""),
+                    "country": request.data.get("country", ""),
+                    "is_default": True,
+                    "address_type": "both",
+                }
+            )
 
-        # Final response
-        serializer = VendorSerializer(vendor)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+            if not created:
+                for field in ["street_address", "city", "state", "zip_code", "country"]:
+                    setattr(address, field, request.data.get(field, getattr(address, field)))
+                address.save()
+
+            # Auto-create default vendor data
+            create_default_categories_for_vendor(vendor)
+            create_default_portfolio_for_vendor(vendor)
+            # Final response
+            invalidate_user_cache(user.id)
+            serializer = VendorSerializer(vendor)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
     except ValidationError as ve:
         return Response({"errors": ve.detail}, status=status.HTTP_400_BAD_REQUEST)

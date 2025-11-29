@@ -14,6 +14,8 @@ from apps.portfolio.serializers import (
      ProductListSerializer,
 )
 from apps.users.serializers import AddressSerializer
+from django.db.models import Prefetch
+from apps.products.models import Product
 
 
 class PortfolioService:
@@ -95,6 +97,19 @@ class PortfolioService:
         
         serializer = PortfolioCollectionSerializer(collections, many=True)
         return serializer.data    
+    
+    @staticmethod
+    def get_portfolio(vendor):
+        portfolio = Portfolio.objects.select_related(
+            "vendor", "vendor__user","sync_plan"
+        ).prefetch_related(
+            Prefetch(
+                "featured_products",
+                queryset=Product.objects.select_related("category", "vendor")
+            )
+        ).get(vendor=vendor)
+        
+        return portfolio
     
     @staticmethod
     def get_vendor_sync_plan(vendor):

@@ -15,7 +15,7 @@ class Customer(models.Model):
 
     class Meta:
         ordering = ['-created_at']
-        unique_together = ('vendor', 'email')
+        unique_together = ('vendor', 'phone')
 
     def __str__(self):
         return f"{self.name} - {self.vendor.business_name}"

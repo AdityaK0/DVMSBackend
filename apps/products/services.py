@@ -21,7 +21,6 @@ from apps.core.events import ProductCreated, ProductUpdated, ProductDeleted
 class ProductService:
 
     @staticmethod
-    @redis_cached("product", "product_id", ttl=60 * 60 * 5)
     def get_product(pk,*,context=None):
         """
         Returns a Product object or raises DoesNotExist.
@@ -83,15 +82,6 @@ class ProductService:
             # Serialize for event payload
             product_data = ProductSerializer(product, context=context).data
             
-            # Publish event after transaction commits
-            transaction.on_commit(lambda: ProductCreated({
-                "id": product.id,
-                "action": "created",
-                "data": product_data,
-                "metadata": {
-                    "vendor_id": vendor.id,
-                }
-            }).publish(bg=True))
             
             return product
             
@@ -152,14 +142,6 @@ class ProductService:
         serialized = ProductSerializer(updated_product, context=context).data
         
         # Publish event with standardized payload
-        transaction.on_commit(lambda: ProductUpdated({
-            "id": updated_product.id,
-            "action": "updated",
-            "data": serialized,
-            "metadata": {
-                "vendor_id": updated_product.vendor_id,
-            }
-        }).publish(bg=True))
         
         return serialized
     

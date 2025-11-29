@@ -2,7 +2,6 @@ from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from django.conf import settings
 from rest_framework.parsers import MultiPartParser, FormParser
 from apps.vendors.models import Vendor
 from .models import (
@@ -15,10 +14,9 @@ from apps.utils.upload_image import upload_collection_image
 from scripts.es.sync_vendor_to_es import sync_vendor
 from .service import PortfolioService
 import logging
-from django.conf import settings
 from django.db.models import Prefetch
 from apps.products.models import Product
-
+from apps.core.authentication import get_request_vendor
 logger = logging.getLogger(__name__)
 
 
@@ -54,19 +52,22 @@ def safe_get_list(data, key):
 @api_view(['GET', 'PUT', 'PATCH'])
 @permission_classes([permissions.IsAuthenticated])
 def vendor_portfolio_manage(request):
-    vendor = getattr(request, "cached_vendor", None) or request.user.vendor
+    vendor = get_request_vendor(request)
     
-    portfolio = Portfolio.objects.select_related(
-        "vendor", "vendor__user"
-    ).prefetch_related(
-        Prefetch(
-            "featured_products",
-            queryset=Product.objects.select_related("category", "vendor")
-        )
-    ).get(vendor=vendor)
-
-
-
+    if not vendor:
+        print("failed to fetch from the vendor ")
+        vendor = request.user.vendor
+    
+    portfolio = PortfolioService.get_portfolio(vendor)    
+    
+    # portfolio = Portfolio.objects.select_related(
+    #     "vendor", "vendor__user","sync_plan"
+    # ).prefetch_related(
+    #     Prefetch(
+    #         "featured_products",
+    #         queryset=Product.objects.select_related("category", "vendor")
+    #     )
+    # ).get(vendor=vendor)
 
     if request.method == "GET":
         return Response(PortfolioSerializer(portfolio).data)
@@ -224,43 +225,3 @@ def trigger_sync(request):
             {"detail": "Sync failed. Try again later."},
             status=status.HTTP_502_BAD_GATEWAY,
         )
-
-
-@api_view(["GET"])
-@permission_classes([permissions.IsAuthenticated])
-def sync_status(request):
-    user = request.user
-    if user.role != "vendor":
-        return Response(
-            {"error": "Only vendors can view sync status."},
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-    vendor = Vendor.objects.filter(user=user).first()
-    if not vendor:
-        return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    sync_data = {
-        "remaining_syncs": 0,
-        "used_syncs_today": 0,
-        "allowed_syncs_per_day": getattr(settings, "DEFAULT_SYNC_COUNT", 5),
-        "extra_syncs_available": 0,
-        "last_sync_at": None,
-    }
-
-    try:
-        plan = PortfolioService.get_vendor_sync_plan(vendor)
-        sync_data.update({
-            "remaining_syncs": plan.remaining_syncs or 0,
-            "used_syncs_today": plan.used_syncs_today or 0,
-            "allowed_syncs_per_day": plan.allowed_syncs_per_day or getattr(settings, "DEFAULT_SYNC_COUNT", 5),
-            "extra_syncs_available": plan.extra_syncs_available or 0,
-            "last_sync_at": plan.last_sync_at.isoformat() if plan.last_sync_at else None,
-        })
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.exception("Error loading sync plan: %s", e)
-        sync_data["error"] = "Unable to load sync data; using defaults."
-
-    return Response(sync_data)

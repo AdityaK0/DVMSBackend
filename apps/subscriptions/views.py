@@ -16,6 +16,7 @@ from .models import Subscription, SubscriptionPlan, PaymentTransaction
 from .serializers import SubscriptionSerializer, SubscriptionPlanSerializer, PaymentTransactionSerializer
 from .services import SubscriptionService
 from apps.core.authentication import get_request_vendor
+from apps.core.utils import invalidate_subscription_cache,invalidate_subscription_cache
 logger = logging.getLogger(__name__)
 
 
@@ -79,6 +80,11 @@ def error_response(detail: str, http_status: int = status.HTTP_400_BAD_REQUEST, 
 
 
 def get_request_vendor_or_404(request):
+    try:
+       invalidate_subscription_cache(request.user.id)
+    except:
+        pass   
+    
     vendor = getattr(request.user, "vendor", None)
     if not vendor:
         raise_value = error_response("Vendor profile not found.", status.HTTP_404_NOT_FOUND)
@@ -89,6 +95,10 @@ def get_request_vendor_or_404(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_order(request):
+    try:
+       invalidate_subscription_cache(request.user.id)
+    except:
+        pass   
     """
     🔒 SECURE: Create a Razorpay order WITHOUT activating subscription.
     Only creates PaymentTransaction with status='created'.
@@ -181,7 +191,10 @@ def create_order(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def verify_payment(request):
-    
+    try:
+       invalidate_subscription_cache(request.user.id)
+    except:
+        pass   
     """
     🔐 SECURE: Verify Razorpay payment signature and activate subscription.
     
@@ -372,6 +385,11 @@ def verify_payment(request):
                     'payment_id': payment_id,
                 }
             )
+            try:
+                invalidate_subscription_cache(request.user.id)
+            except:
+                pass 
+            
             
             # If subscription already existed, update it
             if not created:
@@ -381,16 +399,13 @@ def verify_payment(request):
                 sub.is_active = True
                 sub.amount = decimal.Decimal(payment_txn.amount) / 100
                 sub.save()
+                try:
+                   invalidate_subscription_cache(request.user.id)
+                except:
+                    pass 
             
             logger.info(f"✅ Subscription {'created' if created else 'updated'} for vendor {vendor.id}")
             
-            # Sync to Elasticsearch (non-critical, don't fail if it errors)
-            try:
-                sync_vendor_to_elasticsearch(vendor)
-                logger.info(f"✅ Vendor {vendor.id} synced to Elasticsearch")
-            except Exception as es_error:
-                logger.error(f"⚠️ Elasticsearch sync failed for vendor {vendor.id}: {str(es_error)}")
-                # Don't fail the payment - ES sync is secondary
             
             return Response({
                 "success": True,
@@ -453,9 +468,13 @@ def subscription_status(request):
     Returns current vendor subscription. Deactivates if expired.
     """
     vendor_id = get_request_vendor(request)
+    
+    
 
     if not vendor_id:
-        return Response({"subscription": None}, status=200)
+        vendor_id = request.user.vendor.id
+        if not vendor_id:
+            return Response({"subscription": None}, status=200)
 
 
 
@@ -552,12 +571,7 @@ def razorpay_webhook(request):
                 )
                 
                 logger.info(f"✅ Webhook activated subscription for vendor {vendor.id}")
-                
-                # Sync to Elasticsearch
-                try:
-                    sync_vendor_to_elasticsearch(vendor)
-                except Exception as es_error:
-                    logger.error(f"⚠️ ES sync failed in webhook: {str(es_error)}")
+
         
         # Handle payment.failed event
         elif event_type == "payment.failed":

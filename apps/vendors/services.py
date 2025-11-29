@@ -36,7 +36,7 @@ class VendorService:
             "metadata": {
                 "user_id": vendor.user_id  # Include user_id for cache invalidation
             }
-        }).publish(bg=True)
+        }).publish(bg=False)
         
         return serializer
     
