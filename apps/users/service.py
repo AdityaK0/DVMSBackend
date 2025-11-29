@@ -107,7 +107,7 @@ from apps.users.models import User
 class UserService:
     
     @staticmethod
-    @redis_cached("user","user_id",ttl=60 * 60) # explicitly telling the decorator the user id is user_id 
+    @redis_cached("user:context", "user_id", ttl=60 * 15)  # ✅ Standardized key: user:context:{user_id}
     def get_user(user_id):
         """
         Returns complete authenticated user context:

@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-@refresh_cache(invalidate_user=True, vendor=True)
+@refresh_cache(invalidate_user=True, invalidate_vendor=True)
 def create_vendor(request):
     user = request.user
 

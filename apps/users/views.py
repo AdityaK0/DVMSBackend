@@ -88,11 +88,11 @@ def logout(request):
         token = RefreshToken(refresh_token)
         token.blacklist()  #  only works if blacklist app enabled
         
-        cache.delete(f"auth_user:{request.user.id}")
-        cache.delete(f"user:{request.user.id}")
+        # ✅ Use centralized invalidation helper
+        from apps.core.utils import invalidate_user_cache
+        invalidate_user_cache(request.user.id, use_transaction=False)
         
-        print("cache deleted on logout")
-        
+        logger.info(f"User {request.user.id} logged out successfully")
 
         return Response({"message": "Logout successful!"}, status=status.HTTP_200_OK) 
     except Exception as e:

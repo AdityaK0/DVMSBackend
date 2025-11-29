@@ -46,7 +46,7 @@ def create_default_portfolio_for_vendor(vendor):
         portfolio_url = f"http://{vendor.business_name_slug}.localhost:3000"
     else:
         # For production domain, path-based structure
-        portfolio_url = f"{settings.FRONTEND_BASE_URL}/{vendor.business_name_slug}"
+        portfolio_url = f"{settings.FRONTEND_BASE_PORTFOLIO_PREVIEW}/{vendor.business_name_slug}"
     portfolio.portfolio_url = portfolio_url
     portfolio.save()
     

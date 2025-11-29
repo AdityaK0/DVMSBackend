@@ -16,7 +16,7 @@ from .models import Subscription, SubscriptionPlan, PaymentTransaction
 from .serializers import SubscriptionSerializer, SubscriptionPlanSerializer, PaymentTransactionSerializer
 from .services import SubscriptionService
 from apps.core.authentication import get_request_vendor
-from apps.core.utils import invalidate_subscription_cache,invalidate_subscription_cache
+from apps.core.utils import invalidate_subscription_cache, invalidate_all_user_related
 from apps.core.cache_decorators import refresh_cache
 logger = logging.getLogger(__name__)
 
@@ -81,11 +81,7 @@ def error_response(detail: str, http_status: int = status.HTTP_400_BAD_REQUEST, 
 
 
 def get_request_vendor_or_404(request):
-    try:
-       invalidate_subscription_cache(request.user.id)
-    except:
-        pass   
-    
+    """Get vendor for authenticated request or return error."""
     vendor = getattr(request.user, "vendor", None)
     if not vendor:
         raise_value = error_response("Vendor profile not found.", status.HTTP_404_NOT_FOUND)
@@ -95,12 +91,8 @@ def get_request_vendor_or_404(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-@refresh_cache(invalidate_user=True, vendor=True)
-def create_order(request):
-    try:
-       invalidate_subscription_cache(request.user.id)
-    except:
-        pass   
+@refresh_cache(invalidate_user=True, invalidate_vendor=True)
+def create_order(request):   
     """
     🔒 SECURE: Create a Razorpay order WITHOUT activating subscription.
     Only creates PaymentTransaction with status='created'.
@@ -192,12 +184,8 @@ def create_order(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-@refresh_cache(invalidate_user=True, vendor=True)
-def verify_payment(request):
-    try:
-       invalidate_subscription_cache(request.user.id)
-    except:
-        pass   
+@refresh_cache(invalidate_user=True, invalidate_vendor=True)
+def verify_payment(request):   
     """
     🔐 SECURE: Verify Razorpay payment signature and activate subscription.
     
@@ -388,11 +376,6 @@ def verify_payment(request):
                     'payment_id': payment_id,
                 }
             )
-            try:
-                invalidate_subscription_cache(request.user.id)
-            except:
-                pass 
-            
             
             # If subscription already existed, update it
             if not created:
@@ -402,10 +385,17 @@ def verify_payment(request):
                 sub.is_active = True
                 sub.amount = decimal.Decimal(payment_txn.amount) / 100
                 sub.save()
-                try:
-                   invalidate_subscription_cache(request.user.id)
-                except:
-                    pass 
+            
+            # ✅ Invalidate caches after successful subscription creation/update
+            # Using transaction.on_commit ensures this only runs after DB commit
+            def _invalidate():
+                invalidate_all_user_related(
+                    user_id=request.user.id,
+                    vendor_id=vendor.id,
+                    use_transaction=False  # Already in transaction
+                )
+            
+            transaction.on_commit(_invalidate) 
             
             logger.info(f"✅ Subscription {'created' if created else 'updated'} for vendor {vendor.id}")
             
@@ -432,7 +422,7 @@ def verify_payment(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-@refresh_cache(invalidate_user=True, vendor=True)
+@refresh_cache(invalidate_user=True, invalidate_vendor=True)
 def subscription_plans(request):
     """
     List all available subscription plans.
@@ -550,6 +540,16 @@ def razorpay_webhook(request):
                         'payment_id': payment_id,
                     }
                 )
+                
+                # ✅ Invalidate caches after successful webhook processing
+                def _invalidate():
+                    invalidate_all_user_related(
+                        user_id=vendor.user_id,
+                        vendor_id=vendor.id,
+                        use_transaction=False  # Already in transaction
+                    )
+                
+                transaction.on_commit(_invalidate)
                 
                 logger.info(f"✅ Webhook activated subscription for vendor {vendor.id}")
 
