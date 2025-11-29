@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 local_env = BASE_DIR / ".env"
 
-# If running in EC2, use external env file
+
 external_env = Path("/home/ec2-user/.env.prod")
 
 if local_env.exists():
