@@ -20,13 +20,19 @@ import secrets as secrets_module
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-GLOBAL_ENV_PATH = os.getenv("ENV_FILE")
+local_env = BASE_DIR / ".env"
 
-if GLOBAL_ENV_PATH and os.path.exists(GLOBAL_ENV_PATH):
-    load_dotenv(GLOBAL_ENV_PATH)
+# If running in EC2, use external env file
+external_env = Path("/home/ec2-user/.env.prod")
+
+if local_env.exists():
+    load_dotenv(local_env)
+    print("📌 Loaded environment from local .env")
+elif external_env.exists():
+    load_dotenv(external_env)
+    print("📌 Loaded environment from /home/ec2-user/deploy/.env.prod")
 else:
-    # fallback to local .env
-    load_dotenv(BASE_DIR / ".env")
+    print("⚠️ No .env file found; relying on system environment")
 
 
 
