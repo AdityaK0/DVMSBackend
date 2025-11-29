@@ -21,29 +21,13 @@ import secrets as secrets_module
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+GLOBAL_ENV_PATH = os.getenv("ENV_FILE")
 
-# env_path = BASE_DIR / ".env"
-
-# # load_dotenv(env_path) 
-# load_dotenv()
-
-
-
-
-ENV_FILE = os.getenv("ENV_FILE") # on production the env file is loaded as global into this variable
-
-if ENV_FILE and os.path.exists(ENV_FILE):
-    print(f"🔵 Loading production env from: {ENV_FILE}")
-    load_dotenv(ENV_FILE)
-
+if GLOBAL_ENV_PATH and os.path.exists(GLOBAL_ENV_PATH):
+    load_dotenv(GLOBAL_ENV_PATH)
 else:
-    # 2) Fall back to local .env (dev mode)
-    local_env = BASE_DIR / ".env"
-    if local_env.exists():
-        print(f"🟢 Loading local .env from: {local_env}")
-        load_dotenv(local_env)
-    else:
-        print("⚠️ No env file found, using system env only")
+    # fallback to local .env
+    load_dotenv(BASE_DIR / ".env")
 
 
 
