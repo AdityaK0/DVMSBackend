@@ -11,7 +11,8 @@ from .tasks import process_telegram_celery
 from .utils import *
 from apps.core.models import BackgroundTask
 
-r = redis.from_url(settings.REDIS_URL)
+r = redis.from_url(getattr(settings, "REDIS_URL", "redis://localhost:6380/0"))
+
 
 # ---------- Helper functions ----------
 

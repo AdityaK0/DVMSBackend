@@ -13,7 +13,8 @@ from apps.core.cache_decorators import redis_cached
 logger = logging.getLogger(__name__)
 
 
-r = redis.from_url(settings.REDIS_URL)
+r = redis.from_url(getattr(settings, "REDIS_URL", "redis://localhost:6380/0"))
+
 
 RATE_LIMIT_SECONDS = 5
 MAX_FAIL_ATTEMPTS = 5

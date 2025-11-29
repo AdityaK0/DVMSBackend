@@ -7,7 +7,8 @@ import hashlib
 import requests
 import redis
 import secrets
-r = redis.from_url(settings.REDIS_URL)
+r = redis.from_url(getattr(settings, "REDIS_URL", "redis://localhost:6380/0"))
+
 
     
     

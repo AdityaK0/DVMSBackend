@@ -62,6 +62,11 @@ if ENVIRONMENT == "production":
     CSRF_COOKIE_SECURE = True
 else:
     SECURE_SSL_REDIRECT = False
+    
+    
+USE_REDIS = os.getenv("USE_REDIS", "false").lower() == "true"
+USE_CELERY = os.getenv("USE_CELERY", "false").lower() == "true"
+BIG_MACHINE = os.getenv("DO_WE_HAVE_BIG_MACHINE", "false").lower() == "true"    
 
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
@@ -289,31 +294,93 @@ JWT_SECRET = os.getenv('JWT_SECRET')
 TELEGRAM_WEBHOOK_SECRET = os.getenv('TELEGRAM_WEBHOOK_SECRET')
 
 
-# Redis running inside Docker, exposed to host on port 6380
-REDIS_URL = "redis://localhost:6380/0"
+# # Redis running inside Docker, exposed to host on port 6380
+# REDIS_URL = "redis://localhost:6380/0"
 
-# Celery uses Redis as both broker and result backend
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
+# # Celery uses Redis as both broker and result backend
+# CELERY_BROKER_URL = REDIS_URL
+# CELERY_RESULT_BACKEND = REDIS_URL
 
-# Optional tuning
-CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 30 * 60
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
+# # Optional tuning
+# CELERY_TASK_TRACK_STARTED = True
+# CELERY_TASK_TIME_LIMIT = 30 * 60
+# CELERY_ACCEPT_CONTENT = ['json']
+# CELERY_TASK_SERIALIZER = 'json'
+# CELERY_RESULT_SERIALIZER = 'json'
 
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+
+# CACHES = {
+#     "default": {
+#         "BACKEND": "django_redis.cache.RedisCache",
+#         "LOCATION": REDIS_URL,
+#         "OPTIONS": {
+#             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+#         }
+#     }
+# }
+
+
+# REDIS_CACHE_DEFAULT_TTL = 60 * 60 * 5  # 5 hours
+
+
+
+##############################################
+# DYNAMIC REDIS / CELERY CONFIGURATION
+##############################################
+
+USE_REDIS = os.getenv("USE_REDIS", "false").lower() == "true"
+USE_CELERY = os.getenv("USE_CELERY", "false").lower() == "true"
+BIG_MACHINE = os.getenv("DO_WE_HAVE_BIG_MACHINE", "false").lower() == "true"
+
+# Auto-disable Redis + Celery on weak machines
+REDIS_ACTIVE = USE_REDIS and BIG_MACHINE
+CELERY_ACTIVE = USE_CELERY and BIG_MACHINE
+
+if REDIS_ACTIVE:
+    # Example: redis://localhost:6380/0
+    REDIS_URL = f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6380/0"
+
+    print(" Redis ENABLED → Using RedisCache")
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
         }
     }
-}
 
-REDIS_CACHE_DEFAULT_TTL = 60 * 60 * 5  # 5 hours
+else:
+    print(" Redis DISABLED → Using LocMemCache")
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "unique-saas-cache",
+        }
+    }
+
+
+
+##############################################
+# CELERY CONFIG (BROKER + BACKEND)
+##############################################
+
+if CELERY_ACTIVE:
+    print(" Celery ENABLED → Using Redis broker")
+    
+    CELERY_BROKER_URL = REDIS_URL
+    CELERY_RESULT_BACKEND = REDIS_URL
+
+    CELERY_TASK_TRACK_STARTED = True
+    CELERY_TASK_TIME_LIMIT = 30 * 60
+    CELERY_ACCEPT_CONTENT = ['json']
+    CELERY_TASK_SERIALIZER = 'json'
+    CELERY_RESULT_SERIALIZER = 'json'
+
+else:
+    print("Celery DISABLED → Running tasks synchronously")
+    
+    CELERY_BROKER_URL = None
+    CELERY_RESULT_BACKEND = None
 
 
 

@@ -27,7 +27,8 @@ User = get_user_model()
 
 
 
-r = redis.from_url(settings.REDIS_URL)
+r = redis.from_url(getattr(settings, "REDIS_URL", "redis://localhost:6380/0"))
+
 
 
 from django.conf import settings
