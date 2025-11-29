@@ -17,6 +17,7 @@ from .serializers import SubscriptionSerializer, SubscriptionPlanSerializer, Pay
 from .services import SubscriptionService
 from apps.core.authentication import get_request_vendor
 from apps.core.utils import invalidate_subscription_cache,invalidate_subscription_cache
+from apps.core.cache_decorators import refresh_cache
 logger = logging.getLogger(__name__)
 
 
@@ -94,6 +95,7 @@ def get_request_vendor_or_404(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@refresh_cache(invalidate_user=True, vendor=True)
 def create_order(request):
     try:
        invalidate_subscription_cache(request.user.id)
@@ -190,6 +192,7 @@ def create_order(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@refresh_cache(invalidate_user=True, vendor=True)
 def verify_payment(request):
     try:
        invalidate_subscription_cache(request.user.id)
@@ -429,6 +432,7 @@ def verify_payment(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@refresh_cache(invalidate_user=True, vendor=True)
 def subscription_plans(request):
     """
     List all available subscription plans.
@@ -436,29 +440,6 @@ def subscription_plans(request):
     plans = SubscriptionPlan.objects.filter(is_active=True).order_by('price')
     serializer = SubscriptionPlanSerializer(plans, many=True)
     return Response({"plans": serializer.data}, status=status.HTTP_200_OK)
-
-
-# @api_view(["GET"])
-# @permission_classes([IsAuthenticated])
-# def subscription_status(request):
-#     """
-#     Returns current vendor subscription. Deactivates if expired.
-#     """
-#     vendor, err = get_request_vendor_or_404(request)
-#     if err:
-#         return err
-
-#     sub = getattr(vendor, "subscription", None)
-#     if not sub:
-#         return Response({"subscription": None}, status=status.HTTP_200_OK)
-
-#     # Auto deactivate expired subs
-#     if sub.end_date and sub.end_date < timezone.now() and sub.is_active:
-#         # FIXED: Use minimal write and update_fields for efficiency
-#         sub.is_active = False
-#         sub.save(update_fields=["is_active"])
-
-#     return Response({"subscription": SubscriptionSerializer(sub).data}, status=status.HTTP_200_OK)
 
 
 @api_view(["GET"])

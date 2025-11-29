@@ -18,7 +18,7 @@ from apps.utils.default_creation import create_default_categories_for_vendor,cre
 from django.utils.text import slugify
 from django.shortcuts import get_object_or_404
 from django.db import transaction
-from apps.core.utils import invalidate_user_cache
+from apps.core.cache_decorators import refresh_cache
 
 
 from .models import Event, PosterTemplate
@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@refresh_cache(invalidate_user=True, vendor=True)
 def create_vendor(request):
     user = request.user
 
@@ -114,7 +115,6 @@ def create_vendor(request):
             create_default_categories_for_vendor(vendor)
             create_default_portfolio_for_vendor(vendor)
             # Final response
-            invalidate_user_cache(user.id)
             serializer = VendorSerializer(vendor)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
