@@ -19,18 +19,33 @@ import secrets as secrets_module
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-env_path = BASE_DIR / ".env"
 
-# load_dotenv(env_path) 
-load_dotenv()
 
-if os.getenv('DEBUG', 'False') == 'True':
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info(f"Environment loaded from: {env_path}") 
 
-LOG_DIR = BASE_DIR / "logs"
-LOG_DIR.mkdir(exist_ok=True)
+# env_path = BASE_DIR / ".env"
+
+# # load_dotenv(env_path) 
+# load_dotenv()
+
+
+
+
+ENV_FILE = os.getenv("ENV_FILE") # on production the env file is loaded as global into this variable
+
+if ENV_FILE and os.path.exists(ENV_FILE):
+    print(f"🔵 Loading production env from: {ENV_FILE}")
+    load_dotenv(ENV_FILE)
+
+else:
+    # 2) Fall back to local .env (dev mode)
+    local_env = BASE_DIR / ".env"
+    if local_env.exists():
+        print(f"🟢 Loading local .env from: {local_env}")
+        load_dotenv(local_env)
+    else:
+        print("⚠️ No env file found, using system env only")
+
+
 
 
 # Quick-start development settings - unsuitable for production

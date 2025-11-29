@@ -4,20 +4,17 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "backend/**"
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: SSH into EC2 and run deploy script
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
+          username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /home/ubuntu
+            cd /home/ec2-user/deploy
             ./deploy.sh
