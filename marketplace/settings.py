@@ -51,21 +51,20 @@ if not SECRET_KEY:
         print("⚠️  WARNING: Using auto-generated SECRET_KEY for development")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG')
-
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 
 if ENVIRONMENT == "production":
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "false").lower() == "true"
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
 else:
-    SECURE_SSL_REDIRECT = False
+    SECURE_SSL_REDIRECT = False     
     
     
 USE_REDIS = os.getenv("USE_REDIS", "false").lower() == "true"
