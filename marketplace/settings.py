@@ -75,6 +75,7 @@ BIG_MACHINE = os.getenv("DO_WE_HAVE_BIG_MACHINE", "false").lower() == "true"
 # ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 ALLOWED_HOSTS = [
+    "api.fordgeindia.online",
     "3.108.234.224",
     "localhost",
     "127.0.0.1",
