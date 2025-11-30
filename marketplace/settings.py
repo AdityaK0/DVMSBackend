@@ -269,8 +269,10 @@ FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN")
 
 
 frontend_origins = os.getenv("FRONTEND_ORIGINS", "")
-CORS_ALLOWED_ORIGINS = frontend_origins.split(",") if frontend_origins else []
-CSRF_TRUSTED_ORIGINS = frontend_origins.split(",") if frontend_origins else []
+
+CORS_ALLOWED_ORIGINS=["https://dbv7wnr5ci6kx.cloudfront.net","http://localhost:5173","https://fordgeindia.online","https://www.fordgeindia.online"]
+
+CSRF_TRUSTED_ORIGINS = ["https://dbv7wnr5ci6kx.cloudfront.net","http://localhost:5173","https://fordgeindia.online","https://www.fordgeindia.online"]
 
 
 CORS_ALLOW_ALL_ORIGINS = True
