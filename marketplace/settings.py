@@ -76,7 +76,7 @@ BIG_MACHINE = os.getenv("DO_WE_HAVE_BIG_MACHINE", "false").lower() == "true"
 
 ALLOWED_HOSTS = [
     "api.fordgeindia.online",
-    "3.108.234.224",
+    # "13.234.203.82",use this if domain is not avaialable
     "localhost",
     "127.0.0.1",
 ]
@@ -84,7 +84,7 @@ ALLOWED_HOSTS = [
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
-    "https://your-production-domain.com"
+    "https://api.fordgeindia.online"
 ]
 
 
