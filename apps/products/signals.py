@@ -16,6 +16,3 @@ from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from apps.products.models import Product
 
-
-# Example: If you need signal-based logic in the future, add it here
-# But DO NOT publish events from signals
