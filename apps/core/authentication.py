@@ -3,6 +3,8 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from apps.vendors.models import Vendor
 from apps.core.cache_control import is_cache_disabled
+from django.core.cache import cache
+from django.conf import settings
 
 User = get_user_model()
 
@@ -16,6 +18,8 @@ class CachedJWTAuthentication(JWTAuthentication):
 
     def get_user(self, validated_token):
         user_id = validated_token.get("user_id")
+        if not settings.BIG_MACHINE:
+            print("CACHE KEYS IN WORKER AUTH: **** \n"*10, list(cache._cache.keys()))
 
         if not user_id:
             return None
