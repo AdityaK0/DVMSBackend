@@ -195,12 +195,11 @@ def update_product(request, pk):
             context={'request': request}
         )
     except ProductValidationError as e:
-        return Response(e.errors,status=status.HTTP_400_BAD_REQUEST)    
-    
+        return Response(e.errors,status=status.HTTP_400_BAD_REQUEST)   
+
     if isinstance(product, dict):
         return Response(product)
     
-    sync_featured_product(product)
     
     serializer = ProductSerializer(product, context={"request": request})
     return Response(serializer.data)

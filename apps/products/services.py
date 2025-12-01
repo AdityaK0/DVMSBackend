@@ -139,6 +139,9 @@ class ProductService:
         updated_product.image_urls = final_urls
         updated_product.primary_image = final_urls[0] if final_urls else None
         updated_product.save()
+
+        sync_featured_product(updated_product)
+
         serialized = ProductSerializer(updated_product, context=context).data
         
         # Publish event with standardized payload
@@ -307,7 +310,6 @@ def sync_featured_product(product):
     """
     Sync Product.is_featured with Portfolio.featured_products M2M.
     """
-
     vendor = product.vendor
     try:
         portfolio = vendor.portfolio
