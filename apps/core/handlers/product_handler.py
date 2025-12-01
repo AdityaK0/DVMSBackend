@@ -58,14 +58,12 @@ class ProductUpdatedSubscriber:
             # 1. Update product cache
             product_cache_key = f"product:{product_id}"
             cache.delete(product_cache_key)  
-            if event.is_featured:
-                cache.delete(f"portfolio:{vendor_id}")
         
             # 2. Invalidate vendor product list cache
-            # if vendor_id:
-            #     vendor_products_key = f"vendor:{vendor_id}:products"
-            #     cache.delete(vendor_products_key)
-            #     logger.info(f"🗑️  Invalidated vendor products cache: {vendor_products_key}")
+            if vendor_id:
+                vendor_products_key = f"vendor:{vendor_id}:products"
+                cache.delete(vendor_products_key)
+                logger.info(f"🗑️  Invalidated vendor products cache: {vendor_products_key}")
 
         except Exception as e:
             logger.error(f"❌ ProductUpdatedSubscriber failed: {e}", exc_info=True)
