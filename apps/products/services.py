@@ -94,7 +94,7 @@ class ProductService:
         except Product.DoesNotExist:
             raise ProductValidationError({"detail": "Product not found"})
 
-
+        before_update = ProductSerializer(product, context=context).data
         # Update normal fields (no image updates here)
         serializer = ProductUpdateSerializer(
             product,
@@ -142,6 +142,16 @@ class ProductService:
         serialized = ProductSerializer(updated_product, context=context).data
         
         # Publish event with standardized payload
+        
+        ProductUpdated({
+            "id": updated_product.id,
+            "is_featured": before_update.is_featured != updated_product.is_featured,
+            "is_active": before_update.is_active != updated_product.is_active,
+            "is_archived": before_update.is_archived != updated_product.is_archived,
+            "metadata": {
+                "vendor_id": updated_product.vendor_id,
+            }
+        }).publish(bg=False)
         
         return serialized
     
