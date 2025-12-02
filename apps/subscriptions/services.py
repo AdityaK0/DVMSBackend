@@ -6,7 +6,8 @@ from .models import Subscription
 class SubscriptionService:
 
     @staticmethod
-    @redis_cached("subscription:vendor", "vendor_id", ttl=60 * 15)  # ✅ Standardized key: subscription:vendor:{vendor_id}
+    # @redis_cached("subscription:vendor", "vendor_id", ttl=60 * 15)  # ✅ Standardized key: subscription:vendor:{vendor_id}
+    # i dont think needed in this cause data is much sensitive and frontend has handled the way to not call too much
     def get_vendor_subscription(vendor_id):
         """
         Fetch vendor subscription. If expired, deactivate automatically.
