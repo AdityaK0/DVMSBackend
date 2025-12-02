@@ -351,12 +351,12 @@ BIG_MACHINE = os.getenv("DO_WE_HAVE_BIG_MACHINE", "false").lower() == "true"
 REDIS_ACTIVE = USE_REDIS 
 CELERY_ACTIVE = USE_CELERY and BIG_MACHINE
 
+REDIS_HOST  = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT  = os.getenv("REDIS_PORT", "6379") 
+
 if REDIS_ACTIVE:
     # Example: redis://localhost:6380/0
-    if DEBUG:
-        REDIS_URL = f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6380/0" # running redis on 6380 cause company redis is also running in local
-    else:
-        REDIS_URL = f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6379/0"
+    REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 
     print(" Redis ENABLED → Using RedisCache")
     CACHES = {
