@@ -18,8 +18,6 @@ class CachedJWTAuthentication(JWTAuthentication):
 
     def get_user(self, validated_token):
         user_id = validated_token.get("user_id")
-        if not settings.BIG_MACHINE:
-            print("CACHE KEYS IN WORKER AUTH: **** \n"*10, list(cache._cache.keys()))
 
         if not user_id:
             return None
