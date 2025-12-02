@@ -348,12 +348,15 @@ USE_CELERY = os.getenv("USE_CELERY", "false").lower() == "true"
 BIG_MACHINE = os.getenv("DO_WE_HAVE_BIG_MACHINE", "false").lower() == "true"
 
 # Auto-disable Redis + Celery on weak machines
-REDIS_ACTIVE = USE_REDIS and BIG_MACHINE
+REDIS_ACTIVE = USE_REDIS 
 CELERY_ACTIVE = USE_CELERY and BIG_MACHINE
 
 if REDIS_ACTIVE:
     # Example: redis://localhost:6380/0
-    REDIS_URL = f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6380/0"
+    if DEBUG:
+        REDIS_URL = f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6380/0" # running redis on 6380 cause company redis is also running in local
+    else:
+        REDIS_URL = f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6379/0"
 
     print(" Redis ENABLED → Using RedisCache")
     CACHES = {
