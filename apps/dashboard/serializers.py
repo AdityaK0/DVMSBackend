@@ -39,7 +39,9 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at", "is_locked", "paid_amount", "pending_amount"]
+        # read_only_fields = ["created_at", "updated_at", "is_locked", "paid_amount", "pending_amount"]
+        read_only_fields = ["created_at", "updated_at", "is_locked", "pending_amount"]
+
 
     def validate(self, data):
         """

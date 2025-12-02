@@ -7,10 +7,11 @@ class Customer(models.Model):
     """Basic customer tracking for vendors"""
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='customers')
     name = models.CharField(max_length=200)
-    email = models.EmailField()
+    email = models.EmailField(null=True, blank=True)
     phone = models.CharField(max_length=20, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    bought = models.IntegerField(default=0)
     last_interaction = models.DateTimeField(auto_now=True)
 
     class Meta:

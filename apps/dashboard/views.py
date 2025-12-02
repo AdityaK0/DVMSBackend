@@ -303,7 +303,21 @@ def create_invoice(request):
     if serializer.is_valid():
         # Lock invoice on creation
         invoice = serializer.save(vendor=vendor, is_locked=True)
-        
+        if invoice.customer_phone:
+            customer, created = Customer.objects.get_or_create(
+                vendor=vendor,
+                phone=invoice.customer_phone,
+                defaults={
+                    "name": invoice.customer_name,
+                    "bought": 0,
+                    "last_interaction": timezone.now(),
+                }
+            )
+
+            # Update fields for both existing and new customers
+            customer.bought += 1
+            customer.last_interaction = timezone.now()
+            customer.save() 
         # If there is an initial paid amount, we should probably record it as a payment?
         # For now, we trust the serializer's handling of paid_amount for the initial record.
         # But to be strictly consistent with "Payments must be tracked separately", 
