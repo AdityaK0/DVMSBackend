@@ -430,6 +430,14 @@ If you didn't request this, please ignore this message."""
         # Mark verified
         vendor.is_verified = True
         vendor.save()
+        VendorUpdated({
+            "id": vendor.id,
+            "action": "updated",
+            "metadata": {
+                "user_id": vendor.user_id
+            }
+        }).publish(bg=False)
+
         
         # Delete OTP after successful verification
         cls.auth_cache.delete_final_otp(phone_number)
