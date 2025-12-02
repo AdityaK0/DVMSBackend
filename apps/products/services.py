@@ -317,10 +317,10 @@ def sync_featured_product(product):
         return  
     if product.is_featured:
         portfolio.featured_products.add(product)
-        cache.delete(f"portfolio:{vendor.id}")
+        cache.delete(f"portfolio:context:{vendor.id}")  # ✅ Standardized key
     else:
         portfolio.featured_products.remove(product)
-        cache.delete(f"portfolio:{vendor.id}")
+        cache.delete(f"portfolio:context:{vendor.id}")  # ✅ Standardized key
 
 
 

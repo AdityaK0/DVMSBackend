@@ -80,12 +80,16 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
 ]
-
+if DEBUG:
+    ALLOWED_HOSTS.append(os.getenv("TEMPORARY_URL"))
+    print("Added TEMPORARY_URL to ALLOWED_HOSTS",ALLOWED_HOSTS)
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "https://api.fordgeindia.online"
 ]
+
+
 
 
 

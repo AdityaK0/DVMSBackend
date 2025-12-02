@@ -1,4 +1,4 @@
-import hmac, hashlib, time, redis, jwt, requests
+import hmac, hashlib, time, jwt, requests
 from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -6,12 +6,10 @@ from rest_framework.response import Response
 from apps.users.models import User
 from apps.vendors.models import Vendor
 from django.core.cache import cache
-from .service import process_telegram_update
-from .tasks import process_telegram_celery
+from .telegram_services import TelegramServices
+# from .tasks import process_telegram_celery
 from .utils import *
 from apps.core.models import BackgroundTask
-
-r = redis.from_url(getattr(settings, "REDIS_URL", "redis://localhost:6380/0"))
 
 
 # ---------- Helper functions ----------
@@ -42,7 +40,7 @@ def telegram_webhook(request):
 
     data = request.data
     
-    process_telegram_update(data)
+    TelegramServices.process_telegram_update(data)
     
 
     return Response({"ok": True})

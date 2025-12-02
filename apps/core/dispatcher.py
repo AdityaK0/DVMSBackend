@@ -13,7 +13,7 @@ def handle_event_sync(event):
     # ---------- PRODUCT ----------
     if isinstance(event, ProductCacheUpdateEvent):
         try:
-            key = f"vendor:{event.vendor_id}:products"
+            key = f"vendor:context:{event.vendor_id}:products"  # ✅ Standardized key
             counts = cache.get(key, {
                 "total_products": 0,
                 "total_active_products": 0,
@@ -53,7 +53,7 @@ def handle_event_sync(event):
     # ---------- CUSTOMER ----------
     elif isinstance(event, CustomerCacheUpdateEvent):
         try:
-            key = f"vendor:{event.vendor_id}:customers"
+            key = f"vendor:context:{event.vendor_id}:customers"  # ✅ Standardized key
             counts = cache.get(key, {
                 "total_customers": 0,
                 "total_active_customers": 0,

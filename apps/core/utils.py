@@ -15,13 +15,8 @@ def invalidate_user_cache(user_id, use_transaction=True):
     """
     def _invalidate():
         keys = [
-            f"user:context:{user_id}",      # /me API response
-            f"auth:user:{user_id}",         # JWT auth payload
-            f"user:vendor_id:{user_id}",    # vendor mapping
-            # Legacy keys (for backward compatibility during migration)
-            f"user:{user_id}",
-            f"auth_user:{user_id}",
-            f"user_vendor_id:{user_id}",
+            f"user:context:{user_id}",      # ✅ Standardized: /me API response, JWT auth
+            f"user:vendor_id:{user_id}",    # vendor mapping (stays as is)
         ]
         
         for key in keys:
@@ -44,9 +39,9 @@ def invalidate_vendor_cache(vendor_id, use_transaction=True):
     """
     def _invalidate():
         keys = [
-            f"vendor:profile:{vendor_id}",      # vendor profile
-            f"portfolio:vendor:{vendor_id}",    # portfolio data
-            f"subscription:vendor:{vendor_id}", # subscription status
+            f"vendor:context:{vendor_id}",      # ✅ Standardized: vendor profile
+            f"portfolio:context:{vendor_id}",   # ✅ Standardized: portfolio data (keyed by vendor_id)
+            f"subscription:vendor:{vendor_id}", # subscription status (already standardized)
         ]
         
         for key in keys:
@@ -72,16 +67,10 @@ def invalidate_subscription_cache(vendor_id=None, user_id=None, use_transaction=
         keys = []
         
         if vendor_id:
-            keys.append(f"subscription:vendor:{vendor_id}")
+            keys.append(f"subscription:vendor:{vendor_id}")  # ✅ Already standardized
         
         if user_id:
-            keys.extend([
-                f"user:context:{user_id}",
-                f"auth:user:{user_id}",
-                # Legacy keys
-                f"subscription:{user_id}",
-                f"user:{user_id}",
-            ])
+            keys.append(f"user:context:{user_id}")  # ✅ Standardized: includes subscription data
         
         for key in keys:
             cache.delete(key)

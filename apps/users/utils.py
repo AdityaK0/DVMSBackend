@@ -7,6 +7,8 @@ import hashlib
 import requests
 import redis
 import secrets
+
+# Redis client for HMAC-based OTP storage (used by store_otp and verify_otp_in_redis)
 r = redis.from_url(getattr(settings, "REDIS_URL", "redis://localhost:6380/0"))
 
 

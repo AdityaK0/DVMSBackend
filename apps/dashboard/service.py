@@ -10,11 +10,11 @@ from .serializers import InvoiceSerializer
 
 
 def get_product_stats_cached(vendor):
-    key = f"vendor:{vendor.id}:products"
+    key = f"vendor:context:{vendor.id}:products"  # ✅ Standardized key
     return cache_safe_get(key, lambda: get_product_stats(vendor))
 
 def get_customer_stats_cached(vendor):
-    key = f"vendor:{vendor.id}:customers"
+    key = f"vendor:context:{vendor.id}:customers"  # ✅ Standardized key
     return cache_safe_get(key, lambda: get_customer_stats(vendor))
 
 
@@ -46,8 +46,8 @@ def get_customer_stats(vendor):
 def get_dashboard_summary(vendor):
     """Return all cached dashboard data"""
     return {
-        "products": cache.get_or_set(f"vendor:{vendor.id}:products", lambda: get_product_stats(vendor), 300),
-        "customers": cache.get_or_set(f"vendor:{vendor.id}:customers", lambda: get_customer_stats(vendor), 300),
+        "products": cache.get_or_set(f"vendor:context:{vendor.id}:products", lambda: get_product_stats(vendor), 300),
+        "customers": cache.get_or_set(f"vendor:context:{vendor.id}:customers", lambda: get_customer_stats(vendor), 300),
     }
 
 

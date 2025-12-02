@@ -24,13 +24,13 @@ class ProductCreatedSubscriber:
             vendor_id = event.metadata.get("vendor_id")
 
             # 1. Warm product cache
-            product_cache_key = f"product:{product_id}"
+            product_cache_key = f"product:context:{product_id}"  # ✅ Standardized key
             cache.set(product_cache_key, product_data, timeout=60 * 60 * 5)
             logger.info(f"✅ Product cache warmed: {product_cache_key}")
 
             # 2. Invalidate vendor product list cache (will be rebuilt on next request)
             if vendor_id:
-                vendor_products_key = f"vendor:{vendor_id}:products"
+                vendor_products_key = f"vendor:context:{vendor_id}:products"  # ✅ Standardized key
                 cache.delete(vendor_products_key)
                 logger.info(f"🗑️  Invalidated vendor products cache: {vendor_products_key}")
 
@@ -56,12 +56,12 @@ class ProductUpdatedSubscriber:
             vendor_id = event.metadata.get("vendor_id")
 
             # 1. Update product cache
-            product_cache_key = f"product:{product_id}"
+            product_cache_key = f"product:context:{product_id}"  # ✅ Standardized key
             cache.delete(product_cache_key)  
         
             # 2. Invalidate vendor product list cache
             if vendor_id:
-                vendor_products_key = f"vendor:{vendor_id}:products"
+                vendor_products_key = f"vendor:context:{vendor_id}:products"  # ✅ Standardized key
                 cache.delete(vendor_products_key)
                 logger.info(f"🗑️  Invalidated vendor products cache: {vendor_products_key}")
 
@@ -86,13 +86,13 @@ class ProductDeletedSubscriber:
             vendor_id = event.metadata.get("vendor_id")
 
             # 1. Remove product cache
-            product_cache_key = f"product:{product_id}"
+            product_cache_key = f"product:context:{product_id}"  # ✅ Standardized key
             cache.delete(product_cache_key)
             logger.info(f"🗑️  Deleted product cache: {product_cache_key}")
 
             # 2. Invalidate vendor product list cache
             if vendor_id:
-                vendor_products_key = f"vendor:{vendor_id}:products"
+                vendor_products_key = f"vendor:context:{vendor_id}:products"  # ✅ Standardized key
                 cache.delete(vendor_products_key)
                 logger.info(f"🗑️  Invalidated vendor products cache: {vendor_products_key}")
 

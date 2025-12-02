@@ -15,16 +15,13 @@ class VendorUpdatedSubscriber:
         user_id = event.metadata.get("user_id")
         vendor_id = event.id
 
+        # ✅ Invalidate standardized cache keys
+        cache.delete(f"user:context:{user_id}")        # User context (includes vendor data)
+        cache.delete(f"vendor:context:{vendor_id}")    # Vendor profile
+        cache.delete(f"portfolio:context:{vendor_id}") # Portfolio data
         
-        
-        # Delete the data related to the vendors so that vendor wont get invalid data 
-        cache.delete(f"user:{user_id}")
-        cache.delete(f"portfolio:{vendor_id}")
-        cache.delete(f"auth_user:{user_id}")
-        # thought to revalidate data (after cache delete add again by calling their service method ) will do if needed 
-        
-        
-        print("vendor data and portfolio data cleaned",datetime.now())
+        logger.info(f"✅ Cache invalidated for user={user_id}, vendor={vendor_id}")
+        print("vendor data and portfolio data cleaned", datetime.now())
         
         
 

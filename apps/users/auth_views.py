@@ -7,7 +7,6 @@ from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-import redis
 from datetime import datetime
 from .serializers import *
 from .utils import send_telegram_message,generate_otp
@@ -17,6 +16,7 @@ from apps.vendors.models import Vendor
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from .throttles import LoginRateThrottle
+from .telegram_services import TelegramServices
 
 
 import logging
@@ -26,12 +26,6 @@ User = get_user_model()
 
 
 
-
-r = redis.from_url(getattr(settings, "REDIS_URL", "redis://localhost:6380/0"))
-
-
-
-from django.conf import settings
 
 
 @csrf_exempt
@@ -103,48 +97,21 @@ def request_otp_view(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    # Generate 6-digit OTP
-    otp = generate_otp()
+    # Use TelegramServices to send OTP
+    result = TelegramServices.send_login_otp(phone_number, vendor)
     
-    # Store OTP in Redis with 5 minute expiry
-    redis_key = f"otp:{phone_number}"
-    r.setex(redis_key, 300, otp)  # 300 seconds = 5 minutes
-    
-    # Get vendor details
-    user = vendor.user
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    print("came till message send before procees :) ",otp)
-    
-    # Send OTP via Telegram
-    message = f"""🔐 Login OTP Request
-
-Hello {vendor.business_name or user.get_full_name() or user.username}!
-
-Your login OTP is: *{otp}*
-
-📱 Phone: {phone_number}
-👤 Username: {user.username}
-⏰ Time: {current_time}
-
-⚠️ This OTP will expire in 5 minutes.
-Do not share this OTP with anyone.
-
-If you didn't request this, please ignore this message."""
-    
-    telegram_response = send_telegram_message(vendor.telegram_chat_id, message)
-    
-    if not telegram_response:
+    if not result['success']:
         return Response(
-            {'error': 'Failed to send OTP. Please try again.'},
+            {'error': result['message']},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
     return Response({
-        'message': 'OTP sent successfully to your Telegram',
+        'message': result['message'],
         'phone_number': phone_number,
         'expires_in': 300  # seconds
     }, status=status.HTTP_200_OK)
+
 
 
 @csrf_exempt
@@ -162,41 +129,28 @@ def verify_otp_login_view(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    # Get OTP from Redis
-    redis_key = f"otp:{phone_number}"
-    stored_otp = r.get(redis_key)
+    # Use TelegramServices to verify OTP
+    success, message, vendor = TelegramServices.verify_login_otp(phone_number, otp)
     
-    if not stored_otp:
+    if not success:
+        status_code = status.HTTP_400_BAD_REQUEST
+        if message == 'Invalid OTP':
+            status_code = status.HTTP_401_UNAUTHORIZED
+        elif message == 'Vendor not found':
+            status_code = status.HTTP_404_NOT_FOUND
+        
         return Response(
-            {'error': 'OTP expired or not found. Please request a new OTP.'},
-            status=status.HTTP_400_BAD_REQUEST
+            {'error': message},
+            status=status_code
         )
     
-    # Verify OTP
-    if stored_otp.decode('utf-8') != otp:
-        return Response(
-            {'error': 'Invalid OTP'},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    # Get vendor and user
-    try:
-        vendor = Vendor.objects.get(business_phone=phone_number)
-        user = vendor.user
-    except Vendor.DoesNotExist:
-        return Response(
-            {'error': 'Vendor not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+    user = vendor.user
     
     if not user.is_active:
         return Response(
             {'error': 'User account is disabled'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
-    # Delete OTP from Redis after successful verification
-    r.delete(redis_key)
     
     # Generate tokens
     refresh = RefreshToken.for_user(user)
@@ -205,8 +159,9 @@ def verify_otp_login_view(request):
         'refresh': str(refresh),
         'access': str(refresh.access_token),
         'user': UserSerializer(user).data,
-        'message': 'Login successful'
+        'message': message
     }, status=status.HTTP_200_OK)
+
 
 
 # urls.py configuration
@@ -236,41 +191,26 @@ def verify_final_otp_login_view(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    redis_key = f"otp:{phone_number}:final"
-    stored_otp = r.get(redis_key)
-
-    if not stored_otp:
+    # Use TelegramServices to verify final OTP
+    success, message, vendor = TelegramServices.verify_final_otp(phone_number, otp)
+    
+    if not success:
+        status_code = status.HTTP_400_BAD_REQUEST
+        if message == 'Invalid OTP':
+            status_code = status.HTTP_401_UNAUTHORIZED
+        elif message == 'Vendor not found':
+            status_code = status.HTTP_404_NOT_FOUND
+        
         return Response(
-            {'error': 'OTP expired or not found. Please request a new OTP.'},
-            status=status.HTTP_400_BAD_REQUEST
+            {'error': message},
+            status=status_code
         )
     
-    if stored_otp.decode('utf-8') != otp:
-        return Response(
-            {'error': 'Invalid OTP'},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
-    
-    # Look up vendor
-    try:
-        vendor = Vendor.objects.get(business_phone=phone_number)
-    except Vendor.DoesNotExist:
-        return Response(
-            {'error': 'Vendor not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-
-    # Mark verified
-    vendor.is_verified = True
-    vendor.save()
-
-    # Remove OTP
-    r.delete(redis_key)
-
     return Response({
         'success': True,
-        'message': 'Vendor linked successfully',
+        'message': message,
     }, status=status.HTTP_200_OK)
+
 
 
 @api_view(["POST"])
@@ -281,22 +221,12 @@ def resend_final_otp(request):
     if not phone:
         return Response({"error": "Phone number required"}, status=400)
 
-    try:
-        vendor = Vendor.objects.get(business_phone=phone)
-    except Vendor.DoesNotExist:
-        return Response({"error": "Vendor not found"}, status=404)
+    # Use TelegramServices to resend final OTP
+    success, message = TelegramServices.resend_final_otp(phone)
+    
+    if not success:
+        status_code = 404 if message == 'Vendor not found' else 400
+        return Response({"error": message}, status=status_code)
 
-    # Chat ID required
-    if not vendor.telegram_chat_id:
-        return Response({"error": "Telegram not linked yet"}, status=400)
+    return Response({"success": True, "message": message}, status=200)
 
-    # Generate OTP
-    otp = generate_otp()
-
-    redis_key = f"otp:{phone}:final"
-    r.setex(redis_key, 300, otp)  # 5 minutes expiry
-
-    # Send OTP to Telegram
-    send_telegram_message(vendor.telegram_chat_id, f"Your final verification OTP is: {otp}")
-
-    return Response({"success": True, "message": "Final OTP sent"}, status=200)
