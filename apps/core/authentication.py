@@ -18,8 +18,8 @@ class CachedJWTAuthentication(JWTAuthentication):
 
     def get_user(self, validated_token):
         user_id = validated_token.get("user_id")
-
         if not user_id:
+            
             return None
 
         # ✅ Respect cache bypass (e.g., during @refresh_cache)
@@ -38,7 +38,9 @@ class CachedJWTAuthentication(JWTAuthentication):
         return self._fetch_user_from_db(user_id)
 
     def _fetch_user_from_db(self, user_id):
+        
         """Fetch user from DB and cache primitives."""
+        print("Fetching user from DB for ID always:", user_id)
         try:
             user = User.objects.only(
                 "id", "email", "username", "role", "is_active", "is_staff"

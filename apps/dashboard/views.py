@@ -255,6 +255,7 @@ def get_invoices(request):
     page_size = int(request.GET.get("page_size", 10))
     search = request.GET.get("search", "").strip()
     pending_only = request.GET.get("pending_only", "false") == "true"
+    paid_only = request.GET.get("paid_only", "false") == "true"
 
     start_date = request.GET.get("start_date")
     end_date = request.GET.get("end_date")
@@ -266,6 +267,7 @@ def get_invoices(request):
         page_size=page_size,
         search=search,
         pending_only=pending_only,
+        paid_only=paid_only,
         start_date=start_date,
         end_date=end_date
     )

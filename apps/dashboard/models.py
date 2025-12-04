@@ -65,9 +65,11 @@ class InvoicePayment(models.Model):
 
 class InvoiceChangeLog(models.Model):
     CHANGE_TYPE_CHOICES = [
-        ("update", "Update"),
-        ("manual_adjust", "Manual Adjust"),
-        ("payment", "Payment"),
+        ("create", "Invoice Created"),
+        ("update", "Invoice Updated"),
+        ("payment", "Payment Added"),
+        ("delete", "Invoice Deleted"),
+        ("status", "Status Change"),
     ]
 
     invoice = models.ForeignKey(

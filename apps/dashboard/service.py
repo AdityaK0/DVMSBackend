@@ -59,6 +59,7 @@ def get_vendor_invoices_combined(
     page_size=10,
     search="",
     pending_only=False,
+    paid_only=False,
     start_date=None,
     end_date=None
 ):
@@ -84,6 +85,9 @@ def get_vendor_invoices_combined(
     # Pending only filter
     if pending_only:
         queryset = queryset.filter(pending_amount__gt=0)
+
+    if paid_only:
+        queryset = queryset.filter(pending_amount=0)        
 
     # Date filters
     if start_date:
