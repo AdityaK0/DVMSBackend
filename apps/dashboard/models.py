@@ -36,10 +36,10 @@ class Invoice(models.Model):
 
     total_amount = models.FloatField()
     paid_amount = models.FloatField(default=0)
-    pending_amount = models.FloatField(default=0)
+    pending_amount = models.FloatField(default=0,db_index=True)
 
     is_udhaari = models.BooleanField(default=False)
-    invoice_date = models.DateField()
+    invoice_date = models.DateField(db_index=True)
     is_edited = models.BooleanField(default=False)
 
     is_locked = models.BooleanField(default=False)  # NEW: prevents item edits
@@ -49,6 +49,11 @@ class Invoice(models.Model):
 
     def __str__(self):
         return f"Invoice #{self.id} - {self.customer_phone}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["vendor", "invoice_date"]),
+        ]
 
 
 class InvoicePayment(models.Model):
