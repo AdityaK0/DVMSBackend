@@ -66,7 +66,6 @@ class InvoicePayment(models.Model):
         return f"Payment of {self.amount} for Invoice #{self.invoice_id}"
 
 
-# dashboard/models.py
 
 class InvoiceChangeLog(models.Model):
     CHANGE_TYPE_CHOICES = [
