@@ -113,25 +113,34 @@ def get_vendor_invoices_combined(
     
 
 
-
-
-# dashboard/services/invoice_history.py (or inside views.py if you prefer)
-
 TRACKED_FIELDS = [
+    "customer_name",
+    "customer_phone",
     "items",
     "total_amount",
     "paid_amount",
     "pending_amount",
     "is_udhaari",
-    "invoice_date",
+     "invoice_date",
 ]
+
+
+def normalize(v):
+    """Normalize values for safer comparison."""
+    if v is None:
+        return ""
+    if isinstance(v, str):
+        return v.strip()
+    return v
+
 
 def build_invoice_changes(old_data, new_data, tracked_fields=None):
     """
-    Compare old vs new invoice data and return a dict of changes:
+    Compare old vs new values and return only changed fields.
+    Example:
     {
-      "field_name": {"old": ..., "new": ...},
-      ...
+        "customer_name": {"old": "Aditya", "new": "Aditya Chaudhary"},
+        "paid_amount": {"old": 100, "new": 200},
     }
     """
     if tracked_fields is None:
@@ -140,11 +149,12 @@ def build_invoice_changes(old_data, new_data, tracked_fields=None):
     changes = {}
 
     for field in tracked_fields:
+
         old_val = old_data.get(field)
         new_val = new_data.get(field)
 
-        # DRF often returns nested objects / lists; equality works fine for JSON
-        if old_val != new_val:
+        # normalized values to detect real differences
+        if normalize(old_val) != normalize(new_val):
             changes[field] = {
                 "old": old_val,
                 "new": new_val,

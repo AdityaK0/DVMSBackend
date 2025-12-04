@@ -144,8 +144,21 @@ class InvoiceSerializer(serializers.ModelSerializer):
         return data
 
 
+# class InvoiceChangeLogSerializer(serializers.ModelSerializer):
+#     changed_by = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = InvoiceChangeLog
+#         fields = ["id", "change_type", "changes", "created_at", "changed_by"]
+
+#     def get_changed_by(self, obj):
+#         if obj.changed_by:
+#             return obj.changed_by.get_full_name() or obj.changed_by.username
+#         return None
+
 class InvoiceChangeLogSerializer(serializers.ModelSerializer):
     changed_by = serializers.SerializerMethodField()
+    changes = serializers.SerializerMethodField()  # clean formatted output
 
     class Meta:
         model = InvoiceChangeLog
@@ -156,3 +169,40 @@ class InvoiceChangeLogSerializer(serializers.ModelSerializer):
             return obj.changed_by.get_full_name() or obj.changed_by.username
         return None
 
+    def get_changes(self, obj):
+        """
+        Clean + normalize changes structure.
+        Handle:
+        - {"created": true}
+        - {"payment_added": {"amount": 100}}
+        - {"customer_name": {"old": "A", "new": "B"}}
+        - {"field": "simple text"}
+        """
+        changes = obj.changes or {}
+
+        normalized = {}
+
+        for key, value in changes.items():
+
+            # CASE 1 — simple values: true, false, string, number, null
+            if isinstance(value, (bool, int, float, str)) or value is None:
+                normalized[key] = {"value": value}
+                continue
+
+            # CASE 2 — update objects: {"old": X, "new": Y}
+            if isinstance(value, dict) and ("old" in value or "new" in value):
+                normalized[key] = {
+                    "old": value.get("old"),
+                    "new": value.get("new")
+                }
+                continue
+
+            # CASE 3 — nested payment dicts: {"amount": x, "note": y}
+            if isinstance(value, dict):
+                normalized[key] = value
+                continue
+
+            # fallback safe stringify
+            normalized[key] = {"value": str(value)}
+
+        return normalized

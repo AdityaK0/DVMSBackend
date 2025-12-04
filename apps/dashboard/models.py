@@ -97,7 +97,10 @@ class InvoiceChangeLog(models.Model):
     )
 
     # structure: {"field": {"old": <value>, "new": <value>}, ...}
-    changes = models.JSONField(default=dict)
+    changes = models.JSONField(default=dict, blank=True)
+
+    ip_address = models.CharField(max_length=50, null=True, blank=True)
+    device_info = models.CharField(max_length=255, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -20,6 +20,7 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from apps.subscriptions.permissions import IsSubscribedOrReadOnly
+from apps.utils.request_utils import extract_request_meta
 
 def calculate_percentage_change(current, previous):
     """Calculate percentage change between current and previous values"""
@@ -331,6 +332,18 @@ def create_invoice(request):
                 note="Initial payment at creation"
             )
 
+        meta = extract_request_meta(request)
+
+        InvoiceChangeLog.objects.create(
+            invoice=invoice,
+            vendor=vendor,
+            changed_by=request.user,
+            change_type="create",
+            changes={"created": True},
+            ip_address=meta["ip"],
+            device_info=meta["device"],
+        )     
+
         return Response(serializer.data, status=201)
 
     return Response(serializer.errors, status=400)
@@ -370,13 +383,25 @@ def update_invoice(request, invoice_id):
 
     # If something actually changed, create log
     if changes:
+
+        meta = extract_request_meta(request)
+
         InvoiceChangeLog.objects.create(
             invoice=invoice,
             vendor=vendor,
             changed_by=request.user,
             change_type="update",
             changes=changes,
+            ip_address=meta["ip"],
+            device_info=meta["device"],
         )
+        # InvoiceChangeLog.objects.create(
+        #     invoice=invoice,
+        #     vendor=vendor,
+        #     changed_by=request.user,
+        #     change_type="update",
+        #     changes=changes,
+        # )
 
     return Response(new_data, status=status.HTTP_200_OK)
 
@@ -414,13 +439,29 @@ def add_payment(request, invoice_id):
     invoice.save()
     
     # Log Change
+    meta = extract_request_meta(request)
+
     InvoiceChangeLog.objects.create(
         invoice=invoice,
         vendor=vendor,
         changed_by=request.user,
         change_type="payment",
-        changes={"payment": f"Added payment of {amount}"}
+        changes={
+            "payment_added": {
+            "amount": amount,
+            "note": note or None
+        }
+    },
+    ip_address=meta["ip"],
+    device_info=meta["device"],
     )
+    # InvoiceChangeLog.objects.create(
+    #     invoice=invoice,
+    #     vendor=vendor,
+    #     changed_by=request.user,
+    #     change_type="payment",
+    #     changes={"payment": f"Added payment of {amount}"}
+    # )
     
     return Response({
         "message": "Payment added successfully",
