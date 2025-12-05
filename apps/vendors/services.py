@@ -1,7 +1,6 @@
 
 from .models import Vendor,Event,PosterTemplate
 from .serializers import VendorSerializer, VendorUpdate
-from django.db import transaction
 from apps.core.events import VendorUpdated
 
 
@@ -26,17 +25,16 @@ class VendorService:
 
         updated_vendor = serializer.save()
         
-        serializer = VendorSerializer(updated_vendor).data
-        
-        
-        VendorUpdated({ # event launch to update the cache data 
+        vendor_payload = VendorSerializer(updated_vendor).data
+
+        VendorUpdated({  # event launch to update the cache data 
             "id": vendor.id,
             "action": "updated",
-            "data": serializer,
+            "data": vendor_payload,
             "metadata": {
                 "user_id": vendor.user_id  # Include user_id for cache invalidation
             }
         }).publish(bg=False)
-        
-        return serializer
+
+        return vendor_payload
     

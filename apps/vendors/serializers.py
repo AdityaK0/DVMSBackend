@@ -6,6 +6,7 @@ from apps.portfolio.models import Portfolio
 from ..utils.update_things import update_portfolio_url
 import re
 from .models import Event, PosterTemplate
+from django.db import transaction
 
 
 class VendorSerializer(serializers.ModelSerializer):
@@ -103,10 +104,12 @@ class VendorUpdate(serializers.ModelSerializer):
         return None
     
     def update(self, instance, validated_data):
-        # Extract address fields
+        """
+        Atomic vendor update with address syncing and slug refresh.
+        """
         address_fields = ['street_address', 'city', 'state', 'zip_code', 'country']
         address_data = {}
-        
+
         for field in address_fields:
             if field in validated_data:
                 value = validated_data.pop(field)
@@ -117,47 +120,39 @@ class VendorUpdate(serializers.ModelSerializer):
                     address_data['zip_code'] = value
                 else:
                     address_data[field] = value
-                    
+
         old_name = instance.business_name
-        new_name = validated_data.get("business_name", old_name)            
-        
-        # Update only the vendor fields that were provided
+        new_name = validated_data.get("business_name", old_name)
+
         if 'website' not in validated_data or not validated_data['website']:
             validated_data['website'] = "https://www.google.com"
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        
-        if new_name != old_name:
-            new_slug = f"{slugify(new_name)}-{instance.id}"
-            instance.business_name_slug = new_slug
-            
-            # FIXED: Avoid DoesNotExist crash by get_or_create
-            portfolio, _ = Portfolio.objects.get_or_create(vendor=instance)
-            update_portfolio_url(portfolio, new_slug)
-        instance.save()
-        
-        
-        # Update address only if address data is provided
-        if address_data:
-            # Get user's default address or first address
-            address = instance.user.addresses.filter(is_default=True).first()
-            if not address:
-                address = instance.user.addresses.first()
-            
-            if address:
-                # Update only the address fields that were provided
-                for attr, value in address_data.items():
-                    setattr(address, attr, value)
-                address.save()
-            else:
-                # Create new address if none exists (edge case)
-                Address.objects.create(
-                    user=instance.user,
-                    address_type='both',
-                    is_default=True,
-                    **address_data
-                )
-        
+
+        with transaction.atomic():
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+
+            if new_name != old_name:
+                new_slug = f"{slugify(new_name)}-{instance.id}"
+                instance.business_name_slug = new_slug
+                portfolio, _ = Portfolio.objects.get_or_create(vendor=instance)
+                update_portfolio_url(portfolio, new_slug)
+
+            instance.save()
+
+            if address_data:
+                address = instance.user.addresses.filter(is_default=True).first() or instance.user.addresses.first()
+                if address:
+                    for attr, value in address_data.items():
+                        setattr(address, attr, value)
+                    address.save()
+                else:
+                    Address.objects.create(
+                        user=instance.user,
+                        address_type='both',
+                        is_default=True,
+                        **address_data
+                    )
+
         return instance
     
     def validate_business_name(self, value):

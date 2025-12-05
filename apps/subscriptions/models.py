@@ -19,9 +19,9 @@ class SubscriptionPlan(models.Model):
     plan_type = models.CharField(max_length=20, choices=PLAN_TYPES, default='basic')
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Price in INR")
-    price_in_paise = models.IntegerField(help_text="Price in paise for Razorpay")
-    duration_days = models.IntegerField(default=30)
-    sync_limit = models.IntegerField(default=10, help_text="Number of syncs allowed per month")
+    price_in_paise = models.PositiveIntegerField(help_text="Price in paise for Razorpay")
+    duration_days = models.PositiveIntegerField(default=30)
+    sync_limit = models.PositiveIntegerField(default=10, help_text="Number of syncs allowed per month")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -58,7 +58,7 @@ class PaymentTransaction(models.Model):
     razorpay_signature = models.CharField(max_length=255, blank=True, null=True, db_index=True)  # ✅ Indexed for signature check
     
     # Transaction details
-    amount = models.IntegerField(help_text="Amount in paise")
+    amount = models.PositiveIntegerField(help_text="Amount in paise")
     currency = models.CharField(max_length=3, default='INR')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='created')
     

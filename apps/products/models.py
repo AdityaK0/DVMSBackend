@@ -16,6 +16,10 @@ class Category(models.Model):
 
     class Meta:
         unique_together = ('name', 'vendor')  # vendor-specific names
+        indexes = [
+            models.Index(fields=["vendor", "is_active"]),
+            models.Index(fields=["parent"]),
+        ]
 
     def __str__(self):
         return self.name
@@ -42,17 +46,17 @@ class Product(models.Model):
     primary_image = models.URLField(max_length=500, blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    stock_quantity = models.IntegerField(default=0)
-    min_stock_level = models.IntegerField(default=5)
-    sku = models.CharField(max_length=100)
+    stock_quantity = models.PositiveIntegerField(default=0)
+    min_stock_level = models.PositiveIntegerField(default=5)
+    sku = models.CharField(max_length=100, db_index=True)
     # weight = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
     sizes = models.JSONField(default=list, blank=True)
     gender = models.CharField(max_length=100, blank=True, null=True)
     
     dimensions = models.JSONField(default=dict, blank=True)  # {length, width, height}
-    is_active = models.BooleanField(default=True)
-    is_featured = models.BooleanField(default=False)
-    is_archived = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True, db_index=True)
+    is_featured = models.BooleanField(default=False, db_index=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
     meta_title = models.CharField(max_length=200, blank=True)
     meta_description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -60,6 +64,11 @@ class Product(models.Model):
     
     class Meta:
         unique_together = ('vendor', 'sku')
+        indexes = [
+            models.Index(fields=["vendor", "is_active", "is_archived"]),
+            models.Index(fields=["vendor", "is_featured"]),
+            models.Index(fields=["category", "is_active"]),
+        ]
     
 
     def __str__(self):

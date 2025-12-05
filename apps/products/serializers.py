@@ -32,11 +32,13 @@ class ProductSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at', 'image_urls', 'primary_image',
             'vendor_name', 'category_name', 'is_in_stock', 'is_low_stock',
         ]
-        read_only_fields = ['vendor', 'created_at', 'updated_at']
+        read_only_fields = ['vendor', 'created_at', 'updated_at', 'is_archived']
 
     def validate_sku(self, value):
         request = self.context.get("request")
-        vendor = request.user.vendor
+        vendor = getattr(getattr(request, "user", None), "vendor", None)
+        if not vendor:
+            raise serializers.ValidationError("Vendor not found for this user.")
 
         qs = Product.objects.filter(sku=value, vendor=vendor)
 

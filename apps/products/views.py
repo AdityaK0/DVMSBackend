@@ -4,16 +4,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db import transaction
 from .models import Product, Category
-from .serializers import ProductSerializer
+from .serializers import ProductSerializer, ProductUpdateSerializer
 from apps.subscriptions.permissions import IsSubscribedOrReadOnly
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import status
-from django.db import transaction
-from .models import Product, Category
-from .serializers import ProductSerializer
-from .serializers import ProductUpdateSerializer
 from .services import *
 from .exceptions import ProductValidationError
 
@@ -308,7 +300,11 @@ def filter_products(request):
         )
 
     vendor = request.user.vendor
-    data = get_filtered_products(vendor, request.GET, request=request)
+    data = get_filtered_products(
+        vendor,
+        request.GET,
+        request=request,
+    )
     return Response(data)
 
 

@@ -1,12 +1,10 @@
 from django.db import models
 # Create your models here.
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+from django.db.models import Q, UniqueConstraint
+from django.db.models.functions import Lower
 from ..vendors.models import Vendor
-
-
-
-from django.contrib.auth.models import BaseUserManager
 
 class UserManager(BaseUserManager):
 
@@ -34,9 +32,9 @@ class User(AbstractUser):
         ('admin', 'Admin'),
     ]
     name = models.CharField(max_length=300, blank=True, null=True)
-    email = models.EmailField(unique=True)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES,default='vendor')
-    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(unique=True)  # enforce unique at DB level
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='vendor', db_index=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True, db_index=True)
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -44,17 +42,39 @@ class User(AbstractUser):
     
     objects = UserManager()
 
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            # Case-insensitive unique email (PostgreSQL)
+            UniqueConstraint(Lower("email"), name="unique_user_email_ci"),
+            # Avoid duplicate active usernames (case-insensitive)
+            UniqueConstraint(
+                Lower("username"),
+                name="unique_active_username_ci",
+                condition=Q(is_active=True),
+            ),
+        ]
+        
+        # indexes = [
+        #     models.Index(fields=["role", "is_active"]),
+        #     models.Index(Lower("email")),
+        # ]
+
     def __str__(self):
         return f"{self.username} ({self.role})"
 
+    @property
+    def full_name(self):
+        return self.name or f"{self.first_name} {self.last_name}".strip()
+
 class Address(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses', db_index=True)
     street_address = models.CharField(max_length=255)
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
     postal_code = models.CharField(max_length=20)
     country = models.CharField(max_length=100)
-    is_default = models.BooleanField(default=False)
+    is_default = models.BooleanField(default=False, db_index=True)
     zip_code = models.CharField(max_length=100,null=True)
     address_type = models.CharField(max_length=20, choices=[
         ('shipping', 'Shipping'),
@@ -65,22 +85,20 @@ class Address(models.Model):
     latitude = models.CharField(max_length=20,null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=["user", "is_default"]),
+            models.Index(fields=["city", "state"]),
+            models.Index(fields=["user", "address_type"], name="idx_address_user_type"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user"],
+                condition=Q(is_default=True),
+                name="unique_default_address_per_user",
+            ),
+        ]
+
     def __str__(self):
         return f"{self.street_address}, {self.city}"
-
-
-# class VendorProfile(models.Model):
-#     vendor = models.OneToOneField(Vendor, on_delete=models.CASCADE, related_name='profile')
-#     business_license = models.CharField(max_length=100, blank=True)
-#     tax_id = models.CharField(max_length=50, blank=True)
-#     is_verified = models.BooleanField(default=False)
-#     rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
-#     total_orders = models.IntegerField(default=0)
-#     created_at = models.DateTimeField(auto_now_add=True)
-
-#     def __str__(self):
-#         return f"Vendor Profile: {self.vendor.business_name}"
-    
-    
-    
-

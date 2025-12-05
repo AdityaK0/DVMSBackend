@@ -7,9 +7,9 @@ class Customer(models.Model):
     """Basic customer tracking for vendors"""
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='customers')
     name = models.CharField(max_length=200)
-    email = models.EmailField(null=True, blank=True)
-    phone = models.CharField(max_length=20, blank=True)
-    is_active = models.BooleanField(default=True)
+    email = models.EmailField(null=True, blank=True)  # ✅ Add index for email search
+    phone = models.CharField(max_length=20, blank=True, db_index=True)  # ✅ Add index for phone lookup
+    is_active = models.BooleanField(default=True, db_index=True)  # ✅ Add index for filtering
     created_at = models.DateTimeField(auto_now_add=True)
     bought = models.IntegerField(default=0)
     last_interaction = models.DateTimeField(auto_now=True)
@@ -17,6 +17,17 @@ class Customer(models.Model):
     class Meta:
         ordering = ['-created_at']
         unique_together = ('vendor', 'phone')
+        indexes = [
+            models.Index(fields=['vendor', 'is_active']),  # ✅ Common filter: active customers per vendor
+            models.Index(fields=['vendor', 'phone']),  # ✅ Customer lookup optimization
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vendor", "email"],
+                name="uniq_vendor_email",
+                condition=models.Q(email__isnull=False),
+            ),
+        ]
 
     def __str__(self):
         return f"{self.name} - {self.vendor.business_name}"
@@ -34,11 +45,12 @@ class Invoice(models.Model):
 
     items = models.JSONField(default=list)  # Stores item array from frontend
 
-    total_amount = models.FloatField()
-    paid_amount = models.FloatField(default=0)
-    pending_amount = models.FloatField(default=0,db_index=True)
+    # ✅ CRITICAL FIX: Use DecimalField for money to avoid float precision errors
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    pending_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, db_index=True)
 
-    is_udhaari = models.BooleanField(default=False)
+    is_udhaari = models.BooleanField(default=False, db_index=True)  # ✅ Add index for filtering
     invoice_date = models.DateField(db_index=True)
     is_edited = models.BooleanField(default=False)
 
@@ -53,14 +65,23 @@ class Invoice(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["vendor", "invoice_date"]),
+            models.Index(fields=["vendor", "is_udhaari"]),  # ✅ Filter by udhaari status
+            models.Index(fields=["vendor", "pending_amount"]),  # ✅ Pending invoices query
+            models.Index(fields=["vendor", "customer_phone"]),  # ✅ Customer invoice lookup
+            models.Index(fields=["vendor", "-created_at"]),  # ✅ Recent invoices (descending)
         ]
 
 
 class InvoicePayment(models.Model):
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="payments")
-    amount = models.FloatField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)  # ✅ CRITICAL FIX: Use DecimalField
     note = models.CharField(max_length=255, blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)  # ✅ Add index for sorting
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['invoice', '-created_at']),  # ✅ Payment history per invoice
+        ]
 
     def __str__(self):
         return f"Payment of {self.amount} for Invoice #{self.invoice_id}"
@@ -98,6 +119,7 @@ class InvoiceChangeLog(models.Model):
         max_length=50,
         choices=CHANGE_TYPE_CHOICES,
         default="update",
+        db_index=True,  # ✅ Add index for filtering by change type
     )
 
     # structure: {"field": {"old": <value>, "new": <value>}, ...}
@@ -110,6 +132,11 @@ class InvoiceChangeLog(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=['invoice', '-created_at']),  # ✅ Changelog history per invoice
+            models.Index(fields=['vendor', 'change_type']),  # ✅ Filter by change type per vendor
+            models.Index(fields=['vendor', '-created_at']),  # ✅ Recent changes per vendor
+        ]
 
     def __str__(self):
         return f"Invoice #{self.invoice_id} changes at {self.created_at}"
