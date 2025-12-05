@@ -1,5 +1,9 @@
 
 
+- integrate short description of address in invoice or may be customer card 
+
+
+
 what i have thought is that now we need to do something different like 
 add the event from the admin side and when vendor will come on the even page or need notification or something
 to tell the vendor that event is added by admin and vendor can update it or delete it or something

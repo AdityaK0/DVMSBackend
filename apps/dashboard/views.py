@@ -157,6 +157,14 @@ def get_customers(request):
         vendor = request.user
 
     customers = Customer.objects.filter(vendor=vendor).order_by('-created_at')
+    
+    search = request.GET.get("search", "")
+
+    if search:
+        customers = customers.filter(
+            Q(name__icontains=search) |
+            Q(phone__icontains=search)
+        )
 
     # Pagination
     try:
