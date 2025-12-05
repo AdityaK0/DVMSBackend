@@ -41,6 +41,7 @@ class Vendor(models.Model):
     )
     secret_expires_at = models.DateTimeField(null=True, blank=True)
     geolocation = models.JSONField(null=True, blank=True)
+    handle = models.CharField(max_length=130, unique=True, null=True, blank=True,db_index=True)
 
     def __str__(self):
         return self.business_name
