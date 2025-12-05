@@ -4,7 +4,7 @@ def update_portfolio_url(portfolio,business_name_slug):
     if settings.ENVIRONMENT == "development":
             portfolio_url = f"http://{business_name_slug}.localhost:{settings.FRONTEND_PORTFOLIO_PORT}"
     else:
-        portfolio_url = f"{settings.FRONTEND_BASE_PORTFOLIO_PREVIEW}/{business_name_slug}"
+        portfolio_url = f"https://www.{business_name_slug}.{settings.FRONTEND_BASE_PORTFOLIO_PREVIEW}/"
         
     portfolio.portfolio_url = portfolio_url
     portfolio.save()
