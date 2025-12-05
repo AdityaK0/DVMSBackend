@@ -7,7 +7,7 @@ class Customer(models.Model):
     """Basic customer tracking for vendors"""
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='customers')
     name = models.CharField(max_length=200)
-    email = models.EmailField(null=True, blank=True)  # ✅ Add index for email search
+    email = models.EmailField(null=True, blank=True) 
     phone = models.CharField(max_length=20, blank=True, db_index=True)  # ✅ Add index for phone lookup
     is_active = models.BooleanField(default=True, db_index=True)  # ✅ Add index for filtering
     created_at = models.DateTimeField(auto_now_add=True)
@@ -20,13 +20,6 @@ class Customer(models.Model):
         indexes = [
             models.Index(fields=['vendor', 'is_active']),  # ✅ Common filter: active customers per vendor
             models.Index(fields=['vendor', 'phone']),  # ✅ Customer lookup optimization
-        ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["vendor", "email"],
-                name="uniq_vendor_email",
-                condition=models.Q(email__isnull=False),
-            ),
         ]
 
     def __str__(self):

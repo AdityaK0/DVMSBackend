@@ -1,5 +1,4 @@
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from .models import  Customer, InvoicePayment, InvoiceChangeLog
@@ -9,18 +8,15 @@ from .serializers import (
 )
 from .service import *
 from apps.dashboard.service import get_customer_stats_cached
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
 from .models import Invoice
 from .serializers import InvoiceSerializer
 
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from apps.subscriptions.permissions import IsSubscribedOrReadOnly
 from apps.utils.request_utils import extract_request_meta
+
 
 def calculate_percentage_change(current, previous):
     """Calculate percentage change between current and previous values"""
@@ -45,12 +41,12 @@ def create_customer(request):
 
     serializer = CustomerSerializer(data=request.data)
     if serializer.is_valid():
-        email = serializer.validated_data.get("email")
+        phone = serializer.validated_data.get("phone")
 
         # Check if customer already exists for this vendor
-        if Customer.objects.filter(vendor=vendor, email=email).exists():
+        if Customer.objects.filter(vendor=vendor, phone=phone).exists():
             return Response(
-                {"error": f"Customer with email '{email}' already exists."},
+                {"error": f"Customer with phone '{phone}' already exists."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -62,10 +58,6 @@ def create_customer(request):
 
 
 
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 
 @api_view(['PATCH', 'PUT'])
 @permission_classes([IsAuthenticated])
@@ -73,7 +65,7 @@ def update_customer(request, customer_id):
     """
     Update an existing customer for the vendor.
 
-    Allowed fields: name, email, phone, is_active
+    Allowed fields: name, phone, is_active
     """
     user = request.user
     vendor = getattr(user, "vendor", None)
@@ -93,12 +85,12 @@ def update_customer(request, customer_id):
 
     serializer = CustomerSerializer(customer, data=request.data, partial=True)
     if serializer.is_valid():
-        new_email = serializer.validated_data.get("email")
-        if new_email and new_email != customer.email:
+        new_phone = serializer.validated_data.get("phone")
+        if new_phone and new_phone != customer.phone:
             # Check unique constraint per vendor
-            if Customer.objects.filter(vendor=vendor, email=new_email).exclude(id=customer.id).exists():
+            if Customer.objects.filter(vendor=vendor, phone=new_phone).exclude(id=customer.id).exists():
                 return Response(
-                    {"error": f"Customer with email '{new_email}' already exists."},
+                    {"error": f"Customer with phone '{new_phone}' already exists."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         

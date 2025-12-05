@@ -5,12 +5,11 @@ from .models import Invoice, InvoiceChangeLog, InvoicePayment, Customer
 class CustomerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
-        fields = ['id', 'name', 'email', 'phone', 'is_active', 'created_at']
+        fields = ['id', 'name','phone', 'is_active', 'created_at','bought','last_interaction']
         read_only_fields = ['registered_at']
 
 
 
-from rest_framework import serializers
 class InvoicePaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = InvoicePayment
