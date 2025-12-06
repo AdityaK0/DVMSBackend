@@ -1,4 +1,21 @@
 
+Use Option 2:
+https://muskan-shopping-center-5.fordgeindia.online
+
+
+AND keep a fallback short-handle system like:
+
+https://msc.fordgeindia.online
+
+
+So your DNS wildcard covers:
+
+*.fordgeindia.online
+
+fallback if business name is long 
+
+
+
 
 - integrate short description of address in invoice or may be customer card 
 
