@@ -73,7 +73,7 @@ def create_default_portfolio_for_vendor(vendor):
         portfolio_url = f"http://{url_handle}.localhost:3000"
     else:
         # Production: use handle-based subdomain
-        portfolio_url = f"https://{url_handle}.site.fordgeindia.online"
+        portfolio_url = f"https://www.{url_handle}.site.fordgeindia.online"
     
     # Update portfolio URL
     portfolio.portfolio_url = portfolio_url
