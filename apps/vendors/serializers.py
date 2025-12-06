@@ -20,12 +20,13 @@ class VendorSerializer(serializers.ModelSerializer):
         model = Vendor
         fields = [
             "id", "business_name", "business_description",
-            "business_email", "business_type", "business_phone","business_name_slug",
+            "business_email", "business_type", "business_phone", "business_name_slug",
             "gstin", "website", "logo",
-            "is_active", "is_verified","whatsapp_number",
-            "created_at", "updated_at", "is_onboarded", "address_details","secret","telegram_chat_id"
+            "is_active", "is_verified", "whatsapp_number",
+            "created_at", "updated_at", "is_onboarded", "address_details", "secret", "telegram_chat_id",
+            "handle"  # ✅ Permanent portfolio URL handle
         ]
-        read_only_fields = ["user", "is_verified", "created_at", "updated_at","logo_url","telegram_chat_id","secret"]
+        read_only_fields = ["user", "is_verified", "created_at", "updated_at", "logo_url", "telegram_chat_id", "secret", "handle"]
 
     def get_address_details(self, obj):
         from apps.users.serializers import AddressSerializer
@@ -105,7 +106,10 @@ class VendorUpdate(serializers.ModelSerializer):
     
     def update(self, instance, validated_data):
         """
-        Atomic vendor update with address syncing and slug refresh.
+        Atomic vendor update with address syncing.
+        
+        IMPORTANT: Business name CANNOT be changed after onboarding
+        to maintain stable portfolio URLs and handles.
         """
         address_fields = ['street_address', 'city', 'state', 'zip_code', 'country']
         address_data = {}
@@ -121,8 +125,15 @@ class VendorUpdate(serializers.ModelSerializer):
                 else:
                     address_data[field] = value
 
-        old_name = instance.business_name
-        new_name = validated_data.get("business_name", old_name)
+        # ✅ PREVENT business name changes after onboarding
+        # This ensures stable portfolio URLs and handles
+        if 'business_name' in validated_data:
+            if instance.is_onboarded and validated_data['business_name'] != instance.business_name:
+                raise serializers.ValidationError({
+                    "business_name": "Business name cannot be changed after onboarding. "
+                                   "This ensures your portfolio URL remains stable. "
+                                   "Contact admin if you need to update it."
+                })
 
         if 'website' not in validated_data or not validated_data['website']:
             validated_data['website'] = "https://www.google.com"
@@ -130,12 +141,6 @@ class VendorUpdate(serializers.ModelSerializer):
         with transaction.atomic():
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
-
-            if new_name != old_name:
-                new_slug = f"{slugify(new_name)}-{instance.id}"
-                instance.business_name_slug = new_slug
-                portfolio, _ = Portfolio.objects.get_or_create(vendor=instance)
-                update_portfolio_url(portfolio, new_slug)
 
             instance.save()
 
@@ -156,6 +161,12 @@ class VendorUpdate(serializers.ModelSerializer):
         return instance
     
     def validate_business_name(self, value):
+        """
+        Validate business name format.
+        
+        Note: This only validates format. The update() method prevents
+        changes to business_name after onboarding.
+        """
         slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
 
         if len(slug) > 50:

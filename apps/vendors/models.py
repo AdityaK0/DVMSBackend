@@ -41,7 +41,26 @@ class Vendor(models.Model):
     )
     secret_expires_at = models.DateTimeField(null=True, blank=True)
     geolocation = models.JSONField(null=True, blank=True)
-    handle = models.CharField(max_length=130, unique=True, null=True, blank=True,db_index=True)
+    
+    # ✅ Permanent portfolio handle - never auto-updates when business_name changes
+    # Used for stable, SEO-friendly portfolio URLs: https://{handle}.site.fordgeindia.online
+    handle = models.SlugField(
+        max_length=50,
+        unique=True,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Permanent URL handle for vendor portfolio. Auto-generated on onboarding, never auto-updates."
+    )
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['business_email']),
+            models.Index(fields=['business_phone']),
+            models.Index(fields=['handle']),
+            models.Index(fields=['is_active', 'is_verified']),
+            models.Index(fields=['created_at']),
+        ]
 
     def __str__(self):
         return self.business_name

@@ -84,9 +84,14 @@ def create_vendor(request):
             vendor.is_onboarded = True
             vendor.save()
 
-            # Auto-generate slug
-            # vendor.business_name_slug = slugify(f"{vendor.business_name}-{vendor.id}")
-            vendor.business_name_slug = slugify(f"{vendor.business_name}-{vendor.id}")
+            # ✅ Generate permanent handle on first onboarding (never auto-updates)
+            if not vendor.handle:
+                from apps.vendors.utils import generate_unique_handle
+                vendor.handle = generate_unique_handle(vendor.business_name, vendor_id=vendor.id)
+                logger.info(f"Generated handle '{vendor.handle}' for vendor {vendor.id}")
+
+            # Auto-generate slug (kept for backward compatibility)
+            vendor.business_name_slug = slugify(f"{vendor.business_name}-v{vendor.id}")
             vendor.is_active = True
             
             vendor.save()
