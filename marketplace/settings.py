@@ -127,7 +127,6 @@ INSTALLED_APPS = INSTALLED_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 
 MIDDLEWARE = [
-    'silk.middleware.SilkyMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # Keep only once, at top
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -143,6 +142,7 @@ if DEBUG:
     INSTALLED_APPS.append('debug_toolbar')
     INSTALLED_APPS.append('silk')
     MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
+    MIDDLEWARE.insert(0, 'silk.middleware.SilkyMiddleware')
     # MIDDLEWARE.append('silk.middleware.SilkyMiddleware')
 
 INTERNAL_IPS = ['127.0.0.1']
