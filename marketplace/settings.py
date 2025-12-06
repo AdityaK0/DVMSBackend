@@ -76,7 +76,7 @@ BIG_MACHINE = os.getenv("DO_WE_HAVE_BIG_MACHINE", "false").lower() == "true"
 
 ALLOWED_HOSTS = [
     "api.fordgeindia.online",
-    # "13.234.203.82",use this if domain is not avaialable
+    "13.234.203.82",
     "localhost",
     "127.0.0.1",
 ]
