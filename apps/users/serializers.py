@@ -79,13 +79,13 @@ class AddressSerializer(serializers.ModelSerializer):
         
 class UserSerializer(serializers.ModelSerializer):
     vendor_profile = VendorSerializer(source="vendor", read_only=True)
-    addresses = AddressSerializer(many=True, read_only=True)
+    # addresses = AddressSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 
                  'phone_number', 'role', 'is_verified', 'is_staff', 'is_superuser', 
-                 'created_at', 'vendor_profile', 'addresses']
+                 'created_at', 'vendor_profile']
         read_only_fields = ['id', 'created_at', 'is_verified', 'is_staff', 'is_superuser']
 
 
