@@ -21,8 +21,7 @@ class UserService:
             User.objects
             .select_related("vendor")
             .prefetch_related(
-                # "addresses",
-                "vendor__user__addresses"
+                "addresses",
             )
             .get(id=user_id)
         )

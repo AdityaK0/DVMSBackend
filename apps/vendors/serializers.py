@@ -27,20 +27,36 @@ class VendorSerializer(serializers.ModelSerializer):
             "handle"  # ✅ Permanent portfolio URL handle
         ]
         read_only_fields = ["user", "is_verified", "created_at", "updated_at", "logo_url", "telegram_chat_id", "secret", "handle"]
-
+    
+    
+    
     def get_address_details(self, obj):
         from apps.users.serializers import AddressSerializer
-        addresses = getattr(obj.user, "addresses", []).all()
 
-        default_address = next((addr for addr in addresses if addr.is_default), None)
+        addresses = obj.user.addresses.all()  # uses prefetch, 0 DB hits
 
-        if not default_address and addresses:
-            default_address = addresses[0]
+        if not addresses:
+            return None
 
-        if default_address:
-            return AddressSerializer(default_address).data
+        default_address = next((a for a in addresses if a.is_default), None)
+        default_address = default_address or addresses[0]
 
-        return None
+        return AddressSerializer(default_address).data
+        
+
+    # def get_address_details(self, obj):
+    #     from apps.users.serializers import AddressSerializer
+    #     addresses = getattr(obj.user, "addresses", []).all()
+
+    #     default_address = next((addr for addr in addresses if addr.is_default), None)
+
+    #     if not default_address and addresses:
+    #         default_address = addresses[0]
+
+    #     if default_address:
+    #         return AddressSerializer(default_address).data
+
+    #     return None
 
 
 class VendorListSerializer(serializers.ModelSerializer):
