@@ -26,7 +26,6 @@ class ProductService:
         Returns a Product object or raises DoesNotExist.
         Business logic stays here; HTTP logic stays in the view.
         """
-        print("Really Not hitting the DB :) ::::: ")
         product =  (
             Product.objects
             .select_related("vendor", "category")

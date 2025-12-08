@@ -45,71 +45,92 @@ class VendorBasicSerializer(serializers.ModelSerializer):
         ]
     
     
-
 class PortfolioCollectionSerializer(serializers.ModelSerializer):
-    products = ProductListSerializer(many=True, read_only=True)  # ✅ reuse your existing product serializer
+    products = ProductListSerializer(many=True, read_only=True)
+
     product_ids = serializers.ListField(
         child=serializers.IntegerField(),
         write_only=True,
         required=False
     )
+
     product_count = serializers.SerializerMethodField()
-    cover_image_url = serializers.SerializerMethodField()
-    
+
+    # Incoming S3 URL → write-only
+    cover_image_url = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    # Outgoing DB field → read-only
+    cover_image = serializers.CharField(read_only=True)
+
     class Meta:
         model = PortfolioCollection
         fields = [
-            'id', 'name', 'description', 'cover_image', 'slug',
-            'is_featured', 'is_active', 'order', 
-            'products', 'cover_image_url', 
-            'product_ids', 'product_count', 'created_at'
+            "id", "name", "description",
+            "cover_image", "cover_image_url",
+            "slug", "is_featured", "is_active", "order",
+            "products", "product_ids", "product_count",
+            "created_at"
         ]
-        read_only_fields = ['slug']
-        
-    # ----- Derived Fields -----
+        read_only_fields = ["slug"]
+
     def get_product_count(self, obj):
         return obj.products.count()
 
-    def get_cover_image_url(self, obj):
-        if not obj.cover_image:
-            return None
-        request = self.context.get('request')
-        return request.build_absolute_uri(obj.cover_image.url) if request else obj.cover_image.url
-    
-    # ----- Create / Update -----
     def create(self, validated_data):
         portfolio = validated_data.get("portfolio")
 
-        #  Restrict max 5 collections per portfolio
+        # Restrict max 5 collections
         if portfolio.collections.count() >= 5:
             raise serializers.ValidationError({
                 "message": "A portfolio can have at most 5 collections."
             })
-        product_ids = validated_data.pop('product_ids', [])
+
+        # REMOVE non-model fields BEFORE saving
+        cover_image_url = validated_data.pop("cover_image_url", None)
+        product_ids = validated_data.pop("product_ids", [])
+
+        # Create collection
         collection = PortfolioCollection.objects.create(**validated_data)
 
+        # Save uploaded S3 URL into actual model field
+        if cover_image_url:
+            collection.cover_image = cover_image_url
+            collection.save(update_fields=["cover_image"])
+
+        # Save products
         if product_ids:
-            # restrict to vendor products
             products = Product.objects.filter(
                 id__in=product_ids,
                 vendor=collection.portfolio.vendor
             )
             collection.products.set(products)
-        
+
         return collection
 
     def update(self, instance, validated_data):
-        product_ids = validated_data.pop('product_ids', None)
+
+        # REMOVE URL from validated_data
+        cover_image_url = validated_data.pop("cover_image_url", None)
+        product_ids = validated_data.pop("product_ids", None)
+
+        # Standard update
         collection = super().update(instance, validated_data)
 
+        # Update image if provided
+        if cover_image_url:
+            collection.cover_image = cover_image_url
+            collection.save(update_fields=["cover_image"])
+
+        # Update products
         if product_ids is not None:
             products = Product.objects.filter(
                 id__in=product_ids,
                 vendor=collection.portfolio.vendor
             )
             collection.products.set(products)
-        
+
         return collection
+
         
 
 class PortfolioThemeSerializer(serializers.ModelSerializer):

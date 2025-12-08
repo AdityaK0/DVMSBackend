@@ -104,7 +104,6 @@ def vendor_portfolio_manage(request):
 
 @api_view(['GET', 'POST'])
 @permission_classes([permissions.IsAuthenticated])
-@parser_classes([MultiPartParser, FormParser])
 def portfolio_collections(request):
     vendor = getattr(request.user, "vendor", None)
     if not vendor:
@@ -118,11 +117,7 @@ def portfolio_collections(request):
     serializer = PortfolioCollectionSerializer(data=request.data)
     if serializer.is_valid():
         collection = serializer.save(portfolio=portfolio)
-
-        # Handle single image upload
-        image_file = request.FILES.get('image')
-        if image_file:
-            upload_collection_image(collection, image_file)
+            
 
         response_serializer = PortfolioCollectionSerializer(collection)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -130,12 +125,8 @@ def portfolio_collections(request):
 
 
 
-
-
-
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 @permission_classes([permissions.IsAuthenticated])
-@parser_classes([MultiPartParser, FormParser])
 def portfolio_collection_detail(request, id):
     vendor = getattr(request.user, "vendor", None)
     if not vendor:
@@ -156,10 +147,6 @@ def portfolio_collection_detail(request, id):
 
         if serializer.is_valid():
             collection = serializer.save()
-            # Optional: handle image replacement
-            image_file = request.FILES.get('image')
-            if image_file:
-                upload_collection_image(collection, image_file)
 
             response_serializer = PortfolioCollectionSerializer(collection)
             return Response(response_serializer.data)

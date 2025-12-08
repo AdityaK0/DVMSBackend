@@ -147,7 +147,7 @@ class PortfolioCollection(models.Model):
     )
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
-    cover_image = CloudinaryField("image", blank=True, null=True)
+    cover_image = models.URLField(max_length=500, blank=True, null=True)
     products = models.ManyToManyField(Product, related_name='portfolio_collections')
     
     # Display settings
