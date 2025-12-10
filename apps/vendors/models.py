@@ -17,7 +17,7 @@ class Vendor(models.Model):
     ]
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,related_name="vendor")
     business_name = models.CharField(max_length=200)
-    business_name_slug = models.SlugField(max_length=200, blank=True, null=True)
+    # business_name_slug = models.SlugField(max_length=200, blank=True, null=True)
     business_description = models.TextField(blank=True)
     business_email = models.EmailField(unique=True, null=True, db_index=True)
     business_type = models.CharField(max_length=25, choices=BUSSINES_TYPE, default='other')

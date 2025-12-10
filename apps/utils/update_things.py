@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.utils.text import slugify
 
 def update_portfolio_url(portfolio, vendor_handle=None):
     """
@@ -14,12 +15,12 @@ def update_portfolio_url(portfolio, vendor_handle=None):
     
     # Fallback to business_name_slug if handle is not set (backward compatibility)
     if not vendor_handle:
-        vendor_handle = portfolio.vendor.business_name_slug
+        vendor_handle = f"{slugify(portfolio.vendor.business_name)}-v{portfolio.vendor.id}"
     
     if not vendor_handle:
         # Last resort: generate from business name
         from django.utils.text import slugify
-        vendor_handle = slugify(portfolio.vendor.business_name)
+        vendor_handle = f"{slugify(portfolio.vendor.business_name)}-v{portfolio.vendor.id}"
     
     if settings.ENVIRONMENT == "development":
         portfolio_url = f"http://{vendor_handle}.localhost:{settings.FRONTEND_PORTFOLIO_PORT}"

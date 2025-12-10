@@ -89,7 +89,7 @@ class Command(BaseCommand):
 
         if new_business_name:
             vendor.business_name = new_business_name
-            vendor.business_name_slug = slugify(f"{new_business_name}-{vendor.id}")
+            # vendor.business_name_slug = slugify(f"{new_business_name}-{vendor.id}")
             self.stdout.write(self.style.SUCCESS(f'✓ Updated business name: {old_name} → {new_business_name}'))
 
         if new_handle:

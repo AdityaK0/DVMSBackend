@@ -70,7 +70,7 @@ def create_vendor(request):
 
             #  Vendor update
             update_fields = [
-                "business_name", "business_type", "business_email",
+                "business_type", "business_email",
                 "business_description", "business_phone", "website", "gstin"
             ]
             for field in update_fields:
@@ -91,7 +91,6 @@ def create_vendor(request):
                 logger.info(f"Generated handle '{vendor.handle}' for vendor {vendor.id}")
 
             # Auto-generate slug (kept for backward compatibility)
-            vendor.business_name_slug = slugify(f"{vendor.business_name}-v{vendor.id}")
             vendor.is_active = True
             
             vendor.save()

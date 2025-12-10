@@ -159,25 +159,97 @@ def portfolio_collection_detail(request, id):
     
 
 
+# @api_view(["POST"])
+# @permission_classes([permissions.IsAuthenticated,IsSubscribed])
+# def trigger_sync(request):
+#     """
+#     Sync portfolio + products + collections to Elasticsearch
+#     """
+    
+    
+#     user = request.user
+    
+
+#     if user.role != "vendor":
+#         return Response(
+#             {"error": "Only vendors can sync their portfolio."},
+#             status=status.HTTP_403_FORBIDDEN,
+#         )
+
+#     vendor = Vendor.objects.filter(user=user).first()
+#     if not vendor:
+#         return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
+
+#     plan = PortfolioService.get_vendor_sync_plan(vendor)
+
+#     if not plan.can_sync():
+#         return Response(
+#             {
+#                 "status": "blocked",
+#                 "message": "Sync limit reached for today.",
+#                 "remaining_syncs": plan.remaining_syncs,
+#                 "extra_syncs_available": plan.extra_syncs_available,
+#             },
+#             status=status.HTTP_429_TOO_MANY_REQUESTS,
+#         )
+
+#     # Execute sync
+#     try:
+#         # FIXED: Wrap external sync call to avoid unhandled exceptions
+#         result = sync_vendor(vendor.id)
+#         plan.refresh_from_db()
+        
+#         return Response(
+#             {
+#                 "status": "success",
+#                 "message": "Vendor synced successfully!",
+#                 "synced_docs": result.get("synced_docs"),
+#                 "remaining_syncs": plan.remaining_syncs,
+#                 "extra_syncs_available": plan.extra_syncs_available,
+#             }
+#         )
+#     except Exception as e:
+#         logger.exception("trigger_sync failed for vendor %s: %s", vendor.id, e)
+#         return Response(
+#             {"detail": "Sync failed. Try again later."},
+#             status=status.HTTP_502_BAD_GATEWAY,
+#         )
+
+
+from django.conf import settings
+import requests
+import boto3
+import json
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated,IsSubscribed])
 def trigger_sync(request):
     """
-    Sync portfolio + products + collections to Elasticsearch
-    """
-    user = request.user
+    Sync portfolio + products + collections to SQLite.
     
+    Logic:
+    - If settings.ENVIRONMENT == 'development': 
+        Calls FastAPI local build endpoint (http://localhost:8001/internal/build).
+    - If settings.ENVIRONMENT == 'production': 
+        Invokes AWS Lambda 'lambda_sqlite_builder' asynchronously.
+    """
+    
+    user = request.user
 
-    if user.role != "vendor":
+    # 1. Authorization check
+    if hasattr(user, 'role') and user.role != "vendor":
         return Response(
             {"error": "Only vendors can sync their portfolio."},
             status=status.HTTP_403_FORBIDDEN,
         )
 
+    # 2. Resolve Vendor
+    # Note: Adjust logic if your user->vendor relationship is different
     vendor = Vendor.objects.filter(user=user).first()
     if not vendor:
         return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
 
+    # 3. Check Subscription / Limits (Preserve existing logic)
     plan = PortfolioService.get_vendor_sync_plan(vendor)
 
     if not plan.can_sync():
@@ -191,24 +263,69 @@ def trigger_sync(request):
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
 
-    # Execute sync
+    # 4. Trigger Sync based on Environment
+    # Default to 'production' if not set
+    env = getattr(settings, 'ENVIRONMENT', 'production')
+    vendor_slug = vendor.handle
+
     try:
-        # FIXED: Wrap external sync call to avoid unhandled exceptions
-        result = sync_vendor(vendor.id)
+        if env == 'development':
+            # === LOCAL BUILD (via FastAPI) ===
+            fastapi_url = getattr(settings, 'FASTAPI_URL', "http://localhost:8001")
+            url = f"{fastapi_url}/internal/build"
+            
+            logger.info(f"Triggering local build for {vendor_slug} at {url}")
+            
+            # Call FastAPI
+            resp = requests.post(
+                url, 
+                json={"vendor_slug": vendor_slug},
+                timeout=5
+            )
+            resp.raise_for_status()
+            
+            message = "Local build triggered successfully."
+            mode = "local_fastapi"
+
+        else:
+            # === AWS LAMBDA BUILD ===
+            logger.info(f"Triggering AWS Lambda for {vendor_slug}")
+            
+            client = boto3.client(
+                'lambda', 
+                region_name=getattr(settings, 'AWS_REGION', 'us-east-1'),
+                # Creds are usually picked up from env/role, but can be explicit:
+                aws_access_key_id=getattr(settings, 'AWS_ACCESS_KEY_ID', None),
+                aws_secret_access_key=getattr(settings, 'AWS_SECRET_ACCESS_KEY', None)
+            )
+            
+            payload = {"vendor_slug": vendor_slug}
+            
+            client.invoke(
+                FunctionName='lambda_sqlite_builder', 
+                InvocationType='Event',  # Async execution
+                Payload=json.dumps(payload)
+            )
+            
+            message = "Publishing started (AWS Lambda)."
+            mode = "aws_lambda"
+
+        # 5. Consume Sync Limit (if successful)
+        plan.consume_sync()
         plan.refresh_from_db()
-        
+
         return Response(
             {
                 "status": "success",
-                "message": "Vendor synced successfully!",
-                "synced_docs": result.get("synced_docs"),
+                "message": message,
+                "mode": mode,
                 "remaining_syncs": plan.remaining_syncs,
-                "extra_syncs_available": plan.extra_syncs_available,
             }
         )
+
     except Exception as e:
         logger.exception("trigger_sync failed for vendor %s: %s", vendor.id, e)
         return Response(
-            {"detail": "Sync failed. Try again later."},
+            {"detail": f"Sync failed: {str(e)}"},
             status=status.HTTP_502_BAD_GATEWAY,
         )

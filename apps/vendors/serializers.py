@@ -3,7 +3,6 @@ from .models import Vendor
 from apps.users.models import Address
 from django.utils.text import slugify
 from apps.portfolio.models import Portfolio
-from ..utils.update_things import update_portfolio_url
 import re
 from .models import Event, PosterTemplate
 from django.db import transaction
@@ -20,7 +19,7 @@ class VendorSerializer(serializers.ModelSerializer):
         model = Vendor
         fields = [
             "id", "business_name", "business_description",
-            "business_email", "business_type", "business_phone", "business_name_slug",
+            "business_email", "business_type", "business_phone", "handle",
             "gstin", "website", "logo",
             "is_active", "is_verified", "whatsapp_number",
             "created_at", "updated_at", "is_onboarded", "address_details", "secret", "telegram_chat_id",

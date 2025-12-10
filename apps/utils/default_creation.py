@@ -1,6 +1,6 @@
 from apps.products.models import Category
 from django.conf import settings
-
+from django.utils.text import slugify
 
 BUSINESS_TYPE_CATEGORIES = {
     'clothing': ["Shirts","T-Shirts", "Jeans", "Jackets"],
@@ -26,7 +26,7 @@ def create_default_portfolio_for_vendor(vendor):
     Create default portfolio for a vendor using their permanent handle.
     
      Uses vendor.handle (permanent, never changes)
-     Falls back to business_name_slug only if handle is missing (shouldn't happen)
+     Falls back to business_name+vendor_id only if handle is missing (shouldn't happen)
     
     Args:
         vendor: Vendor instance
@@ -44,7 +44,7 @@ def create_default_portfolio_for_vendor(vendor):
         vendor=vendor,
         defaults={
             "display_name": vendor.business_name,
-            "business_name_slug": vendor.business_name_slug,
+            "handle": vendor.handle,
             "tagline": "",
             "about_us": "",
             "our_story": "",
@@ -62,9 +62,9 @@ def create_default_portfolio_for_vendor(vendor):
     if not vendor.handle:
         logger.warning(
             f"Vendor {vendor.id} has no handle! This shouldn't happen. "
-            f"Falling back to business_name_slug."
+            f"Falling back to business_name+vendor_id."
         )
-        url_handle = vendor.business_name_slug
+        url_handle = f"{slugify(vendor.business_name)}-v{vendor.id}"
     else:
         url_handle = vendor.handle
     
