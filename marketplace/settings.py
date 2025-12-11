@@ -276,9 +276,9 @@ FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN")
 
 frontend_origins = os.getenv("FRONTEND_ORIGINS", "")
 
-CORS_ALLOWED_ORIGINS=["https://dbv7wnr5ci6kx.cloudfront.net","http://localhost:5173","https://fordgeindia.online","https://www.fordgeindia.online"]
+CORS_ALLOWED_ORIGINS=["https://d2pwo63dqka82f.cloudfront.net","http://localhost:5173","https://admin.fordgeindia.online","https://www.admin.fordgeindia.online"]
 
-CSRF_TRUSTED_ORIGINS = ["https://dbv7wnr5ci6kx.cloudfront.net","http://localhost:5173","https://fordgeindia.online","https://www.fordgeindia.online"]
+CSRF_TRUSTED_ORIGINS = ["https://d2pwo63dqka82f.cloudfront.net","http://localhost:5173","https://admin.fordgeindia.online","https://www.admin.fordgeindia.online"]
 
 
 CORS_ALLOW_ALL_ORIGINS = True
