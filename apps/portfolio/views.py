@@ -293,7 +293,7 @@ def trigger_sync(request):
             
             client = boto3.client(
                 'lambda', 
-                region_name=getattr(settings, 'AWS_REGION', 'us-east-1'),
+                region_name=getattr(settings, 'AWS_REGION', 'ap-south-1'),
                 # Creds are usually picked up from env/role, but can be explicit:
                 aws_access_key_id=getattr(settings, 'AWS_ACCESS_KEY_ID', None),
                 aws_secret_access_key=getattr(settings, 'AWS_SECRET_ACCESS_KEY', None)
@@ -302,7 +302,7 @@ def trigger_sync(request):
             payload = {"vendor_slug": vendor_slug}
             
             client.invoke(
-                FunctionName='lambda_sqlite_builder', 
+                FunctionName='fordgeindia-datasyncer', 
                 InvocationType='Event',  # Async execution
                 Payload=json.dumps(payload)
             )
