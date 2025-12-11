@@ -43,7 +43,7 @@ class Vendor(models.Model):
     geolocation = models.JSONField(null=True, blank=True)
     
     # ✅ Permanent portfolio handle - never auto-updates when business_name changes
-    # Used for stable, SEO-friendly portfolio URLs: https://{handle}.site.fordgeindia.online
+    # Used for stable, SEO-friendly portfolio URLs: https://{handle}.fordgeindia.online
     handle = models.SlugField(
         max_length=50,
         unique=True,

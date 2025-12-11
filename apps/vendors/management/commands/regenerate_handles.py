@@ -80,7 +80,7 @@ class Command(BaseCommand):
         
         if portfolio:
             if new_handle:
-                new_url = f"https://{new_handle}.site.fordgeindia.online"
+                new_url = f"https://{new_handle}.fordgeindia.online"
                 self.stdout.write(f'Proposed New URL: {new_url}')
         
         self.stdout.write('─' * 60)
