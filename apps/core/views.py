@@ -8,7 +8,6 @@ import uuid
 
 @api_view(['POST'])
 def get_presigned_url(request):
-    print("BUCKET NAME == * "*10,settings.AWS_STORAGE_BUCKET_NAME)
     file_name = request.data.get("file_name")
     file_type = request.data.get("file_type")
     # folder = request.data.get("folder", "products")
@@ -20,8 +19,8 @@ def get_presigned_url(request):
 
     s3 = boto3.client(
         "s3",
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        # aws_access_key_id=settings.AWS_ACCESS_KEY_ID, let boto3 pick from env/role if on prod the ec2 instance will handle else on local will go with .env file 
+        # aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
         region_name=settings.AWS_S3_REGION_NAME
     )
 
