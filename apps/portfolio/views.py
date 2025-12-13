@@ -302,7 +302,7 @@ def trigger_sync(request):
             payload = {"vendor_slug": vendor_slug}
             
             client.invoke(
-                FunctionName='fordgeindia-datasyncer', 
+                FunctionName='arn:aws:lambda:ap-south-1:422491854684:function:fordgeindia-datasyncer',
                 InvocationType='Event',  # Async execution
                 Payload=json.dumps(payload)
             )
