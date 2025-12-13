@@ -111,65 +111,6 @@ def create_product(request):
     serializer = ProductSerializer(product, context={'request': request})
     return Response(serializer.data,status=status.HTTP_201_CREATED)
                
-            
-
-
-
-
-# @api_view(['PUT', 'PATCH'])
-# @permission_classes([IsAuthenticated])
-# def update_product(request, pk):
-#     """Update product; image updates handled manually."""
-    
-#     try:
-#         product = Product.objects.get(pk=pk, vendor__user=request.user)
-#     except Product.DoesNotExist:
-#         return Response({"detail": "Product not found"}, status=404)
-
-#     # Update normal fields (no image updates here)
-#     serializer = ProductUpdateSerializer(
-#         product,
-#         data=request.data,
-#         partial=True
-#     )
-#     serializer.is_valid(raise_exception=True)
-#     updated_product = serializer.save()
-
-#     # -----------------------
-#     # IMAGE HANDLING
-#     # -----------------------
-    
-#     existing = updated_product.image_urls or []
-    
-#     # Safely get lists even if sent as single values
-#     images_to_delete = request.data.get("images_to_delete", [])
-#     if isinstance(images_to_delete, str):
-#         images_to_delete = [images_to_delete]
-        
-#     new_urls = request.data.get("image_urls", [])
-#     if isinstance(new_urls, str):
-#         new_urls = [new_urls]
-
-#     # Use sets for O(1) lookups and deduplication
-#     delete_set = set(images_to_delete)
-#     existing_set = set(existing)
-    
-#     # Remove deleted images
-#     final_urls = [url for url in existing if url not in delete_set]
-
-#     # Add new S3 URLs (avoid duplicates)
-#     current_final_set = set(final_urls)
-#     for url in new_urls:
-#         if url and url not in current_final_set:
-#             final_urls.append(url)
-#             current_final_set.add(url)
-
-#     updated_product.image_urls = final_urls
-#     updated_product.primary_image = final_urls[0] if final_urls else None
-#     updated_product.save()
-#     sync_featured_product(updated_product)
-#     return Response(ProductUpdateSerializer(updated_product).data)
-
 
 
 
