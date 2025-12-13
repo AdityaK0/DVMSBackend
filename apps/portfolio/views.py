@@ -291,13 +291,13 @@ def trigger_sync(request):
             # === AWS LAMBDA BUILD ===
             logger.info(f"Triggering AWS Lambda for {vendor_slug}")
             
+            
+            # no need to pass aws credentials as iam role is assigned to the ec2 instance 
             client = boto3.client(
-                'lambda', 
-                region_name=getattr(settings, 'AWS_REGION', 'ap-south-1'),
-                # Creds are usually picked up from env/role, but can be explicit:
-                aws_access_key_id=getattr(settings, 'AWS_ACCESS_KEY_ID', None),
-                aws_secret_access_key=getattr(settings, 'AWS_SECRET_ACCESS_KEY', None)
+                'lambda',
+                region_name='ap-south-1'
             )
+
             
             payload = {"vendor_slug": vendor_slug}
             
