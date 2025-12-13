@@ -295,7 +295,7 @@ def trigger_sync(request):
             # no need to pass aws credentials as iam role is assigned to the ec2 instance 
             client = boto3.client(
                 'lambda',
-                region_name='ap-south-1'
+                region_name=settings.AWS_S3_REGION_NAME
             )
 
             
