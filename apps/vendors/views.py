@@ -86,6 +86,7 @@ def create_vendor(request):
             
             #  Vendor update
             update_fields = [
+                "business_name",  # ✅ Added to ensure name is saved for handle generation
                 "business_type", "business_email",
                 "business_description", "business_phone", "website", "gstin",
                 "business_started_year", "business_role", "business_categories", "business_hours",
