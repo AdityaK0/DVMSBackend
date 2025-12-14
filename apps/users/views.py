@@ -1,7 +1,7 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny,IsAuthenticated
+from rest_framework.permissions import AllowAny,IsAuthenticated, IsAdminUser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from .serializers import (
@@ -22,7 +22,8 @@ User = get_user_model()
 class UserRegistrationView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserRegistrationSerializer
-    permission_classes = [AllowAny]
+    # Signup disabled intentionally – admin-only user creation
+    permission_classes = [IsAuthenticated, IsAdminUser]
 
 class UserLoginView(generics.GenericAPIView):
     serializer_class = UserLoginSerializer
