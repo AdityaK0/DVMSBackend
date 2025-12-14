@@ -23,7 +23,8 @@ class VendorSerializer(serializers.ModelSerializer):
             "gstin", "website", "logo",
             "is_active", "is_verified", "whatsapp_number",
             "created_at", "updated_at", "is_onboarded", "address_details", "secret", "telegram_chat_id",
-            "handle"  # ✅ Permanent portfolio URL handle
+            "handle",  # ✅ Permanent portfolio URL handle
+            "business_started_year", "business_role", "business_categories", "business_hours"
         ]
         read_only_fields = ["user", "is_verified", "created_at", "updated_at", "logo_url", "telegram_chat_id", "secret", "handle"]
     
@@ -99,6 +100,7 @@ class VendorUpdate(serializers.ModelSerializer):
             "website", "logo", "gstin",
             "street_address", "city", "state", "zip_code", "country","business_phone",
             "address_details","whatsapp_number",
+            "business_started_year", "business_role", "business_categories", "business_hours",
         ]
         read_only_fields = ["user", "is_verified", "created_at", "updated_at"]
     

@@ -87,10 +87,35 @@ def create_vendor(request):
             #  Vendor update
             update_fields = [
                 "business_type", "business_email",
-                "business_description", "business_phone", "website", "gstin"
+                "business_description", "business_phone", "website", "gstin",
+                "business_started_year", "business_role", "business_categories", "business_hours",
+                "whatsapp_number"
             ]
+
+            # Default WhatsApp to Business Phone if not provided
+            if not request.data.get("whatsapp_number") and request.data.get("business_phone"):
+                setattr(vendor, "whatsapp_number", request.data.get("business_phone"))
+
             for field in update_fields:
-                setattr(vendor, field, request.data.get(field, getattr(vendor, field)))
+                # If field was manually set above (like whatsapp), getattr will get it. 
+                # If it's in request.data, that takes precedence.
+                # We need to be careful not to overwrite the manual set if request.data doesn't have it.
+                
+                if field == "whatsapp_number" and not request.data.get("whatsapp_number"):
+                     # Skip overwriting if we just set it manually and it's missing in request
+                     continue
+
+                val = request.data.get(field, getattr(vendor, field))
+                
+                # Parse JSON fields if they come as strings (Multipart/Form-data)
+                if field in ["business_categories", "business_hours"] and isinstance(val, str):
+                    try:
+                        val = json.loads(val)
+                    except (ValueError, TypeError):
+                        logger.warning(f"Failed to parse JSON for {field}: {val}")
+                        val = [] if field == "business_categories" else {}
+
+                setattr(vendor, field, val)
                 
             if request.data.get("geo_location"):
                 vendor.geolocation  = json.loads(request.data.get("geo_location"))

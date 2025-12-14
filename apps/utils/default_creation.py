@@ -39,6 +39,56 @@ def create_default_portfolio_for_vendor(vendor):
     
     logger = logging.getLogger(__name__)
     
+    # Logic to generate default description
+    description = ""
+    if vendor.business_description:
+        description = vendor.business_description
+    else:
+        # Generate dynamically
+        city = "India"
+        # Try to get city from user addresses
+        address = vendor.user.addresses.filter(is_default=True).first()
+        if not address:
+            address = vendor.user.addresses.first()
+        if address and address.city:
+            city = address.city
+            
+        started_str = f", established in {vendor.business_started_year}," if vendor.business_started_year else ""
+        
+        role = vendor.business_role or "Business"
+        if role == 'custom_printing': role = "Custom Printing Provider"
+        elif role == 'online_only': role = "Online Seller"
+        role = role.replace('_', ' ').title()
+        
+        categories = vendor.business_categories
+        cat_str = ""
+        if isinstance(categories, list) and categories:
+            cat_str = f" The business specializes in {', '.join(categories)}, offering quality products and reliable service to customers."
+        else:
+            cat_str = " The business offers quality products and reliable service to customers."
+            
+        hours_str = ""
+        if vendor.business_hours: 
+             open_time = vendor.business_hours.get('open', '09:00')
+             close_time = vendor.business_hours.get('close', '22:00')
+             # formatting time is tricky without knowing input format strictly, assuming HH:MM
+             hours_str = f" {vendor.business_name} is open from {open_time} to {close_time}, serving local customers and nearby areas."
+
+        description = f"{vendor.business_name}{started_str} is a trusted {role} based in {city}.{cat_str}{hours_str}"
+        
+    # ✅ Auto-fill vendor business_description if empty
+    if not vendor.business_description:
+        vendor.business_description = description
+        vendor.save(update_fields=["business_description"])
+        
+    # SEO Meta Generation
+    category = "Retail"
+    if vendor.business_categories and len(vendor.business_categories) > 0:
+        category = vendor.business_categories[0]
+        
+    years_str = f" Serving customers since {vendor.business_started_year}." if vendor.business_started_year else ""
+    meta_desc = f"{vendor.business_name} – {category} retailer in {city}.{years_str}"
+
     # Check if already exists
     portfolio, created = Portfolio.objects.get_or_create(
         vendor=vendor,
@@ -46,7 +96,7 @@ def create_default_portfolio_for_vendor(vendor):
             "display_name": vendor.business_name,
             "handle": vendor.handle,
             "tagline": "",
-            "about_us": "",
+            "about_us": description,
             "our_story": "",
             "mission": "",
             "vision": "",
@@ -54,6 +104,7 @@ def create_default_portfolio_for_vendor(vendor):
             "layout_style": "modern",
             "gallery_images": [],
             "carousel_images": [],
+            "meta_description": meta_desc,
         }
     )
     

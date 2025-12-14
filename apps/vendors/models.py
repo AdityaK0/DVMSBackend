@@ -42,6 +42,12 @@ class Vendor(models.Model):
     secret_expires_at = models.DateTimeField(null=True, blank=True)
     geolocation = models.JSONField(null=True, blank=True)
     
+    # Enhanced Onboarding Fields
+    business_started_year = models.PositiveIntegerField(null=True, blank=True)
+    business_role = models.CharField(max_length=50, blank=True, null=True)
+    business_categories = models.JSONField(default=list, blank=True)
+    business_hours = models.JSONField(default=dict, blank=True)
+    
     # ✅ Permanent portfolio handle - never auto-updates when business_name changes
     # Used for stable, SEO-friendly portfolio URLs: https://{handle}.fordgeindia.online
     handle = models.SlugField(
