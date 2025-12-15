@@ -20,7 +20,7 @@ class ProductSerializer(serializers.ModelSerializer):
     )
     sizes = serializers.ListField(
         child=serializers.CharField(),
-        required=False
+        required=True
     )
 
     class Meta:

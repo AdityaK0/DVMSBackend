@@ -50,25 +50,44 @@ class ProductService:
         
         
         
-        image_urls = data.get("image_urls")
-        if image_urls is None:
-            raise ProductValidationError({"image_urls": "Image URLs are required."})
+        # image_urls = data.get("image_urls")
+        # if image_urls is None:
+        #     raise ProductValidationError({"image_urls": "Image URLs are required."})
+        
+        
+        image_urls = data.get("image_urls", [])
+        if isinstance(image_urls, str):
+            import json
+            image_urls = json.loads(image_urls)
+
+        if not isinstance(image_urls, list) or not image_urls:
+            raise ProductValidationError({"image_urls": "At least one image is required."})
+        
+        
+        sizes = data.get("sizes", [])
+        if isinstance(sizes, str):
+            import json
+            sizes = json.loads(sizes)
+
+        if not isinstance(sizes, list) or not sizes:
+            raise ProductValidationError({"sizes": "At least one size is required."})
+        
 
         serializer = ProductSerializer(data=data, context=context)
-        if serializer.is_valid():
+        if serializer.is_valid(raise_exception=True):
             with transaction.atomic():
-                image_urls = data.get('image_urls') or data.getlist('image_urls[]') or []
-                sizes = data.get('sizes') or data.getlist('sizes[]') or []
+                # image_urls = data.get('image_urls') or data.getlist('image_urls[]') or []
+                # sizes = data.get('sizes') or data.getlist('sizes[]') or []
                 
 
-                if isinstance(image_urls, str):
-                    import json
-                    try:
-                        image_urls = json.loads(image_urls)
-                    except Exception:
-                        image_urls = [image_urls]
-                elif not isinstance(image_urls, (list, tuple)):
-                    image_urls = [image_urls]
+                # if isinstance(image_urls, str):
+                #     import json
+                #     try:
+                #         image_urls = json.loads(image_urls)
+                #     except Exception:
+                #         image_urls = [image_urls]
+                # elif not isinstance(image_urls, (list, tuple)):
+                #     image_urls = [image_urls]
 
                 product = serializer.save(
                     vendor=vendor,
