@@ -73,7 +73,7 @@ class VendorListSerializer(serializers.ModelSerializer):
 
 class VendorUpdate(serializers.ModelSerializer):
     # All vendor fields are optional for updates
-    business_name = serializers.CharField(required=False)
+    # business_name = serializers.CharField(required=False)
     business_description = serializers.CharField(required=False)
     business_type = serializers.CharField(required=False)
     website = serializers.URLField(required=False, allow_blank=True, default="https://www.google.com")
@@ -102,7 +102,7 @@ class VendorUpdate(serializers.ModelSerializer):
             "address_details","whatsapp_number",
             "business_started_year", "business_role", "business_categories", "business_hours",
         ]
-        read_only_fields = ["user", "is_verified", "created_at", "updated_at"]
+        read_only_fields = ["user", "is_verified", "created_at", "updated_at","business_name"]
     
     def get_address_details(self, obj):
         """Return current address details"""
@@ -144,13 +144,24 @@ class VendorUpdate(serializers.ModelSerializer):
 
         # ✅ PREVENT business name changes after onboarding
         # This ensures stable portfolio URLs and handles
-        if 'business_name' in validated_data:
-            if instance.is_onboarded and validated_data['business_name'] != instance.business_name:
+        # if 'business_name' in validated_data:
+        #     if instance.is_onboarded and validated_data['business_name'] != instance.business_name:
+        #         raise serializers.ValidationError({
+        #             "business_name": "Business name cannot be changed after onboarding. "
+        #                            "This ensures your portfolio URL remains stable. "
+        #                            "Contact admin if you need to update it."
+        #         })
+        
+        if 'business_name' in self.initial_data:
+            if instance.is_onboarded and self.initial_data.get('business_name') != instance.business_name:
                 raise serializers.ValidationError({
-                    "business_name": "Business name cannot be changed after onboarding. "
-                                   "This ensures your portfolio URL remains stable. "
-                                   "Contact admin if you need to update it."
+                    "business_name": (
+                        "Business name cannot be changed after onboarding. "
+                        "This ensures your portfolio URL remains stable. "
+                        "Contact admin if you need to update it."
+                    )
                 })
+        
 
         if 'website' not in validated_data or not validated_data['website']:
             validated_data['website'] = "https://www.google.com"
