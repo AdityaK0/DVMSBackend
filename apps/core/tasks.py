@@ -9,6 +9,7 @@ from celery import shared_task
 from django.core.cache import cache
 from apps.vendors.models import Vendor
 from apps.products.models import Product
+from apps.core.events import BaseEvent
 
 
 logger = logging.getLogger(__name__)
@@ -34,35 +35,27 @@ def handle_event(self, handler_name, event_name, payload):
     for handler_cls in handlers:
         if handler_cls.__name__ == handler_name:
             try:
-                # Instantiate handler
                 handler = handler_cls()
                 
-                # Create event object from payload
-                class EventObj:
-                    """Lightweight event object for Celery context."""
-                    def __init__(self, **kwargs):
-                        for k, v in kwargs.items():
-                            setattr(self, k, v)
-                
-                event = EventObj(**payload)
+                event = BaseEvent(payload)
                 
                 # Execute handler
                 handler(event)
                 
-                logger.info(f"✅ Handler {handler_name} completed successfully")
+                logger.info(f" Handler {handler_name} completed successfully")
                 return True
                 
             except Exception as e:
-                logger.error(f"❌ Handler {handler_name} failed: {e}", exc_info=True)
+                logger.error(f" Handler {handler_name} failed: {e}", exc_info=True)
                 
                 # Retry on failure
                 try:
                     raise self.retry(exc=e, countdown=60)  # Retry after 60 seconds
                 except self.MaxRetriesExceededError:
-                    logger.error(f"⛔ Max retries exceeded for {handler_name}")
+                    logger.error(f" Max retries exceeded for {handler_name}")
                     return False
 
-    logger.warning(f"⚠️  Handler not found: {handler_name}")
+    logger.warning(f"Handler not found: {handler_name}")
     return False
 
 

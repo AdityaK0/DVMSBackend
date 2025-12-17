@@ -76,18 +76,6 @@ class ProductService:
         serializer = ProductSerializer(data=data, context=context)
         if serializer.is_valid(raise_exception=True):
             with transaction.atomic():
-                # image_urls = data.get('image_urls') or data.getlist('image_urls[]') or []
-                # sizes = data.get('sizes') or data.getlist('sizes[]') or []
-                
-
-                # if isinstance(image_urls, str):
-                #     import json
-                #     try:
-                #         image_urls = json.loads(image_urls)
-                #     except Exception:
-                #         image_urls = [image_urls]
-                # elif not isinstance(image_urls, (list, tuple)):
-                #     image_urls = [image_urls]
 
                 product = serializer.save(
                     vendor=vendor,
@@ -97,9 +85,18 @@ class ProductService:
                     sizes=sizes
                 )
                 
-            # Serialize for event payload
             product_data = ProductSerializer(product, context=context).data
-            
+
+            ProductCreated({
+                "id": product.id,
+                "action": "created",
+                "data": product_data,
+                "metadata": {
+                    "vendor_id": vendor.id,
+                    "is_active": product.is_active
+                }
+            }).publish(bg=False)
+                
             
             return product
             
@@ -112,7 +109,7 @@ class ProductService:
         except Product.DoesNotExist:
             raise ProductValidationError({"detail": "Product not found"})
 
-
+        old_is_active = product.is_active
         # Update normal fields (no image updates here)
         serializer = ProductUpdateSerializer(
             product,
@@ -159,10 +156,21 @@ class ProductService:
         updated_product.save()
 
         sync_featured_product(updated_product)
-
+        new_is_active = updated_product.is_active
         serialized = ProductSerializer(updated_product, context=context).data
         
         # Publish event with standardized payload
+
+        ProductUpdated({
+            "id": updated_product.id,
+            "action": "updated",
+            "data": serialized,
+            "metadata": {
+                "vendor_id": updated_product.vendor_id,
+                "old_is_active": old_is_active,
+                "new_is_active": new_is_active,
+            }
+        }).publish(bg=False)
         
         return serialized
     
@@ -177,21 +185,26 @@ class ProductService:
         
         vendor_id = product.vendor_id
         product_id = product.id
+        was_active = product.is_active
+
+        with transaction.atomic():
+            product.is_archived = True
+            product.save(update_fields=["is_archived"])
         
         # Soft delete
         product.is_archived = True
         product.save(update_fields=["is_archived"])
         
-        # Publish event after transaction commits
-        transaction.on_commit(lambda: ProductDeleted({
-            "id": product_id,
-            "action": "deleted",
-            "data": None,  # No data needed for deleted products
-            "metadata": {
-                "vendor_id": vendor_id,
+        ProductDeleted({
+        "id": product_id,
+        "action": "deleted",
+        "data": None,
+        "metadata": {
+            "vendor_id": vendor_id,
+                "was_active": was_active,
             }
-        }).publish(bg=True))
-        
+        }).publish(bg=False)
+            
         return True
 
 def get_vendor_products_combined(

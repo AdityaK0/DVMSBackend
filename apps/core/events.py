@@ -72,6 +72,23 @@ class ProductDeleted(BaseEvent):
 
 
 # ============================================================================
+# CUSTOMER EVENTS
+# ============================================================================
+
+class CustomerCreated(BaseEvent):
+    event_name = "customer.created"
+
+
+class CustomerUpdated(BaseEvent):
+    event_name = "customer.updated"
+
+
+class CustomerDeleted(BaseEvent):
+    event_name = "customer.deleted"
+
+
+
+# ============================================================================
 # VENDOR EVENTS
 # ============================================================================
 

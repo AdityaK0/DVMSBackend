@@ -32,62 +32,6 @@ def product_detail(request, pk):
 
 
 
-
-
-# @api_view(['POST'])
-# @permission_classes([IsAuthenticated, IsSubscribedOrReadOnly])
-# def create_product(request):
-#     """Create a new product (text data only)."""
-#     if not hasattr(request.user, 'vendor'):
-#         return Response(
-#             {"error": "Only vendors can create products"},
-#             status=status.HTTP_403_FORBIDDEN
-#         )
-
-#     vendor = request.user.vendor
-#     data = request.data
-#     category_id = data.get('category')
-#     if not category_id:
-#         return Response({"category": "This field is required."}, status=status.HTTP_400_BAD_REQUEST)
-
-#     try:
-#         category = Category.objects.get(id=category_id, is_active=True)
-#     except Category.DoesNotExist:
-#         return Response({"category": "Invalid category selected."}, status=status.HTTP_400_BAD_REQUEST)
-
-#     serializer = ProductSerializer(data=data, context={'request': request})
-#     if serializer.is_valid():
-#         with transaction.atomic():
-#             image_urls = data.get('image_urls') or data.getlist('image_urls[]') or []
-#             sizes = data.get('sizes') or data.getlist('sizes[]') or []
-            
-
-#             # Normalize the data to a clean list
-#             if isinstance(image_urls, str):
-#                 import json
-#                 try:
-#                     image_urls = json.loads(image_urls)
-#                 except Exception:
-#                     image_urls = [image_urls]
-#             elif not isinstance(image_urls, (list, tuple)):
-#                 image_urls = [image_urls]
-
-#             product = serializer.save(
-#                 vendor=vendor,
-#                 category=category,
-#                 image_urls=image_urls,
-#                 primary_image=image_urls[0] if image_urls else None,
-#                 sizes=sizes
-#             )
-
-#         response_serializer = ProductSerializer(product, context={'request': request})
-#         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsSubscribedOrReadOnly])
 def create_product(request):
@@ -137,28 +81,6 @@ def update_product(request, pk):
     serializer = ProductSerializer(product, context={"request": request})
     return Response(serializer.data)
     
-
-
-@api_view(['PUT', 'PATCH'])
-@permission_classes([IsAuthenticated])
-def activate_product(request, pk):
-    """Update a product"""
-    
-    try:
-        product = Product.objects.get(pk=pk, vendor__user=request.user)
-    except Product.DoesNotExist:
-        return Response(
-            {"detail": "Product not found or you don't have permission"}, 
-            status=status.HTTP_404_NOT_FOUND
-        )
-    product.is_active = True
-    product.save(update_fields=["is_active"])
-    
-    return Response(
-            {"detail": "Product activated successfully"}, 
-            status=status.HTTP_200_OK
-            
-        )
 
 
 # @api_view(['DELETE'])

@@ -28,106 +28,58 @@ def calculate_percentage_change(current, previous):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsSubscribedOrReadOnly])
 def create_customer(request):
-    """
-    Register a new customer for the vendor.
-    """
-    user = request.user
-    vendor = getattr(user, "vendor", None)
+    vendor = getattr(request.user, "vendor", None)
     if not vendor:
-        return Response(
-            {"error": "User is not associated with a vendor"},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+        return Response({"error": "User is not associated with a vendor"}, status=403)
 
     serializer = CustomerSerializer(data=request.data)
-    if serializer.is_valid():
-        phone = serializer.validated_data.get("phone")
+    serializer.is_valid(raise_exception=True)
 
-        # Check if customer already exists for this vendor
-        if Customer.objects.filter(vendor=vendor, phone=phone).exists():
-            return Response(
-                {"error": f"Customer with phone '{phone}' already exists."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+    try:
+        customer = CustomerService.create_customer(vendor, serializer.validated_data)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=400)
 
-        customer = serializer.save(vendor=vendor)
-
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
+    return Response(CustomerSerializer(customer).data, status=201)
 
 
 @api_view(['PATCH', 'PUT'])
 @permission_classes([IsAuthenticated])
 def update_customer(request, customer_id):
-    """
-    Update an existing customer for the vendor.
-
-    Allowed fields: name, phone, is_active
-    """
-    user = request.user
-    vendor = getattr(user, "vendor", None)
+    vendor = getattr(request.user, "vendor", None)
     if not vendor:
-        return Response(
-            {"error": "User is not associated with a vendor"},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+        return Response({"error": "User is not associated with a vendor"}, status=403)
 
     try:
         customer = Customer.objects.get(id=customer_id, vendor=vendor)
     except Customer.DoesNotExist:
-        return Response(
-            {"error": "Customer not found"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        return Response({"error": "Customer not found"}, status=404)
 
     serializer = CustomerSerializer(customer, data=request.data, partial=True)
-    if serializer.is_valid():
-        new_phone = serializer.validated_data.get("phone")
-        if new_phone and new_phone != customer.phone:
-            # Check unique constraint per vendor
-            if Customer.objects.filter(vendor=vendor, phone=new_phone).exclude(id=customer.id).exists():
-                return Response(
-                    {"error": f"Customer with phone '{new_phone}' already exists."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        
-        serializer.save()        
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    serializer.is_valid(raise_exception=True)
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    customer = CustomerService.update_customer(customer, serializer.validated_data)
+    return Response(CustomerSerializer(customer).data)
 
 
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_customer(request, customer_id):
-    """
-    Delete a customer for the vendor.
-    """
-    user = request.user
-    vendor = getattr(user, "vendor", None)
+    vendor = getattr(request.user, "vendor", None)
     if not vendor:
-        return Response(
-            {"error": "User is not associated with a vendor"},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+        return Response({"error": "User is not associated with a vendor"}, status=403)
 
     try:
         customer = Customer.objects.get(id=customer_id, vendor=vendor)
     except Customer.DoesNotExist:
-        return Response(
-            {"error": "Customer not found"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        return Response({"error": "Customer not found"}, status=404)
 
-    customer.delete() 
+    CustomerService.delete_customer(customer)
+
     return Response(
-        {"message": f"Customer '{customer.name}' has been deleted."},
-        status=status.HTTP_200_OK,
+        {"message": f"Customer '{customer.name}' deleted"},
+        status=200
     )
 
 from django.core.paginator import Paginator

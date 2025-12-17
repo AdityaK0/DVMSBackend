@@ -12,6 +12,11 @@ from apps.core.handlers.product_handler import (
     ProductUpdatedSubscriber,
     ProductDeletedSubscriber
 )
+from apps.core.handlers.customer_handler import (
+    CustomerCreatedSubscriber,
+    CustomerUpdatedSubscriber,
+    CustomerDeletedSubscriber,
+)
 from apps.core.handlers.vendor_handler import VendorUpdatedSubscriber
 
 
@@ -21,6 +26,13 @@ EVENT_ROUTES = {
     "product.updated": [ProductUpdatedSubscriber],
     "product.deleted": [ProductDeletedSubscriber],
     
+
+    
+    # Customer events
+    "customer.created": [CustomerCreatedSubscriber],
+    "customer.updated": [CustomerUpdatedSubscriber],
+    "customer.deleted": [CustomerDeletedSubscriber],
+
     # Vendor events
     "vendor.updated": [VendorUpdatedSubscriber],
 }

@@ -175,3 +175,88 @@ def build_invoice_changes(old_data, new_data, tracked_fields=None):
             }
 
     return changes
+
+
+from django.db import transaction
+from django.utils import timezone
+from apps.dashboard.models import Customer
+from apps.core.events import (
+    CustomerCreated,
+    CustomerUpdated,
+    CustomerDeleted
+)
+
+
+class CustomerService:
+
+    @staticmethod
+    def create_customer(vendor, data):
+        phone = data.get("phone")
+
+        if Customer.objects.filter(vendor=vendor, phone=phone).exists():
+            raise ValueError(f"Customer with phone '{phone}' already exists.")
+
+        with transaction.atomic():
+            customer = Customer.objects.create(
+                vendor=vendor,
+                name=data.get("name"),
+                phone=phone,
+                is_active=data.get("is_active", True),
+                bought=0,
+                last_interaction=timezone.now(),
+            )
+
+        CustomerCreated({
+            "id": customer.id,
+            "action": "created",
+            "data": {
+                "phone": customer.phone,
+                "is_active": customer.is_active
+            },
+            "metadata": {
+                "vendor_id": vendor.id,
+            }
+        }).publish(bg=False)
+
+        return customer
+
+    @staticmethod
+    def update_customer(customer, data):
+        old_is_active = customer.is_active
+
+        for field in ["name", "phone", "is_active"]:
+            if field in data:
+                setattr(customer, field, data[field])
+
+        customer.last_interaction = timezone.now()
+        customer.save()
+
+        CustomerUpdated({
+            "id": customer.id,
+            "action": "updated",
+            "data": None,
+            "metadata": {
+                "vendor_id": customer.vendor_id,
+                "old_is_active": old_is_active,
+                "new_is_active": customer.is_active,
+            }
+        }).publish(bg=False)
+
+        return customer
+
+    @staticmethod
+    def delete_customer(customer):
+        vendor_id = customer.vendor_id
+        was_active = customer.is_active
+
+        customer.delete()
+
+        CustomerDeleted({
+            "id": customer.id,
+            "action": "deleted",
+            "data": None,
+            "metadata": {
+                "vendor_id": vendor_id,
+                "was_active": was_active,
+            }
+        }).publish(bg=False)
