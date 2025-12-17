@@ -1,7 +1,7 @@
 from rest_framework import generics, permissions,status
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-from .models import Vendor,Event,PosterTemplate
+from .models import Vendor,Event,PosterTemplate,VendorStats
 from .serializers import VendorSerializer, VendorListSerializer, VendorUpdate,EventSerializer,PosterTemplateSerializer
 from shared.permissions import IsVendorOrReadOnly
 from rest_framework.exceptions import ValidationError
@@ -136,6 +136,7 @@ def create_vendor(request):
             vendor.is_active = True
             
             vendor.save()
+            VendorStats.objects.get_or_create(vendor=vendor)
 
             # Create/update Address
             address, created = Address.objects.get_or_create(

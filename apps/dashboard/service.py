@@ -7,6 +7,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from .models import Invoice
 from .serializers import InvoiceSerializer
+from apps.vendors.models import VendorStats
 
 
 def get_product_stats_cached(vendor):
@@ -45,10 +46,23 @@ def get_customer_stats(vendor):
 
 def get_dashboard_summary(vendor):
     """Return all cached dashboard data"""
+    vendor_stats = VendorStats.objects.select_related('vendor').get(vendor=vendor)
     return {
-        "products": cache.get_or_set(f"vendor:context:{vendor.id}:products", lambda: get_product_stats(vendor), 300),
-        "customers": cache.get_or_set(f"vendor:context:{vendor.id}:customers", lambda: get_customer_stats(vendor), 300),
+        "products": {
+            "total_products": vendor_stats.total_products,
+            "total_active_products": vendor_stats.active_products,
+            "total_inactive_products": vendor_stats.inactive_products,
+        },
+        "customers": {
+            "total_customers": vendor_stats.total_customers,
+            "total_active_customers": vendor_stats.active_customers,
+            "total_inactive_customers": vendor_stats.inactive_customers,
+        },
     }
+    # return {
+    #     "products": cache.get_or_set(f"vendor:context:{vendor.id}:products", lambda: get_product_stats(vendor), 300),
+    #     "customers": cache.get_or_set(f"vendor:context:{vendor.id}:customers", lambda: get_customer_stats(vendor), 300),
+    # }
 
 
 

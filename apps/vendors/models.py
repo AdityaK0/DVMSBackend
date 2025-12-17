@@ -81,7 +81,26 @@ class Vendor(models.Model):
         # This would be calculated from product reviews
         return 0.0
     
-    
+
+
+
+class VendorStats(models.Model):
+    vendor = models.OneToOneField(
+        Vendor,
+        on_delete=models.CASCADE,
+        related_name="stats"
+    )
+
+    total_products = models.PositiveIntegerField(default=0)
+    active_products = models.PositiveIntegerField(default=0)
+    inactive_products = models.PositiveIntegerField(default=0)
+
+    total_customers = models.PositiveIntegerField(default=0)
+    active_customers = models.PositiveIntegerField(default=0)
+    inactive_customers = models.PositiveIntegerField(default=0)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
     
 from django.db import models
 from django.utils import timezone
