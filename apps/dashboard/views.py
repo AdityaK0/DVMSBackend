@@ -16,6 +16,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from apps.subscriptions.permissions import IsSubscribedOrReadOnly
 from apps.utils.request_utils import extract_request_meta
+from decimal import Decimal, InvalidOperation
 
 
 def calculate_percentage_change(current, previous):
@@ -259,20 +260,12 @@ def create_invoice(request):
         # Lock invoice on creation
         invoice = serializer.save(vendor=vendor, is_locked=True)
         if invoice.customer_phone:
-            customer, created = Customer.objects.get_or_create(
+            CustomerService.touch_from_invoice(
                 vendor=vendor,
                 phone=invoice.customer_phone,
-                defaults={
-                    "name": invoice.customer_name,
-                    "bought": 0,
-                    "last_interaction": timezone.now(),
-                }
+                name=invoice.customer_name,
             )
 
-            # Update fields for both existing and new customers
-            customer.bought += 1
-            customer.last_interaction = timezone.now()
-            customer.save() 
         # If there is an initial paid amount, we should probably record it as a payment?
         # For now, we trust the serializer's handling of paid_amount for the initial record.
         # But to be strictly consistent with "Payments must be tracked separately", 
@@ -367,7 +360,11 @@ def add_payment(request, invoice_id):
     vendor = request.user.vendor
     invoice = get_object_or_404(Invoice, id=invoice_id, vendor=vendor)
     
-    amount = float(request.data.get("amount", 0))
+    try:
+        amount = Decimal(request.data.get("amount"))
+    except (TypeError, InvalidOperation):
+        return Response({"error": "Invalid amount"}, status=400)
+    
     note = request.data.get("note", "")
     
     if amount <= 0:
@@ -376,7 +373,7 @@ def add_payment(request, invoice_id):
     # Check overpayment
     # Allow small buffer for float errors? No, strict.
     if invoice.paid_amount + amount > invoice.total_amount:
-         return Response({"error": "Payment exceeds pending amount"}, status=400)
+        return Response({"error": "Payment exceeds pending amount"}, status=400)
 
     # Create Payment
     payment = InvoicePayment.objects.create(
@@ -400,7 +397,7 @@ def add_payment(request, invoice_id):
         change_type="payment",
         changes={
             "payment_added": {
-            "amount": amount,
+            "amount": str(amount),
             "note": note or None
         }
     },
@@ -417,8 +414,8 @@ def add_payment(request, invoice_id):
     
     return Response({
         "message": "Payment added successfully",
-        "paid_amount": invoice.paid_amount,
-        "pending_amount": invoice.pending_amount
+        "paid_amount": str(invoice.paid_amount),
+        "pending_amount": str(invoice.pending_amount)
     })
 
 

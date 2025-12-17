@@ -260,3 +260,66 @@ class CustomerService:
                 "was_active": was_active,
             }
         }).publish(bg=False)
+
+
+    @staticmethod
+    def touch_from_invoice(vendor, *, phone, name=None):
+        """
+        Create or update customer when an invoice is created.
+        - Creates customer if not exists
+        - Updates last_interaction
+        - Increments bought count
+        - Fires correct events
+        """
+
+        with transaction.atomic():
+            customer, created = Customer.objects.select_for_update().get_or_create(
+                vendor=vendor,
+                phone=phone,
+                defaults={
+                    "name": name or "Customer",
+                    "bought": 0,
+                    "is_active": True,
+                    "last_interaction": timezone.now(),
+                }
+            )
+
+            old_is_active = customer.is_active
+
+            # Update interaction data
+            customer.bought += 1
+            customer.last_interaction = timezone.now()
+
+            # If customer was inactive, auto-activate
+            if not customer.is_active:
+                customer.is_active = True
+
+            customer.save()
+
+        # Fire events AFTER commit
+        if created:
+            CustomerCreated({
+                "id": customer.id,
+                "action": "created",
+                "data": {
+                    "phone": customer.phone,
+                    "is_active": customer.is_active,
+                },
+                "metadata": {
+                    "vendor_id": vendor.id,
+                }
+            }).publish(bg=False)
+
+        elif old_is_active is False and customer.is_active is True:
+            CustomerUpdated({
+                "id": customer.id,
+                "action": "updated",
+                "data": None,
+                "metadata": {
+                    "vendor_id": vendor.id,
+                    "old_is_active": False,
+                    "new_is_active": True,
+                }
+            }).publish(bg=False)
+
+        return customer    

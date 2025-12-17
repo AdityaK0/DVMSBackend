@@ -3,6 +3,7 @@ from apps.vendors.models import Vendor
 from django.conf import settings 
 
 
+
 class Customer(models.Model):
     """Basic customer tracking for vendors"""
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='customers')
@@ -67,9 +68,9 @@ class Invoice(models.Model):
 
 class InvoicePayment(models.Model):
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="payments")
-    amount = models.DecimalField(max_digits=12, decimal_places=2)  # ✅ CRITICAL FIX: Use DecimalField
+    amount = models.DecimalField(max_digits=12, decimal_places=2)  #CRITICAL FIX: Use DecimalField
     note = models.CharField(max_length=255, blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)  # ✅ Add index for sorting
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)  #Add index for sorting
 
     class Meta:
         indexes = [
