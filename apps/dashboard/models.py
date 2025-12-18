@@ -10,7 +10,7 @@ class Customer(models.Model):
     name = models.CharField(max_length=200)
     email = models.EmailField(null=True, blank=True) 
     phone = models.CharField(max_length=20, blank=True, db_index=True)  # ✅ Add index for phone lookup
-    is_active = models.BooleanField(default=True, db_index=True)  # ✅ Add index for filtering
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     bought = models.IntegerField(default=0)
     last_interaction = models.DateTimeField(auto_now=True)
@@ -20,7 +20,7 @@ class Customer(models.Model):
         unique_together = ('vendor', 'phone')
         indexes = [
             models.Index(fields=['vendor', 'is_active']),  # ✅ Common filter: active customers per vendor
-            models.Index(fields=['vendor', 'phone']),  # ✅ Customer lookup optimization
+            models.Index(fields=['vendor', '-created_at']), # ✅ OPTIMIZATION: Critical for default customer list sort
         ]
 
     def __str__(self):
@@ -35,17 +35,17 @@ class Invoice(models.Model):
         related_name="invoices"
     )
     customer_name = models.CharField(max_length=150, blank=True, null=True)
-    customer_phone = models.CharField(max_length=20, db_index=True)
+    customer_phone = models.CharField(max_length=20)
 
     items = models.JSONField(default=list)  # Stores item array from frontend
 
     # ✅ CRITICAL FIX: Use DecimalField for money to avoid float precision errors
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    pending_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, db_index=True)
+    pending_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
-    is_udhaari = models.BooleanField(default=False, db_index=True)  # ✅ Add index for filtering
-    invoice_date = models.DateField(db_index=True)
+    is_udhaari = models.BooleanField(default=False)  # ✅ Add index for filtering
+    invoice_date = models.DateField()
     is_edited = models.BooleanField(default=False)
 
     is_locked = models.BooleanField(default=False)  # NEW: prevents item edits
@@ -113,7 +113,7 @@ class InvoiceChangeLog(models.Model):
         max_length=50,
         choices=CHANGE_TYPE_CHOICES,
         default="update",
-        db_index=True,  # ✅ Add index for filtering by change type
+        db_index=False, # Removed single index, covered by composite
     )
 
     # structure: {"field": {"old": <value>, "new": <value>}, ...}

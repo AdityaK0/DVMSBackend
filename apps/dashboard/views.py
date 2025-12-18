@@ -116,7 +116,7 @@ def get_customers(request):
     if search:
         customers = customers.filter(
             Q(name__icontains=search) |
-            Q(phone__icontains=search)
+            Q(phone__startswith=search)
         )
 
     # Pagination

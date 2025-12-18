@@ -54,9 +54,9 @@ class Product(models.Model):
     gender = models.CharField(max_length=100, blank=True, null=True)
     
     dimensions = models.JSONField(default=dict, blank=True)  # {length, width, height}
-    is_active = models.BooleanField(default=True, db_index=True)
-    is_featured = models.BooleanField(default=False, db_index=True)
-    is_archived = models.BooleanField(default=False, db_index=True)
+    is_active = models.BooleanField(default=True)
+    is_featured = models.BooleanField(default=False)
+    is_archived = models.BooleanField(default=False)
     meta_title = models.CharField(max_length=200, blank=True)
     meta_description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

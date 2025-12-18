@@ -19,9 +19,9 @@ class Vendor(models.Model):
     business_name = models.CharField(max_length=200)
     # business_name_slug = models.SlugField(max_length=200, blank=True, null=True)
     business_description = models.TextField(blank=True)
-    business_email = models.EmailField(unique=True, null=True, db_index=True)
+    business_email = models.EmailField(unique=True, null=True)
     business_type = models.CharField(max_length=25, choices=BUSSINES_TYPE, default='other')
-    business_phone = models.CharField(max_length=20, unique=True, null=True, db_index=True)
+    business_phone = models.CharField(max_length=20, unique=True, null=True)
     whatsapp_number = models.CharField(max_length=20, blank=True, null=True)
     gstin = models.CharField(max_length=20, blank=True)
     website = models.URLField(blank=True,null=True)
@@ -55,16 +55,12 @@ class Vendor(models.Model):
         unique=True,
         null=True,
         blank=True,
-        db_index=True,
         help_text="Permanent URL handle for vendor portfolio. Auto-generated on onboarding, never auto-updates."
     )
     
     class Meta:
         indexes = [
-            models.Index(fields=['business_email']),
-            models.Index(fields=['business_phone']),
-            models.Index(fields=['handle']),
-            models.Index(fields=['is_active', 'is_verified']),
+            # models.Index(fields=['is_active', 'is_verified']), # Removed: low cardinality, rarely used alone
             models.Index(fields=['created_at']),
         ]
 

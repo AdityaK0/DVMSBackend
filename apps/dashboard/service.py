@@ -87,7 +87,7 @@ def get_vendor_invoices_combined(
 
     queryset = Invoice.objects.filter(
         vendor=vendor
-    ).order_by("-created_at")
+    ).order_by("-created_at").prefetch_related("payments")
 
     # Search filter
     if search:

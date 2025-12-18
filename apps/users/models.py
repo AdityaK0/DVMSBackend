@@ -33,7 +33,7 @@ class User(AbstractUser):
     ]
     name = models.CharField(max_length=300, blank=True, null=True)
     email = models.EmailField(unique=True)  # enforce unique at DB level
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='vendor', db_index=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='vendor')
     phone_number = models.CharField(max_length=20, blank=True, null=True, db_index=True)
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -74,7 +74,7 @@ class Address(models.Model):
     state = models.CharField(max_length=100)
     postal_code = models.CharField(max_length=20)
     country = models.CharField(max_length=100)
-    is_default = models.BooleanField(default=False, db_index=True)
+    is_default = models.BooleanField(default=False)
     zip_code = models.CharField(max_length=100,null=True)
     address_type = models.CharField(max_length=20, choices=[
         ('shipping', 'Shipping'),
@@ -88,7 +88,7 @@ class Address(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["user", "is_default"]),
-            models.Index(fields=["city", "state"]),
+            # models.Index(fields=["city", "state"]), # Removed: unused query pattern
             models.Index(fields=["user", "address_type"], name="idx_address_user_type"),
         ]
         constraints = [

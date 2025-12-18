@@ -76,7 +76,7 @@ class PaymentTransaction(models.Model):
         indexes = [
             models.Index(fields=['vendor', 'status']),
             models.Index(fields=['razorpay_order_id']),
-            models.Index(fields=['razorpay_payment_id']),  # ✅ Fast lookup for replay detection
+            # razorpay_payment_id has db_index=True, so no need for explicit index here unless composite
         ]
         constraints = [
             models.UniqueConstraint(
