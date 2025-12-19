@@ -593,36 +593,28 @@ def razorpay_webhook(request):
 
             try:
                 with transaction.atomic():
-                    # 🔒 Lock row to prevent webhook race conditions
                     payment_txn = (
                         PaymentTransaction.objects
                         .select_for_update()
-                        .select_related("plan", "vendor")
                         .get(razorpay_order_id=order_id)
                     )
 
-                    # ✅ Idempotency + state guard
                     if payment_txn.status not in ["created", "processing"]:
-                        logger.info(
-                            f"⚠️ Webhook ignored for order {order_id}, "
-                            f"status={payment_txn.status}"
-                        )
                         return Response(
                             {"status": "success", "message": "Already processed"},
                             status=status.HTTP_200_OK,
                         )
 
-                    # ✅ Mark transaction captured
                     payment_txn.mark_as_captured(payment_id)
 
                     plan = payment_txn.plan
                     vendor = payment_txn.vendor
+
                     start_date = timezone.now()
                     end_date = start_date + timezone.timedelta(
                         days=plan.duration_days if plan else 30
                     )
 
-                    # ✅ Create or update subscription
                     Subscription.objects.update_or_create(
                         vendor=vendor,
                         defaults={
@@ -638,7 +630,6 @@ def razorpay_webhook(request):
                         },
                     )
 
-                    # ✅ Invalidate caches AFTER commit
                     transaction.on_commit(
                         lambda: invalidate_all_user_related(
                             user_id=vendor.user_id,
@@ -647,9 +638,6 @@ def razorpay_webhook(request):
                         )
                     )
 
-                    logger.info(
-                        f"✅ Subscription activated via webhook for vendor {vendor.id}"
-                    )
 
             except PaymentTransaction.DoesNotExist:
                 logger.warning(
