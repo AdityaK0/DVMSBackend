@@ -89,13 +89,30 @@ class PaymentTransaction(models.Model):
     def __str__(self):
         return f"Transaction {self.razorpay_order_id} - {self.status}"
     
-    def mark_as_captured(self, payment_id, signature):
-        """Mark transaction as successfully captured."""
+# models.py
+    def mark_as_captured(self, payment_id, signature=None):
+        """
+        Mark transaction as successfully captured.
+
+        signature:
+        - Present in frontend verify_payment flow
+        - NOT present in webhook flow
+        """
         self.razorpay_payment_id = payment_id
-        self.razorpay_signature = signature
+
+        if signature:
+            self.razorpay_signature = signature
+
         self.status = 'captured'
         self.verified_at = timezone.now()
-        self.save(update_fields=['razorpay_payment_id', 'razorpay_signature', 'status', 'verified_at', 'updated_at'])
+        self.save(update_fields=[
+            'razorpay_payment_id',
+            'razorpay_signature',
+            'status',
+            'verified_at',
+            'updated_at'
+        ])
+
     
     def mark_as_failed(self, error_msg):
         """Mark transaction as failed."""
