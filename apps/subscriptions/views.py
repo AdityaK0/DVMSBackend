@@ -349,20 +349,38 @@ def verify_payment(request):
         return error_response("Could not verify payment details", status.HTTP_400_BAD_REQUEST)
 
     # ✅ STEP 8: Activate subscription in atomic transaction
+    # Production → webhook-only flow
+    if settings.ENVIRONMENT == "production":
+        logger.info(
+            f" Payment verified for order {order_id}, "
+            f"waiting for Razorpay webhook (ENV=production)"
+        )
+        return Response({
+            "success": True,
+            "detail": "Payment verified. Subscription will activate shortly.",
+        }, status=status.HTTP_200_OK)
+
+
+    # Non-production → local/dev fallback activation
+    logger.warning(
+        f"Local activation via verify_payment "
+        f"(ENV={settings.ENVIRONMENT})"
+    )
+
     try:
         with transaction.atomic():
             payment_txn = PaymentTransaction.objects.select_for_update().get(id=payment_txn.id)
+
             payment_txn.razorpay_payment_id = payment_id
             payment_txn.razorpay_signature = signature
             payment_txn.status = 'captured'
             payment_txn.verified_at = timezone.now()
             payment_txn.save()
-            
-            # Create or update subscription (use get_or_create for idempotency)
+
             plan = payment_txn.plan
             start_date = timezone.now()
             end_date = start_date + timezone.timedelta(days=plan.duration_days)
-            
+
             sub, created = Subscription.objects.get_or_create(
                 vendor=vendor,
                 defaults={
@@ -376,8 +394,7 @@ def verify_payment(request):
                     'payment_id': payment_id,
                 }
             )
-            
-            # If subscription already existed, update it
+
             if not created:
                 sub.plan = plan
                 sub.transaction = payment_txn
@@ -385,39 +402,103 @@ def verify_payment(request):
                 sub.is_active = True
                 sub.amount = decimal.Decimal(payment_txn.amount) / 100
                 sub.save()
-            
-            # ✅ Invalidate caches after successful subscription creation/update
-            # Using transaction.on_commit ensures this only runs after DB commit
-            def _invalidate():
-                invalidate_all_user_related(
-                    user_id=request.user.id,
-                    vendor_id=vendor.id,
-                    use_transaction=False  # Already in transaction
-                )
-            
-            transaction.on_commit(_invalidate) 
-            
-            logger.info(f"✅ Subscription {'created' if created else 'updated'} for vendor {vendor.id}")
-            
-            
+
+            transaction.on_commit(lambda: invalidate_all_user_related(
+                user_id=request.user.id,
+                vendor_id=vendor.id,
+                use_transaction=False
+            ))
+
+            logger.info(
+                f" Subscription activated via verify_payment "
+                f"(ENV={settings.ENVIRONMENT}) for vendor {vendor.id}"
+            )
+
             return Response({
                 "success": True,
-                "detail": f"Payment verified and subscription {'created' if created else 'updated'} successfully.",
+                "detail": "Payment verified and subscription activated (local mode).",
                 "subscription": SubscriptionSerializer(sub).data,
                 "transaction": PaymentTransactionSerializer(payment_txn).data,
             }, status=status.HTTP_200_OK)
-            
+
     except Exception as e:
-        logger.exception(f"❌ Error activating subscription for vendor {vendor.id}")
-        # Mark transaction as failed
-        try:
-            payment_txn.mark_as_failed(str(e))
-        except:
-            pass
+        logger.exception("❌ Local verify_payment activation failed")
+        payment_txn.mark_as_failed(str(e))
         return error_response(
-            "Failed to activate subscription. Please contact support.",
+            "Failed to activate subscription.",
             status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+    # try:
+    #     with transaction.atomic():
+    #         payment_txn = PaymentTransaction.objects.select_for_update().get(id=payment_txn.id)
+    #         payment_txn.razorpay_payment_id = payment_id
+    #         payment_txn.razorpay_signature = signature
+    #         payment_txn.status = 'captured'
+    #         payment_txn.verified_at = timezone.now()
+    #         payment_txn.save()
+            
+    #         # Create or update subscription (use get_or_create for idempotency)
+    #         plan = payment_txn.plan
+    #         start_date = timezone.now()
+    #         end_date = start_date + timezone.timedelta(days=plan.duration_days)
+            
+    #         sub, created = Subscription.objects.get_or_create(
+    #             vendor=vendor,
+    #             defaults={
+    #                 'plan': plan,
+    #                 'transaction': payment_txn,
+    #                 'start_date': start_date,
+    #                 'end_date': end_date,
+    #                 'is_active': True,
+    #                 'amount': decimal.Decimal(payment_txn.amount) / 100,
+    #                 'order_id': order_id,
+    #                 'payment_id': payment_id,
+    #             }
+    #         )
+            
+    #         # If subscription already existed, update it
+    #         if not created:
+    #             sub.plan = plan
+    #             sub.transaction = payment_txn
+    #             sub.end_date = end_date
+    #             sub.is_active = True
+    #             sub.amount = decimal.Decimal(payment_txn.amount) / 100
+    #             sub.save()
+            
+    #         # ✅ Invalidate caches after successful subscription creation/update
+    #         # Using transaction.on_commit ensures this only runs after DB commit
+    #         def _invalidate():
+    #             invalidate_all_user_related(
+    #                 user_id=request.user.id,
+    #                 vendor_id=vendor.id,
+    #                 use_transaction=False  # Already in transaction
+    #             )
+            
+    #         transaction.on_commit(_invalidate) 
+            
+    #         logger.info(f"✅ Subscription {'created' if created else 'updated'} for vendor {vendor.id}")
+            
+            
+    #         return Response({
+    #             "success": True,
+    #             "detail": f"Payment verified and subscription {'created' if created else 'updated'} successfully.",
+    #             "subscription": SubscriptionSerializer(sub).data,
+    #             "transaction": PaymentTransactionSerializer(payment_txn).data,
+    #         }, status=status.HTTP_200_OK)
+            
+    # except Exception as e:
+    #     logger.exception(f"❌ Error activating subscription for vendor {vendor.id}")
+    #     # Mark transaction as failed
+    #     try:
+    #         payment_txn.mark_as_failed(str(e))
+    #     except:
+    #         pass
+    #     return error_response(
+    #         "Failed to activate subscription. Please contact support.",
+    #         status.HTTP_500_INTERNAL_SERVER_ERROR
+    #     )
 
 
 @api_view(["GET"])
@@ -461,15 +542,15 @@ def subscription_status(request):
 
 @csrf_exempt
 @api_view(["POST"])
-@permission_classes([AllowAny])  # public webhook
+@permission_classes([AllowAny])  # Razorpay servers only
 def razorpay_webhook(request):
     """
-    🔐 SECURE: Razorpay Webhook Handler for production.
-    Handles automatic payment notifications from Razorpay.
-    
-    Events handled:
-    - payment.captured: Activate subscription
-    - payment.failed: Mark transaction as failed
+    🔐 SECURE Razorpay Webhook Handler
+
+    Source of truth in production.
+    Handles:
+    - payment.captured → activate subscription
+    - payment.failed   → mark transaction failed
     """
     try:
         payload = request.body
@@ -478,100 +559,264 @@ def razorpay_webhook(request):
 
         if not webhook_secret:
             logger.error("RAZORPAY_WEBHOOK_SECRET not configured")
-            return Response({"status": "error", "message": "Webhook not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"status": "error", "message": "Webhook not configured"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
-        # 🔐 Verify webhook signature
         client = get_razorpay_client()
         if client is None:
-            return Response({"status": "error", "message": "Payment gateway not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        client.utility.verify_webhook_signature(payload.decode('utf-8'), signature, webhook_secret)
-        event = json.loads(payload)
-        
-        event_type = event.get("event")
-        logger.info(f"📥 Webhook received: {event_type}")
-        print("++"*30,event)
+            return Response(
+                {"status": "error", "message": "Payment gateway not configured"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
-        # Handle payment.captured event
+        # ✅ Verify webhook authenticity
+        client.utility.verify_webhook_signature(
+            payload.decode("utf-8"),
+            signature,
+            webhook_secret,
+        )
+
+        event = json.loads(payload)
+        event_type = event.get("event")
+
+        logger.info(f"📥 Razorpay webhook received: {event_type}")
+
+        # ===============================
+        # PAYMENT CAPTURED
+        # ===============================
         if event_type == "payment.captured":
             payment = event["payload"]["payment"]["entity"]
             order_id = payment.get("order_id")
             payment_id = payment.get("id")
-            
-            # Find transaction
-            try:
-                payment_txn = PaymentTransaction.objects.select_related('plan', 'vendor').get(
-                    razorpay_order_id=order_id
-                )
-            except PaymentTransaction.DoesNotExist:
-                logger.warning(f"⚠️ PaymentTransaction not found for order {order_id}")
-                return Response({"status": "ignored", "message": "Transaction not found"}, status=status.HTTP_200_OK)
-            
-            # Idempotency check
-            if payment_txn.status == 'captured':
-                logger.info(f"⚠️ Webhook replay ignored for order {order_id}")
-                return Response({"status": "success", "message": "Already processed"}, status=status.HTTP_200_OK)
-            
-            # Activate subscription
-            with transaction.atomic():
-                # Extract signature from payment metadata (if available)
-                signature_from_webhook = payment.get("signature", "")
-                payment_txn.mark_as_captured(payment_id, signature_from_webhook)
-                
-                # Get plan from transaction
-                plan = payment_txn.plan
-                vendor = payment_txn.vendor
-                start_date = timezone.now()
-                duration = plan.duration_days if plan else 30
-                end_date = start_date + timezone.timedelta(days=duration)
-                
-                # Create or update subscription
-                sub, created = Subscription.objects.update_or_create(
-                    vendor=vendor,
-                    defaults={
-                        'plan': plan,
-                        'transaction': payment_txn,
-                        'start_date': start_date,
-                        'end_date': end_date,
-                        'is_active': True,
-                        'after_webhook_called':True,
-                        'amount': decimal.Decimal(payment_txn.amount) / 100,
-                        'order_id': order_id,
-                        'payment_id': payment_id,
-                    }
-                )
-                
-                # ✅ Invalidate caches after successful webhook processing
-                def _invalidate():
-                    invalidate_all_user_related(
-                        user_id=vendor.user_id,
-                        vendor_id=vendor.id,
-                        use_transaction=False  # Already in transaction
-                    )
-                
-                transaction.on_commit(_invalidate)
-                
-                logger.info(f"✅ Webhook activated subscription for vendor {vendor.id}")
 
-        
-        # Handle payment.failed event
+            try:
+                with transaction.atomic():
+                    # 🔒 Lock row to prevent webhook race conditions
+                    payment_txn = (
+                        PaymentTransaction.objects
+                        .select_for_update()
+                        .select_related("plan", "vendor")
+                        .get(razorpay_order_id=order_id)
+                    )
+
+                    # ✅ Idempotency + state guard
+                    if payment_txn.status not in ["created", "processing"]:
+                        logger.info(
+                            f"⚠️ Webhook ignored for order {order_id}, "
+                            f"status={payment_txn.status}"
+                        )
+                        return Response(
+                            {"status": "success", "message": "Already processed"},
+                            status=status.HTTP_200_OK,
+                        )
+
+                    # ✅ Mark transaction captured
+                    payment_txn.mark_as_captured(payment_id)
+
+                    plan = payment_txn.plan
+                    vendor = payment_txn.vendor
+                    start_date = timezone.now()
+                    end_date = start_date + timezone.timedelta(
+                        days=plan.duration_days if plan else 30
+                    )
+
+                    # ✅ Create or update subscription
+                    Subscription.objects.update_or_create(
+                        vendor=vendor,
+                        defaults={
+                            "plan": plan,
+                            "transaction": payment_txn,
+                            "start_date": start_date,
+                            "end_date": end_date,
+                            "is_active": True,
+                            "after_webhook_called": True,
+                            "amount": decimal.Decimal(payment_txn.amount) / 100,
+                            "order_id": order_id,
+                            "payment_id": payment_id,
+                        },
+                    )
+
+                    # ✅ Invalidate caches AFTER commit
+                    transaction.on_commit(
+                        lambda: invalidate_all_user_related(
+                            user_id=vendor.user_id,
+                            vendor_id=vendor.id,
+                            use_transaction=False,
+                        )
+                    )
+
+                    logger.info(
+                        f"✅ Subscription activated via webhook for vendor {vendor.id}"
+                    )
+
+            except PaymentTransaction.DoesNotExist:
+                logger.warning(
+                    f"⚠️ PaymentTransaction not found for order {order_id}"
+                )
+                return Response(
+                    {"status": "ignored", "message": "Transaction not found"},
+                    status=status.HTTP_200_OK,
+                )
+
+        # ===============================
+        # PAYMENT FAILED
+        # ===============================
         elif event_type == "payment.failed":
             payment = event["payload"]["payment"]["entity"]
             order_id = payment.get("order_id")
-            error_description = payment.get("error_description", "Payment failed")
-            
+            error_description = payment.get(
+                "error_description", "Payment failed"
+            )
+
             try:
-                payment_txn = PaymentTransaction.objects.get(razorpay_order_id=order_id)
+                payment_txn = PaymentTransaction.objects.get(
+                    razorpay_order_id=order_id
+                )
                 payment_txn.mark_as_failed(error_description)
-                logger.info(f"❌ Payment failed for order {order_id}: {error_description}")
+                logger.info(
+                    f"❌ Payment failed for order {order_id}: {error_description}"
+                )
             except PaymentTransaction.DoesNotExist:
-                logger.warning(f"⚠️ Transaction not found for failed payment {order_id}")
+                logger.warning(
+                    f"⚠️ Transaction not found for failed payment {order_id}"
+                )
 
         return Response({"status": "success"}, status=status.HTTP_200_OK)
 
-    except razorpay.errors.SignatureVerificationError as e:
-        logger.error(f"❌ Invalid Razorpay webhook signature: {str(e)}")
-        return Response({"status": "error", "message": "Invalid signature"}, status=status.HTTP_400_BAD_REQUEST)
-    except Exception as e:
-        logger.exception("❌ Webhook processing error")
-        return Response({"status": "error", "message": "Webhook processing failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except razorpay.errors.SignatureVerificationError:
+        logger.error("❌ Invalid Razorpay webhook signature")
+        return Response(
+            {"status": "error", "message": "Invalid signature"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    except Exception:
+        logger.exception("❌ Razorpay webhook processing error")
+        return Response(
+            {"status": "error", "message": "Webhook processing failed"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+# @csrf_exempt
+# @api_view(["POST"])
+# @permission_classes([AllowAny])  # public webhook
+# def razorpay_webhook(request):
+#     """
+#     🔐 SECURE: Razorpay Webhook Handler for production.
+#     Handles automatic payment notifications from Razorpay.
+    
+#     Events handled:
+#     - payment.captured: Activate subscription
+#     - payment.failed: Mark transaction as failed
+#     """
+#     try:
+#         payload = request.body
+#         signature = request.headers.get("X-Razorpay-Signature")
+#         webhook_secret = getattr(settings, "RAZORPAY_WEBHOOK_SECRET", None)
+
+#         if not webhook_secret:
+#             logger.error("RAZORPAY_WEBHOOK_SECRET not configured")
+#             return Response({"status": "error", "message": "Webhook not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+#         # 🔐 Verify webhook signature
+#         client = get_razorpay_client()
+#         if client is None:
+#             return Response({"status": "error", "message": "Payment gateway not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+#         client.utility.verify_webhook_signature(payload.decode('utf-8'), signature, webhook_secret)
+#         event = json.loads(payload)
+        
+#         event_type = event.get("event")
+#         logger.info(f"📥 Webhook received: {event_type}")
+#         print("++"*30,event)
+
+#         # Handle payment.captured event
+#         if event_type == "payment.captured":
+#             payment = event["payload"]["payment"]["entity"]
+#             order_id = payment.get("order_id")
+#             payment_id = payment.get("id")
+            
+#             # Find transaction
+#             try:
+#                 payment_txn = PaymentTransaction.objects.select_for_update().select_related(
+#                     'plan', 'vendor'
+#                 ).get(razorpay_order_id=order_id)
+
+                
+#             except PaymentTransaction.DoesNotExist:
+#                 logger.warning(f"⚠️ PaymentTransaction not found for order {order_id}")
+#                 return Response({"status": "ignored", "message": "Transaction not found"}, status=status.HTTP_200_OK)
+            
+#             # Idempotency check
+#             if payment_txn.status == 'captured':
+#                 logger.info(f"⚠️ Webhook replay ignored for order {order_id}")
+#                 return Response({"status": "success", "message": "Already processed"}, status=status.HTTP_200_OK)
+            
+#             # Activate subscription
+#             with transaction.atomic():
+#                 # Extract signature from payment metadata (if available)
+#                 # signature_from_webhook = payment.get("signature", "")
+#                 # payment_txn.mark_as_captured(payment_id, signature_from_webhook)
+#                 payment_txn.mark_as_captured(payment_id)
+
+                
+#                 # Get plan from transaction
+#                 plan = payment_txn.plan
+#                 vendor = payment_txn.vendor
+#                 start_date = timezone.now()
+#                 duration = plan.duration_days if plan else 30
+#                 end_date = start_date + timezone.timedelta(days=duration)
+                
+#                 # Create or update subscription
+#                 sub, created = Subscription.objects.update_or_create(
+#                     vendor=vendor,
+#                     defaults={
+#                         'plan': plan,
+#                         'transaction': payment_txn,
+#                         'start_date': start_date,
+#                         'end_date': end_date,
+#                         'is_active': True,
+#                         'after_webhook_called':True,
+#                         'amount': decimal.Decimal(payment_txn.amount) / 100,
+#                         'order_id': order_id,
+#                         'payment_id': payment_id,
+#                     }
+#                 )
+                
+#                 # ✅ Invalidate caches after successful webhook processing
+#                 def _invalidate():
+#                     invalidate_all_user_related(
+#                         user_id=vendor.user_id,
+#                         vendor_id=vendor.id,
+#                         use_transaction=False  # Already in transaction
+#                     )
+                
+#                 transaction.on_commit(_invalidate)
+                
+#                 logger.info(f"✅ Webhook activated subscription for vendor {vendor.id}")
+
+        
+#         # Handle payment.failed event
+#         elif event_type == "payment.failed":
+#             payment = event["payload"]["payment"]["entity"]
+#             order_id = payment.get("order_id")
+#             error_description = payment.get("error_description", "Payment failed")
+            
+#             try:
+#                 payment_txn = PaymentTransaction.objects.get(razorpay_order_id=order_id)
+#                 payment_txn.mark_as_failed(error_description)
+#                 logger.info(f"❌ Payment failed for order {order_id}: {error_description}")
+#             except PaymentTransaction.DoesNotExist:
+#                 logger.warning(f"⚠️ Transaction not found for failed payment {order_id}")
+
+#         return Response({"status": "success"}, status=status.HTTP_200_OK)
+
+#     except razorpay.errors.SignatureVerificationError as e:
+#         logger.error(f"❌ Invalid Razorpay webhook signature: {str(e)}")
+#         return Response({"status": "error", "message": "Invalid signature"}, status=status.HTTP_400_BAD_REQUEST)
+#     except Exception as e:
+#         logger.exception("❌ Webhook processing error")
+#         return Response({"status": "error", "message": "Webhook processing failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
