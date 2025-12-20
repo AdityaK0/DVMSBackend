@@ -144,6 +144,8 @@ def create_order(request):
             'notes': {
                 'vendor_id': vendor.id,
                 'plan_id': plan.id,
+                'vendor_name': request.user.first_name + ' ' + request.user.last_name if request.user.first_name or request.user.last_name else request.user.username,
+                'vendor_phone': vendor.business_phone,
                 'plan_name': plan.name,
             }
         })
