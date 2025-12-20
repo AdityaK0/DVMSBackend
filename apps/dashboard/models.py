@@ -19,7 +19,7 @@ class Customer(models.Model):
         ordering = ['-created_at']
         unique_together = ('vendor', 'phone')
         indexes = [
-            models.Index(fields=['vendor', 'is_active']),  # ✅ Common filter: active customers per vendor
+            # models.Index(fields=['vendor', 'is_active']),  # ✅ Common filter: active customers per vendor
             models.Index(fields=['vendor', '-created_at']), # ✅ OPTIMIZATION: Critical for default customer list sort
         ]
 
@@ -59,7 +59,7 @@ class Invoice(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["vendor", "invoice_date"]),
-            models.Index(fields=["vendor", "is_udhaari"]),  # ✅ Filter by udhaari status
+            # models.Index(fields=["vendor", "is_udhaari"]),  # ✅ Filter by udhaari status
             models.Index(fields=["vendor", "pending_amount"]),  # ✅ Pending invoices query
             models.Index(fields=["vendor", "customer_phone"]),  # ✅ Customer invoice lookup
             models.Index(fields=["vendor", "-created_at"]),  # ✅ Recent invoices (descending)
@@ -70,7 +70,7 @@ class InvoicePayment(models.Model):
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="payments")
     amount = models.DecimalField(max_digits=12, decimal_places=2)  #CRITICAL FIX: Use DecimalField
     note = models.CharField(max_length=255, blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)  #Add index for sorting
+    created_at = models.DateTimeField(auto_now_add=True)  #Add index for sorting
 
     class Meta:
         indexes = [
@@ -128,7 +128,7 @@ class InvoiceChangeLog(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=['invoice', '-created_at']),  # ✅ Changelog history per invoice
-            models.Index(fields=['vendor', 'change_type']),  # ✅ Filter by change type per vendor
+            # models.Index(fields=['vendor', 'change_type']),  # ✅ Filter by change type per vendor
             models.Index(fields=['vendor', '-created_at']),  # ✅ Recent changes per vendor
         ]
 

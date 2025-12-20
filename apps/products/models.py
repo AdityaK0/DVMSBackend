@@ -17,7 +17,7 @@ class Category(models.Model):
     class Meta:
         unique_together = ('name', 'vendor')  # vendor-specific names
         indexes = [
-            models.Index(fields=["vendor", "is_active"]),
+            # models.Index(fields=["vendor", "is_active"]),
             models.Index(fields=["parent"]),
         ]
 
@@ -64,11 +64,7 @@ class Product(models.Model):
     
     class Meta:
         unique_together = ('vendor', 'sku')
-        indexes = [
-            models.Index(fields=["vendor", "is_active", "is_archived"]),
-            models.Index(fields=["vendor", "is_featured"]),
-            models.Index(fields=["category", "is_active"]),
-        ]
+
     
 
     def __str__(self):

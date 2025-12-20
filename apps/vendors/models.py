@@ -57,11 +57,6 @@ class Vendor(models.Model):
         help_text="Permanent URL handle for vendor portfolio. Auto-generated on onboarding, never auto-updates."
     )
     
-    class Meta:
-        indexes = [
-            # models.Index(fields=['is_active', 'is_verified']), # Removed: low cardinality, rarely used alone
-            models.Index(fields=['created_at']),
-        ]
 
     def __str__(self):
         return self.business_name

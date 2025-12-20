@@ -55,10 +55,10 @@ class User(AbstractUser):
             ),
         ]
         
-        # indexes = [
-        #     models.Index(fields=["role", "is_active"]),
-        #     models.Index(Lower("email")),
-        # ]
+    # indexes = [
+    #     models.Index(fields=["role", "is_active"]),
+    #     models.Index(Lower("email")),
+    # ]
 
     def __str__(self):
         return f"{self.username} ({self.role})"
@@ -68,7 +68,7 @@ class User(AbstractUser):
         return self.name or f"{self.first_name} {self.last_name}".strip()
 
 class Address(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses', db_index=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses')
     street_address = models.CharField(max_length=255)
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
@@ -86,11 +86,6 @@ class Address(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        indexes = [
-            models.Index(fields=["user", "is_default"]),
-            # models.Index(fields=["city", "state"]), # Removed: unused query pattern
-            models.Index(fields=["user", "address_type"], name="idx_address_user_type"),
-        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["user"],

@@ -73,11 +73,6 @@ class PaymentTransaction(models.Model):
     
     class Meta:
         ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['vendor', 'status']),
-            models.Index(fields=['razorpay_order_id']),
-            # razorpay_payment_id has db_index=True, so no need for explicit index here unless composite
-        ]
         constraints = [
             models.UniqueConstraint(
                 fields=['razorpay_payment_id', 'razorpay_signature'],
