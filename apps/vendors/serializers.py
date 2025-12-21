@@ -22,7 +22,9 @@ class VendorSerializer(serializers.ModelSerializer):
             "business_email", "business_type", "business_phone", "handle",
             "gstin", "website", "logo",
             "is_active", "is_verified", "whatsapp_number",
+            "is_active", "is_verified", "whatsapp_number",
             "created_at", "updated_at", "is_onboarded", "address_details", "secret", "telegram_chat_id",
+            "google_maps_url",
             "handle",  # ✅ Permanent portfolio URL handle
             "business_started_year", "business_role", "business_categories", "business_hours"
         ]
@@ -99,7 +101,7 @@ class VendorUpdate(serializers.ModelSerializer):
             "business_name", "business_description", "business_type",
             "website", "logo", "gstin",
             "street_address", "city", "state", "zip_code", "country","business_phone",
-            "address_details","whatsapp_number",
+            "address_details","whatsapp_number", "google_maps_url",
             "business_started_year", "business_role", "business_categories", "business_hours",
         ]
         read_only_fields = ["user", "is_verified", "created_at", "updated_at","business_name"]

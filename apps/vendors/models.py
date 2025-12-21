@@ -40,6 +40,7 @@ class Vendor(models.Model):
     )
     secret_expires_at = models.DateTimeField(null=True, blank=True)
     geolocation = models.JSONField(null=True, blank=True)
+    google_maps_url = models.CharField(max_length=800,blank=True, null=True)
     
     # Enhanced Onboarding Fields
     business_started_year = models.PositiveIntegerField(null=True, blank=True)
