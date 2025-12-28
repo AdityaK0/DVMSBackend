@@ -121,7 +121,7 @@ def create_default_portfolio_for_vendor(vendor):
     
     # Generate portfolio URL based on environment
     if settings.ENVIRONMENT == "development":
-        portfolio_url = f"http://{url_handle}.localhost:3000"
+        portfolio_url = f"http://{url_handle}.localhost:5174"
     else:
         # Production: use handle-based subdomain
         portfolio_url = f"https://{url_handle}.fordgeindia.online"
