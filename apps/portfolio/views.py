@@ -93,6 +93,14 @@ def vendor_portfolio_manage(request):
     
 
     portfolio.carousel_images = existing + new_uploaded
+    
+    # Check limit
+    if len(portfolio.carousel_images) > 4:
+        return Response(
+            {"detail": "Max 4 carousel images allowed."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
     portfolio.save(update_fields=["banner_image", "carousel_images"])
 
     serializer = PortfolioSerializer(portfolio, data=request.data, partial=True)
