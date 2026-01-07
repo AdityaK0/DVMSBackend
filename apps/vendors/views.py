@@ -67,6 +67,10 @@ def create_vendor(request):
             incoming_email = request.data.get("business_email")
             if incoming_email and Vendor.objects.exclude(id=vendor.id).filter(business_email=incoming_email).exists():
                 raise ValidationError({"business_email": "This business email is already registered."})
+
+            incoming_whatsapp = request.data.get("whatsapp_number")
+            if incoming_whatsapp and Vendor.objects.exclude(id=vendor.id).filter(whatsapp_number=incoming_whatsapp).exists():
+                raise ValidationError({"whatsapp_number": "This WhatsApp number is already registered."})
             incoming_business_name = request.data.get("business_name", "").strip().lower()
             
             RESERVED_HANDLES = {
