@@ -189,11 +189,13 @@ class ProductService:
 
         with transaction.atomic():
             product.is_archived = True
-            product.save(update_fields=["is_archived"])
+            product.is_active = False
+            product.save(update_fields=["is_archived", "is_active"])
         
         # Soft delete
         product.is_archived = True
-        product.save(update_fields=["is_archived"])
+        product.is_active = False
+        product.save(update_fields=["is_archived", "is_active"])
         
         ProductDeleted({
         "id": product_id,
