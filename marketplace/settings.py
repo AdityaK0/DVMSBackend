@@ -78,6 +78,7 @@ ALLOWED_HOSTS = [
     "api.fordgeindia.online",
     "13.234.203.82",
     "localhost",
+    "3.111.80.146",
     "127.0.0.1",
 ]
 if DEBUG:
@@ -185,6 +186,7 @@ AWS_ACCESS_KEY_ID=os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY=os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_STORAGE_BUCKET_NAME=os.getenv("AWS_STORAGE_BUCKET_NAME")
 AWS_S3_REGION_NAME=os.getenv("AWS_S3_REGION_NAME")
+AWS_S3_BASE_URL="https://fordgeindia-media.s3.amazonaws.com"
 
 CLOUDINARY_STORAGE = {
     "CLOUDINARY_CLOUD_NAME": os.getenv("CLOUDINARY_CLOUD_NAME"),

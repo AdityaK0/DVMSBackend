@@ -12,6 +12,7 @@ def get_presigned_url(request):
     file_type = request.data.get("file_type")
     # folder = request.data.get("folder", "products")
     folder = request.data.get("folder", "products").strip("/")
+    print(boto3.client("sts").get_caller_identity())
 
 
     if not file_name or not file_type:
