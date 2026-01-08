@@ -87,7 +87,9 @@ if DEBUG:
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
-    "https://api.fordgeindia.online"
+    "https://api.fordgeindia.online",
+    "https://49c782eb.fordgeindia-admin-frontend.pages.dev",
+    "49c782eb.fordgeindia-admin-frontend.pages.dev",
 ]
 
 
