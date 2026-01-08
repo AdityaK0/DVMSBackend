@@ -88,8 +88,6 @@ if DEBUG:
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "https://api.fordgeindia.online",
-    "https://49c782eb.fordgeindia-admin-frontend.pages.dev",
-    "49c782eb.fordgeindia-admin-frontend.pages.dev",
 ]
 
 
@@ -130,8 +128,8 @@ INSTALLED_APPS = INSTALLED_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # Keep only once, at top
+    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',  # Keep only once
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -280,10 +278,13 @@ FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN")
 
 frontend_origins = os.getenv("FRONTEND_ORIGINS", "")
 
-CORS_ALLOWED_ORIGINS=["https://d2pwo63dqka82f.cloudfront.net","http://localhost:5173","https://admin.fordgeindia.online","https://www.admin.fordgeindia.online","https://49c782eb.fordgeindia-admin-frontend.pages.dev"]
+CORS_ALLOWED_ORIGINS=["https://d2pwo63dqka82f.cloudfront.net","http://localhost:5173","https://admin.fordgeindia.online","https://www.admin.fordgeindia.online"]
 
-CSRF_TRUSTED_ORIGINS = ["https://d2pwo63dqka82f.cloudfront.net","http://localhost:5173","https://admin.fordgeindia.online","https://www.admin.fordgeindia.online","https://49c782eb.fordgeindia-admin-frontend.pages.dev"]
+CSRF_TRUSTED_ORIGINS = ["https://d2pwo63dqka82f.cloudfront.net","http://localhost:5173"]
 
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.pages\.dev$",
+]
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_ALL_ORIGINS = ENVIRONMENT != "production"
